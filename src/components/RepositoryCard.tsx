@@ -34,13 +34,28 @@ export const RepositoryCard = ({ repo }: RepositoryCardProps) => {
       if (isExpanded && !config) {
         setIsLoading(true);
         try {
-          // Try problem_config.json first
+          // Try master branch first
           let response = await fetch(
-            `https://raw.githubusercontent.com/Rastion/${repo.name}/main/problem_config.json`
+            `https://raw.githubusercontent.com/Rastion/${repo.name}/master/problem_config.json`
           );
           
-          // If problem_config.json doesn't exist, try solver_config.json
           if (!response.ok) {
+            console.log(`Trying solver_config.json in master branch for ${repo.name}`);
+            response = await fetch(
+              `https://raw.githubusercontent.com/Rastion/${repo.name}/master/solver_config.json`
+            );
+          }
+
+          // If master branch fails, try main branch
+          if (!response.ok) {
+            console.log(`Trying problem_config.json in main branch for ${repo.name}`);
+            response = await fetch(
+              `https://raw.githubusercontent.com/Rastion/${repo.name}/main/problem_config.json`
+            );
+          }
+
+          if (!response.ok) {
+            console.log(`Trying solver_config.json in main branch for ${repo.name}`);
             response = await fetch(
               `https://raw.githubusercontent.com/Rastion/${repo.name}/main/solver_config.json`
             );
@@ -50,7 +65,7 @@ export const RepositoryCard = ({ repo }: RepositoryCardProps) => {
             const data = await response.json();
             setConfig(data);
           } else {
-            console.log(`No config file found for ${repo.name}`);
+            console.log(`No config file found for ${repo.name} in either master or main branch`);
           }
         } catch (error) {
           console.error("Error fetching config:", error);
