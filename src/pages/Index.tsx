@@ -54,8 +54,6 @@ const Index = () => {
     stars: repo.stargazers_count,
     forks: repo.forks_count,
     updatedAt: repo.updated_at,
-    installCommand: `git clone ${repo.html_url}.git`,
-    usage: `cd ${repo.name}\nnpm install\nnpm start`,
     docsUrl: repo.html_url,
   });
 
@@ -97,10 +95,15 @@ const Index = () => {
             Unable to load repositories. Please check the organization name and try again.
           </div>
         ) : (
-          <div className="grid gap-6 md:grid-cols-2">
-            {filteredRepos?.map((repo: GitHubRepo) => (
-              <RepositoryCard key={repo.name} repo={formatRepoData(repo)} />
-            ))}
+          <div className="space-y-8">
+            <div>
+              <h2 className="text-2xl font-semibold text-github-gray mb-4">Problems</h2>
+              <div className="grid gap-6 md:grid-cols-2">
+                {filteredRepos?.map((repo: GitHubRepo) => (
+                  <RepositoryCard key={repo.name} repo={formatRepoData(repo)} />
+                ))}
+              </div>
+            </div>
           </div>
         )}
       </div>

@@ -9,6 +9,7 @@ interface ConfigParams {
 interface Config {
   entry_point: string;
   default_params: ConfigParams;
+  type?: 'problem' | 'optimizer';
 }
 
 interface Repository {
@@ -37,21 +38,23 @@ export const RepositoryCard = ({ repo }: RepositoryCardProps) => {
           const configTypes = ['problem_config.json', 'solver_config.json'];
           const branches = ['master', 'main'];
           let configData = null;
+          let configType = '';
 
           for (const branch of branches) {
-            for (const configType of configTypes) {
+            for (const type of configTypes) {
               try {
-                const url = `https://raw.githubusercontent.com/Rastion/${repo.name}/${branch}/${configType}`;
+                const url = `https://raw.githubusercontent.com/Rastion/${repo.name}/${branch}/${type}`;
                 console.log(`Attempting to fetch config from: ${url}`);
                 const response = await fetch(url);
                 
                 if (response.ok) {
                   configData = await response.json();
-                  console.log(`Successfully fetched ${configType} from ${branch} branch`);
+                  configType = type;
+                  console.log(`Successfully fetched ${type} from ${branch} branch`);
                   break;
                 }
               } catch (err) {
-                console.log(`Failed to fetch ${configType} from ${branch} branch`);
+                console.log(`Failed to fetch ${type} from ${branch} branch`);
                 continue;
               }
             }
@@ -59,7 +62,10 @@ export const RepositoryCard = ({ repo }: RepositoryCardProps) => {
           }
 
           if (configData) {
-            setConfig(configData);
+            setConfig({
+              ...configData,
+              type: configType === 'problem_config.json' ? 'problem' : 'optimizer'
+            });
           } else {
             console.log(`No config file found for ${repo.name} in any branch`);
           }
@@ -79,6 +85,13 @@ export const RepositoryCard = ({ repo }: RepositoryCardProps) => {
     fetchConfig();
   }, [isExpanded, repo.name, config]);
 
+  const getTypeLabel = () => {
+    if (!config?.type) return '';
+    return config.type === 'problem' ? 
+      '🎯 Problem' : 
+      '⚡ Optimizer';
+  };
+
   return (
     <div className="border border-github-border rounded-lg overflow-hidden transition-all duration-200 hover:border-github-blue">
       <div
@@ -90,7 +103,14 @@ export const RepositoryCard = ({ repo }: RepositoryCardProps) => {
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-3">
             <Folder className="w-5 h-5 text-github-gray" />
-            <h2 className="text-xl font-semibold text-github-blue">{repo.name}</h2>
+            <div>
+              <h2 className="text-xl font-semibold text-github-blue">{repo.name}</h2>
+              {config?.type && (
+                <span className="text-sm font-medium text-github-gray">
+                  {getTypeLabel()}
+                </span>
+              )}
+            </div>
           </div>
           {isExpanded ? (
             <ArrowUp className="w-5 h-5 text-github-gray" />
