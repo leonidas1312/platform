@@ -3,6 +3,7 @@ import { RepositoryCard } from "@/components/RepositoryCard";
 import { Input } from "@/components/ui/input";
 import { useQuery } from "@tanstack/react-query";
 import { Search } from "lucide-react";
+import { toast } from "@/components/ui/use-toast";
 
 interface GitHubRepo {
   name: string;
@@ -14,18 +15,31 @@ interface GitHubRepo {
 }
 
 const fetchRepos = async () => {
-  const response = await fetch(
-    "https://api.github.com/orgs/RastionHub/repos"
-  );
-  if (!response.ok) {
-    throw new Error("Failed to fetch repositories");
+  try {
+    const response = await fetch(
+      "https://api.github.com/users/RastionHub/repos"
+    );
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || "Failed to fetch repositories");
+    }
+    
+    return response.json();
+  } catch (error) {
+    console.error("Error fetching repos:", error);
+    toast({
+      title: "Error",
+      description: "Unable to fetch repositories. Please check the organization name and try again.",
+      variant: "destructive",
+    });
+    throw error;
   }
-  return response.json();
 };
 
 const Index = () => {
   const [searchTerm, setSearchTerm] = useState("");
-  const { data: repos, isLoading } = useQuery({
+  const { data: repos, isLoading, error } = useQuery({
     queryKey: ["repos"],
     queryFn: fetchRepos,
   });
@@ -78,6 +92,10 @@ const Index = () => {
 
         {isLoading ? (
           <div className="text-center text-github-gray">Loading repositories...</div>
+        ) : error ? (
+          <div className="text-center text-red-500">
+            Unable to load repositories. Please check the organization name and try again.
+          </div>
         ) : (
           <div className="grid gap-6 md:grid-cols-2">
             {filteredRepos?.map((repo: GitHubRepo) => (
