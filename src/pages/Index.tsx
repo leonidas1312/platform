@@ -17,7 +17,7 @@ interface GitHubRepo {
 const fetchRepos = async () => {
   try {
     const response = await fetch(
-      "https://api.github.com/users/RastionHub/repos"
+      "https://api.github.com/users/Rastion/repos"
     );
     
     if (!response.ok) {
@@ -63,7 +63,7 @@ const Index = () => {
     <div className="min-h-screen bg-white">
       <div className="container py-12">
         <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold text-github-gray mb-4">RastionHub</h1>
+          <h1 className="text-4xl font-bold text-github-gray mb-4">Rastion-Hub</h1>
           <p className="text-xl text-github-gray mb-8">Optimizing together</p>
           <div className="max-w-2xl mx-auto text-github-gray mb-12">
             <p className="mb-4">
