@@ -34,38 +34,34 @@ export const RepositoryCard = ({ repo }: RepositoryCardProps) => {
       if (isExpanded && !config) {
         setIsLoading(true);
         try {
-          // Try master branch first
-          let response = await fetch(
-            `https://raw.githubusercontent.com/Rastion/${repo.name}/master/problem_config.json`
-          );
-          
-          if (!response.ok) {
-            console.log(`Trying solver_config.json in master branch for ${repo.name}`);
-            response = await fetch(
-              `https://raw.githubusercontent.com/Rastion/${repo.name}/master/solver_config.json`
-            );
+          const configTypes = ['problem_config.json', 'solver_config.json'];
+          const branches = ['master', 'main'];
+          let configData = null;
+
+          for (const branch of branches) {
+            for (const configType of configTypes) {
+              try {
+                const url = `https://raw.githubusercontent.com/Rastion/${repo.name}/${branch}/${configType}`;
+                console.log(`Attempting to fetch config from: ${url}`);
+                const response = await fetch(url);
+                
+                if (response.ok) {
+                  configData = await response.json();
+                  console.log(`Successfully fetched ${configType} from ${branch} branch`);
+                  break;
+                }
+              } catch (err) {
+                console.log(`Failed to fetch ${configType} from ${branch} branch`);
+                continue;
+              }
+            }
+            if (configData) break;
           }
 
-          // If master branch fails, try main branch
-          if (!response.ok) {
-            console.log(`Trying problem_config.json in main branch for ${repo.name}`);
-            response = await fetch(
-              `https://raw.githubusercontent.com/Rastion/${repo.name}/main/problem_config.json`
-            );
-          }
-
-          if (!response.ok) {
-            console.log(`Trying solver_config.json in main branch for ${repo.name}`);
-            response = await fetch(
-              `https://raw.githubusercontent.com/Rastion/${repo.name}/main/solver_config.json`
-            );
-          }
-
-          if (response.ok) {
-            const data = await response.json();
-            setConfig(data);
+          if (configData) {
+            setConfig(configData);
           } else {
-            console.log(`No config file found for ${repo.name} in either master or main branch`);
+            console.log(`No config file found for ${repo.name} in any branch`);
           }
         } catch (error) {
           console.error("Error fetching config:", error);
