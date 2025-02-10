@@ -35,12 +35,12 @@ const Landing = () => {
         <div className="mb-16">
           <h2 className="text-2xl font-semibold text-github-gray mb-6">Get Started with Rastion</h2>
           <div className="grid md:grid-cols-2 gap-8">
-            <div className="bg-gray-50 p-6 rounded-lg">
-              <h3 className="text-xl font-semibold mb-4 flex items-center gap-2">
+            <div className="bg-gradient-to-br from-[#1A1F2C] to-[#221F26] p-6 rounded-lg shadow-xl transform hover:scale-[1.02] transition-all duration-300">
+              <h3 className="text-xl font-semibold mb-4 flex items-center gap-2 text-white">
                 <Code2 className="w-5 h-5" />
                 Using Optimizers and Solvers
               </h3>
-              <pre className="bg-white p-4 rounded text-sm overflow-x-auto">
+              <pre className="bg-[#1E1E1E] p-4 rounded text-sm overflow-x-auto font-code text-[#9b87f5] shadow-inner animate-fade-in">
 {`from rastion_hub.auto_optimizer import AutoOptimizer
 from rastion_hub.auto_problem import AutoProblem
 
@@ -59,12 +59,12 @@ solution, value = solver.optimize(problem)`}
               </pre>
             </div>
 
-            <div className="bg-gray-50 p-6 rounded-lg">
-              <h3 className="text-xl font-semibold mb-4 flex items-center gap-2">
+            <div className="bg-gradient-to-br from-[#1A1F2C] to-[#221F26] p-6 rounded-lg shadow-xl transform hover:scale-[1.02] transition-all duration-300">
+              <h3 className="text-xl font-semibold mb-4 flex items-center gap-2 text-white">
                 <Code2 className="w-5 h-5" />
                 Sharing Your Work
               </h3>
-              <pre className="bg-white p-4 rounded text-sm overflow-x-auto">
+              <pre className="bg-[#1E1E1E] p-4 rounded text-sm overflow-x-auto font-code text-[#9b87f5] shadow-inner animate-fade-in">
 {`# Create a new solver repository
 rastion create_repo my-solver --org Rastion
 
