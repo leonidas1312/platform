@@ -46,13 +46,13 @@ from rastion_hub.auto_problem import AutoProblem
 
 # Load a problem from the hub
 problem = AutoProblem.from_repo(
-    "Rastion/my-problem-repo", 
+    "Rastion/portfolio-optimization", 
     revision="main"
 )
 
 # Load and run an optimizer
 solver = AutoOptimizer.from_repo(
-    "Rastion/my-solver-repo", 
+    "Rastion/particle-swarm", 
     revision="main"
 )
 solution, value = solver.optimize(problem)`}
