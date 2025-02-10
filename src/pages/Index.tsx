@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { RepositoryCard } from "@/components/RepositoryCard";
 import { Input } from "@/components/ui/input";
@@ -99,9 +100,28 @@ const Index = () => {
             <div>
               <h2 className="text-2xl font-semibold text-github-gray mb-4">Problems</h2>
               <div className="grid gap-6 md:grid-cols-2">
-                {filteredRepos?.map((repo: GitHubRepo) => (
-                  <RepositoryCard key={repo.name} repo={formatRepoData(repo)} />
-                ))}
+                {filteredRepos
+                  ?.filter((repo: GitHubRepo) => {
+                    const card = document.querySelector(`[data-repo="${repo.name}"]`);
+                    return card?.getAttribute('data-type') === 'problem';
+                  })
+                  .map((repo: GitHubRepo) => (
+                    <RepositoryCard key={repo.name} repo={formatRepoData(repo)} />
+                  ))}
+              </div>
+            </div>
+
+            <div>
+              <h2 className="text-2xl font-semibold text-github-gray mb-4">Optimizers</h2>
+              <div className="grid gap-6 md:grid-cols-2">
+                {filteredRepos
+                  ?.filter((repo: GitHubRepo) => {
+                    const card = document.querySelector(`[data-repo="${repo.name}"]`);
+                    return card?.getAttribute('data-type') === 'optimizer';
+                  })
+                  .map((repo: GitHubRepo) => (
+                    <RepositoryCard key={repo.name} repo={formatRepoData(repo)} />
+                  ))}
               </div>
             </div>
           </div>

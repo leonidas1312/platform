@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Github, ArrowUp, ArrowDown, Folder } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
@@ -93,7 +94,11 @@ export const RepositoryCard = ({ repo }: RepositoryCardProps) => {
   };
 
   return (
-    <div className="border border-github-border rounded-lg overflow-hidden transition-all duration-200 hover:border-github-blue">
+    <div 
+      className="border border-github-border rounded-lg overflow-hidden transition-all duration-200 hover:border-github-blue"
+      data-repo={repo.name}
+      data-type={config?.type}
+    >
       <div
         className={`p-6 cursor-pointer transition-colors duration-200 ${
           isExpanded ? "bg-github-hover" : "hover:bg-github-hover"
