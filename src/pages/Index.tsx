@@ -3,7 +3,7 @@ import { useState } from "react";
 import { RepositoryCard } from "@/components/RepositoryCard";
 import { Input } from "@/components/ui/input";
 import { useQuery } from "@tanstack/react-query";
-import { Search, Code2 } from "lucide-react";
+import { Search, Code2, BookOpen } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
 
 interface GitHubRepo {
@@ -57,17 +57,6 @@ const Index = () => {
     updatedAt: repo.updated_at,
     docsUrl: repo.html_url,
   });
-
-  const problemRepos = filteredRepos?.filter((repo: GitHubRepo) => 
-    repo.name.toLowerCase().includes("problem") || 
-    repo.description?.toLowerCase().includes("problem")
-  );
-
-  const optimizerRepos = filteredRepos?.filter((repo: GitHubRepo) => 
-    repo.name.toLowerCase().includes("solver") || 
-    repo.description?.toLowerCase().includes("optimizer") ||
-    repo.description?.toLowerCase().includes("solver")
-  );
 
   return (
     <div className="min-h-screen bg-white">
@@ -140,6 +129,77 @@ rastion push_problem my-problem \\
           </div>
         </div>
 
+        <div className="mb-16">
+          <h2 className="text-2xl font-semibold text-github-gray mb-6 flex items-center gap-2">
+            <BookOpen className="w-6 h-6" />
+            Documentation
+          </h2>
+          <div className="space-y-8">
+            <div className="bg-gray-50 p-6 rounded-lg">
+              <h3 className="text-xl font-semibold mb-4">Installation</h3>
+              <pre className="bg-white p-4 rounded text-sm overflow-x-auto mb-4">
+{`# Clone the repository
+git clone https://github.com/Rastion/rastion-hub.git
+cd rastion-hub
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Install the package
+pip install .`}
+              </pre>
+            </div>
+
+            <div className="bg-gray-50 p-6 rounded-lg">
+              <h3 className="text-xl font-semibold mb-4">Key Components</h3>
+              <div className="space-y-4">
+                <div>
+                  <h4 className="font-semibold text-lg mb-2">BaseProblem</h4>
+                  <p className="text-github-gray mb-2">Abstract class requiring:</p>
+                  <ul className="list-disc list-inside text-github-gray">
+                    <li>evaluate_solution(solution) → float</li>
+                    <li>Optional: random_solution()</li>
+                  </ul>
+                </div>
+                <div>
+                  <h4 className="font-semibold text-lg mb-2">BaseOptimizer</h4>
+                  <p className="text-github-gray">Must implement optimize(problem, **kwargs) → (best_solution, best_value)</p>
+                </div>
+                <div>
+                  <h4 className="font-semibold text-lg mb-2">Auto-Loading Classes</h4>
+                  <ul className="list-disc list-inside text-github-gray">
+                    <li>AutoOptimizer and AutoProblem provide from_repo(...)</li>
+                    <li>Automatically clone/pull from GitHub</li>
+                    <li>Load respective configurations</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-gray-50 p-6 rounded-lg">
+              <h3 className="text-xl font-semibold mb-4">Configuration Files</h3>
+              <div className="space-y-4">
+                <div>
+                  <h4 className="font-semibold text-lg mb-2">solver_config.json</h4>
+                  <p className="text-github-gray mb-2">Required for optimizers:</p>
+                  <ul className="list-disc list-inside text-github-gray">
+                    <li>entry_point: Module and class name</li>
+                    <li>default_params: Default hyperparameters</li>
+                  </ul>
+                </div>
+                <div>
+                  <h4 className="font-semibold text-lg mb-2">problem_config.json</h4>
+                  <p className="text-github-gray mb-2">Required for problems:</p>
+                  <ul className="list-disc list-inside text-github-gray">
+                    <li>entry_point: Problem class location</li>
+                    <li>default_params: Problem parameters</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div className="relative max-w-md mx-auto mb-8">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
           <Input
@@ -158,23 +218,12 @@ rastion push_problem my-problem \\
             Unable to load repositories. Please check the organization name and try again.
           </div>
         ) : (
-          <div className="space-y-12">
-            <div>
-              <h2 className="text-2xl font-semibold text-github-gray mb-4">Problems</h2>
-              <div className="grid gap-6 md:grid-cols-2">
-                {problemRepos?.map((repo: GitHubRepo) => (
-                  <RepositoryCard key={repo.name} repo={formatRepoData(repo)} />
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <h2 className="text-2xl font-semibold text-github-gray mb-4">Optimizers</h2>
-              <div className="grid gap-6 md:grid-cols-2">
-                {optimizerRepos?.map((repo: GitHubRepo) => (
-                  <RepositoryCard key={repo.name} repo={formatRepoData(repo)} />
-                ))}
-              </div>
+          <div>
+            <h2 className="text-2xl font-semibold text-github-gray mb-4">Repositories</h2>
+            <div className="grid gap-6 md:grid-cols-2">
+              {filteredRepos?.map((repo: GitHubRepo) => (
+                <RepositoryCard key={repo.name} repo={formatRepoData(repo)} />
+              ))}
             </div>
           </div>
         )}
