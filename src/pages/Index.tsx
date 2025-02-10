@@ -1,8 +1,9 @@
+
 import { useState } from "react";
 import { RepositoryCard } from "@/components/RepositoryCard";
 import { Input } from "@/components/ui/input";
 import { useQuery } from "@tanstack/react-query";
-import { Search } from "lucide-react";
+import { Search, Code2 } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
 
 interface GitHubRepo {
@@ -57,6 +58,17 @@ const Index = () => {
     docsUrl: repo.html_url,
   });
 
+  const problemRepos = filteredRepos?.filter((repo: GitHubRepo) => 
+    repo.name.toLowerCase().includes("problem") || 
+    repo.description?.toLowerCase().includes("problem")
+  );
+
+  const optimizerRepos = filteredRepos?.filter((repo: GitHubRepo) => 
+    repo.name.toLowerCase().includes("solver") || 
+    repo.description?.toLowerCase().includes("optimizer") ||
+    repo.description?.toLowerCase().includes("solver")
+  );
+
   return (
     <div className="min-h-screen bg-white">
       <div className="container py-12">
@@ -74,6 +86,57 @@ const Index = () => {
               Join us in building a more efficient future through open source
               collaboration.
             </p>
+          </div>
+        </div>
+
+        <div className="mb-16">
+          <h2 className="text-2xl font-semibold text-github-gray mb-6">Get Started with Rastion</h2>
+          <div className="grid md:grid-cols-2 gap-8">
+            <div className="bg-gray-50 p-6 rounded-lg">
+              <h3 className="text-xl font-semibold mb-4 flex items-center gap-2">
+                <Code2 className="w-5 h-5" />
+                Using Optimizers and Solvers
+              </h3>
+              <pre className="bg-white p-4 rounded text-sm overflow-x-auto">
+{`from rastion_hub.auto_optimizer import AutoOptimizer
+from rastion_hub.auto_problem import AutoProblem
+
+# Load a problem from the hub
+problem = AutoProblem.from_repo(
+    "Rastion/my-problem-repo", 
+    revision="main"
+)
+
+# Load and run an optimizer
+solver = AutoOptimizer.from_repo(
+    "Rastion/my-solver-repo", 
+    revision="main"
+)
+solution, value = solver.optimize(problem)`}
+              </pre>
+            </div>
+
+            <div className="bg-gray-50 p-6 rounded-lg">
+              <h3 className="text-xl font-semibold mb-4 flex items-center gap-2">
+                <Code2 className="w-5 h-5" />
+                Sharing Your Work
+              </h3>
+              <pre className="bg-white p-4 rounded text-sm overflow-x-auto">
+{`# Create a new solver repository
+rastion create_repo my-solver --org Rastion
+
+# Push your solver code and config
+rastion push_solver my-solver \\
+    --file my_solver.py \\
+    --config solver_config.json
+
+# Create and push a problem
+rastion create_repo my-problem --org Rastion
+rastion push_problem my-problem \\
+    --file my_problem.py \\
+    --config problem_config.json`}
+              </pre>
+            </div>
           </div>
         </div>
 
@@ -95,11 +158,20 @@ const Index = () => {
             Unable to load repositories. Please check the organization name and try again.
           </div>
         ) : (
-          <div className="space-y-8">
+          <div className="space-y-12">
             <div>
               <h2 className="text-2xl font-semibold text-github-gray mb-4">Problems</h2>
               <div className="grid gap-6 md:grid-cols-2">
-                {filteredRepos?.map((repo: GitHubRepo) => (
+                {problemRepos?.map((repo: GitHubRepo) => (
+                  <RepositoryCard key={repo.name} repo={formatRepoData(repo)} />
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <h2 className="text-2xl font-semibold text-github-gray mb-4">Optimizers</h2>
+              <div className="grid gap-6 md:grid-cols-2">
+                {optimizerRepos?.map((repo: GitHubRepo) => (
                   <RepositoryCard key={repo.name} repo={formatRepoData(repo)} />
                 ))}
               </div>
