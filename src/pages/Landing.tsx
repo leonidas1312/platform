@@ -8,14 +8,11 @@ const Landing = () => {
     <div className="min-h-screen bg-white">
       <div className="container py-12">
         <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold text-github-gray mb-4">Rastion-Hub</h1>
-          <p className="text-xl text-github-gray mb-8">Optimizing together</p>
+          <h1 className="text-4xl font-bold text-github-gray mb-4">Rastion</h1>
+          <p className="text-xl text-github-gray mb-8">Optimization for everyone</p>
           <div className="max-w-2xl mx-auto text-github-gray mb-12">
             <p className="mb-4">
-              At RastionHub, we believe in the power of open source to drive
-              innovation and optimization. By sharing our tools and knowledge, we
-              create a collaborative environment where the optimization community
-              can grow and thrive together.
+              Rastion allows users to create and share optimizers and problems by making team accessible to everyone.
             </p>
             <p>
               Join us in building a more efficient future through open source
@@ -38,7 +35,7 @@ const Landing = () => {
             <div className="bg-gradient-to-br from-[#1A1F2C] to-[#221F26] p-6 rounded-lg shadow-xl transform hover:scale-[1.02] transition-all duration-300">
               <h3 className="text-xl font-semibold mb-4 flex items-center gap-2 text-white">
                 <Code2 className="w-5 h-5" />
-                Using Optimizers and Solvers
+                Using Optimizers and Problems
               </h3>
               <pre className="bg-[#1E1E1E] p-4 rounded text-sm overflow-x-auto font-code text-[#9b87f5] shadow-inner animate-fade-in">
 {`from rastion_hub.auto_optimizer import AutoOptimizer

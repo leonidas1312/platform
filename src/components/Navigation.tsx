@@ -16,7 +16,7 @@ const Navigation = () => {
       <div className="container mx-auto">
         <div className="flex h-16 items-center">
           <Link to="/" className="text-xl font-bold text-github-gray">
-            Rastion-Hub
+            Rastion
           </Link>
           <div className="ml-auto flex gap-6">
             {links.map((link) => (
