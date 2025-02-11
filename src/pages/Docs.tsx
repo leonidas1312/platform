@@ -211,8 +211,6 @@ rastion push_problem maxcut-problem \\
               </div>
             </div>
           </section>
-
-          
           </TabsContent>
 
           {/* Creating an Optimizer */}
