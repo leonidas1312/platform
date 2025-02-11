@@ -129,10 +129,10 @@ class BaseOptimizer(ABC):
               </h2>
               <div className="bg-gradient-to-br from-[#1A1F2C] to-[#221F26] p-6 rounded-lg shadow-xl mb-8">
                 <h3 className="text-xl font-semibold mb-4 text-white">
-                  Example: MaxCut Problem
+                  Overview
                 </h3>
                 <p className="text-white mb-4">
-                  Follow these steps to create and host a new problem:
+                  Follow these steps to create a new problem repo under Rastion:
                 </p>
                 <ol className="list-decimal list-inside space-y-2 text-white mb-6">
                   <li>Create a Python file implementing BaseProblem</li>
@@ -191,19 +191,8 @@ class BinaryOneMaxProblem(BaseProblem):
     "dimension": 10
   }
 }`}
-                    </pre>
-                    <h4 className="text-lg font-semibold">Step 3: Testing Locally</h4>
-                    <p>
-                      You can test your problem locally using the Rastion auto-loader:
-                    </p>
-                    <pre className="bg-[#1E1E1E] p-4 rounded overflow-x-auto font-code text-[#9b87f5]">
-{`from rastion_hub.auto_problem import AutoProblem
-
-problem = AutoProblem.from_repo("YourGitHubOrg/binary-onemax-problem", revision="main")
-print(problem.random_solution())
-print(problem.evaluate_solution(problem.random_solution()))`}
-                    </pre>
-                    <h4 className="text-lg font-semibold">Step 4: Pushing to Rastion Hub</h4>
+                    
+                    <h4 className="text-lg font-semibold">Step 3: Pushing to Rastion Hub</h4>
                     <p>
                       Use the Rastion CLI to create and push your repository:
                     </p>
@@ -214,6 +203,21 @@ rastion create_repo binary-onemax-problem --github-token <YOUR_GITHUB_TOKEN>
 # Push your problem implementation
 rastion push_problem binary-onemax-problem --file binary_onemax.py --config problem_config.json --github-token <YOUR_GITHUB_TOKEN>`}
                     </pre>
+
+
+                    </pre>
+                    <h4 className="text-lg font-semibold">Step 4: Testing </h4>
+                    <p>
+                      You can test your problem using the Rastion auto-loader:
+                    </p>
+                    <pre className="bg-[#1E1E1E] p-4 rounded overflow-x-auto font-code text-[#9b87f5]">
+{`from rastion_hub.auto_problem import AutoProblem
+
+problem = AutoProblem.from_repo("Rastion/binary-onemax-problem", revision="main")
+print(problem.random_solution())
+print(problem.evaluate_solution(problem.random_solution()))`}
+                    </pre>
+                    
                   </div>
                 )}
               </div>
