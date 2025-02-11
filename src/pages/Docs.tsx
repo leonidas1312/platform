@@ -1,4 +1,3 @@
-
 import { BookOpen, Code2, Terminal, Layers, Flag, GitFork } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -57,6 +56,158 @@ const Docs = () => {
         """Required method to optimize a problem.
         Returns: (best_solution, best_value)"""
         pass`}
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* Create Problem Section */}
+          <section>
+            <h2 className="text-2xl font-semibold text-github-gray mb-6 flex items-center gap-2">
+              <Code2 className="w-6 h-6" />
+              Creating a Problem
+            </h2>
+            <div className="bg-gradient-to-br from-[#1A1F2C] to-[#221F26] p-6 rounded-lg shadow-xl mb-8">
+              <h3 className="text-xl font-semibold mb-4 text-white">Example: MaxCut Problem</h3>
+              <p className="text-white mb-4">Follow these steps to create and host a new problem:</p>
+              <ol className="list-decimal list-inside space-y-2 text-white mb-6">
+                <li>Create a Python file (e.g., max_cut.py) implementing BaseProblem</li>
+                <li>Create a problem_config.json with entry point and default parameters</li>
+                <li>Use Rastion CLI to create and push your problem repository</li>
+              </ol>
+              <div className="space-y-4">
+                <div>
+                  <h4 className="text-lg font-semibold text-white mb-2">1. Problem Implementation (max_cut.py)</h4>
+                  <pre className="bg-[#1E1E1E] p-4 rounded text-sm overflow-x-auto font-code text-[#9b87f5] shadow-inner">
+{`import numpy as np
+from rastion_hub.base_problem import BaseProblem
+
+class MaxCutProblem(BaseProblem):
+    def __init__(self, num_nodes=6, edge_probability=0.5, min_weight=1, max_weight=10):
+        self.nodes, self.weights = setup_problem(num_nodes, edge_probability, min_weight, max_weight)
+        self.num_nodes = num_nodes
+        self.QUBO_matrix = create_qubo_matrix(num_nodes, self.weights)
+        self.qubo_constant = 0
+
+    def evaluate_solution(self, solution) -> float:
+        sol = np.array(solution)
+        return float(sol.T @ self.QUBO_matrix @ sol + self.qubo_constant)
+
+    def random_solution(self):
+        return np.random.randint(0, 2, self.num_nodes).tolist()
+
+    def get_qubo(self):
+        return self.QUBO_matrix, self.qubo_constant`}</pre>
+                </div>
+                <div>
+                  <h4 className="text-lg font-semibold text-white mb-2">2. Problem Configuration (problem_config.json)</h4>
+                  <pre className="bg-[#1E1E1E] p-4 rounded text-sm overflow-x-auto font-code text-[#9b87f5] shadow-inner">
+{`{
+    "entry_point": "max_cut:MaxCutProblem",
+    "default_params": {
+        "num_nodes": 6,
+        "edge_probability": 0.5,
+        "min_weight": 1,
+        "max_weight": 10
+    }
+}`}</pre>
+                </div>
+                <div>
+                  <h4 className="text-lg font-semibold text-white mb-2">3. Push to Rastion</h4>
+                  <pre className="bg-[#1E1E1E] p-4 rounded text-sm overflow-x-auto font-code text-[#9b87f5] shadow-inner">
+{`# Create a new problem repository
+rastion create_repo maxcut-problem
+
+# Push your problem implementation
+rastion push_problem maxcut-problem \\
+    --file max_cut.py \\
+    --config problem_config.json`}</pre>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* Create Optimizer Section */}
+          <section>
+            <h2 className="text-2xl font-semibold text-github-gray mb-6 flex items-center gap-2">
+              <Code2 className="w-6 h-6" />
+              Creating an Optimizer
+            </h2>
+            <div className="bg-gradient-to-br from-[#1A1F2C] to-[#221F26] p-6 rounded-lg shadow-xl mb-8">
+              <h3 className="text-xl font-semibold mb-4 text-white">Example: Tabu Search Optimizer</h3>
+              <p className="text-white mb-4">Follow these steps to create and host a new optimizer:</p>
+              <ol className="list-decimal list-inside space-y-2 text-white mb-6">
+                <li>Create a Python file (e.g., tabu_search_optimizer.py) implementing BaseOptimizer</li>
+                <li>Create a solver_config.json with entry point and default parameters</li>
+                <li>Use Rastion CLI to create and push your optimizer repository</li>
+              </ol>
+              <div className="space-y-4">
+                <div>
+                  <h4 className="text-lg font-semibold text-white mb-2">1. Optimizer Implementation (tabu_search_optimizer.py)</h4>
+                  <pre className="bg-[#1E1E1E] p-4 rounded text-sm overflow-x-auto font-code text-[#9b87f5] shadow-inner">
+{`from rastion_hub.base_optimizer import BaseOptimizer
+import random
+import copy
+
+class TabuSearchOptimizer(BaseOptimizer):
+    def __init__(self, max_iters=100, tabu_tenure=5, verbose=False):
+        self.max_iters = max_iters
+        self.tabu_tenure = tabu_tenure
+        self.verbose = verbose
+
+    def optimize(self, problem, **kwargs):
+        current_solution = problem.random_solution()
+        best_solution = copy.deepcopy(current_solution)
+        best_score = problem.evaluate_solution(best_solution)
+        tabu_list = []
+        
+        for iter in range(self.max_iters):
+            neighbors = self._generate_neighbors(current_solution)
+            feasible_neighbors = [n for n in neighbors if n not in tabu_list]
+            
+            if not feasible_neighbors:
+                feasible_neighbors = neighbors
+                
+            candidate = min(feasible_neighbors, 
+                          key=lambda n: problem.evaluate_solution(n))
+            candidate_score = problem.evaluate_solution(candidate)
+            
+            if candidate_score < best_score:
+                best_solution = candidate
+                best_score = candidate_score
+                
+            tabu_list.append(candidate)
+            if len(tabu_list) > self.tabu_tenure:
+                tabu_list.pop(0)
+                
+            current_solution = candidate
+            if self.verbose:
+                print(f"Iteration {iter}: Best Score = {best_score}")
+                
+        return best_solution, best_score`}</pre>
+                </div>
+                <div>
+                  <h4 className="text-lg font-semibold text-white mb-2">2. Optimizer Configuration (solver_config.json)</h4>
+                  <pre className="bg-[#1E1E1E] p-4 rounded text-sm overflow-x-auto font-code text-[#9b87f5] shadow-inner">
+{`{
+    "entry_point": "tabu_search_optimizer:TabuSearchOptimizer",
+    "default_params": {
+        "max_iters": 100,
+        "tabu_tenure": 5,
+        "verbose": true
+    }
+}`}</pre>
+                </div>
+                <div>
+                  <h4 className="text-lg font-semibold text-white mb-2">3. Push to Rastion</h4>
+                  <pre className="bg-[#1E1E1E] p-4 rounded text-sm overflow-x-auto font-code text-[#9b87f5] shadow-inner">
+{`# Create a new optimizer repository
+rastion create_repo tabu-search
+
+# Push your optimizer implementation
+rastion push_solver tabu-search \\
+    --file tabu_search_optimizer.py \\
+    --config solver_config.json`}</pre>
                 </div>
               </div>
             </div>
