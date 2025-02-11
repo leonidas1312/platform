@@ -10,7 +10,7 @@ const Docs = () => {
         {/* Header Section */}
         <div className="text-center mb-12">
           <h1 className="text-4xl font-bold text-github-gray mb-4">Documentation</h1>
-          <p className="text-xl text-github-gray mb-8">Everything you need to get started with Rastion Hub</p>
+          <p className="text-xl text-github-gray mb-8">Everything you need to get started with Rastion</p>
         </div>
 
         <div className="space-y-16">
@@ -68,24 +68,155 @@ const Docs = () => {
               <Code2 className="w-6 h-6" />
               Usage Examples
             </h2>
+            
+            {/* Example 1: PSO for portfolio optimization */}
             <div className="bg-gradient-to-br from-[#1A1F2C] to-[#221F26] p-6 rounded-lg shadow-xl mb-8">
-              <h3 className="text-xl font-semibold mb-4 text-white">Portfolio Optimization with PSO</h3>
+              <h3 className="text-xl font-semibold mb-4 text-white">Example 1: Run PSO for portfolio optimization</h3>
               <pre className="bg-[#1E1E1E] p-4 rounded text-sm overflow-x-auto font-code text-[#9b87f5] shadow-inner">
-{`from rastion_hub.auto_optimizer import AutoOptimizer
-from rastion_hub.auto_problem import AutoProblem
+{`from rastion_hub.auto_problem import AutoProblem
+from rastion_hub.auto_optimizer import AutoOptimizer
 
-# Load a problem from the hub
-problem = AutoProblem.from_repo(
-    "Rastion/portfolio-optimization", 
-    revision="main"
+problem = AutoProblem.from_repo(f"Rastion/portfolio-optimization", revision="main")
+optimizer = AutoOptimizer.from_repo(f"Rastion/particle-swarm",
+                                    revision="main",
+                                    override_params={"swarm_size":60,"max_iters":500})
+
+best_solution, best_cost = optimizer.optimize(problem)
+print("Portfolio Optimization with PSO")
+print("Best Solution:", best_solution)
+print("Best Cost:", best_cost)`}
+              </pre>
+            </div>
+
+            {/* Example 2: Quantum Classical Pipeline */}
+            <div className="bg-gradient-to-br from-[#1A1F2C] to-[#221F26] p-6 rounded-lg shadow-xl mb-8">
+              <h3 className="text-xl font-semibold mb-4 text-white">Example 2: Use VQA as warm starter for classical optimization</h3>
+              <pre className="bg-[#1E1E1E] p-4 rounded text-sm overflow-x-auto font-code text-[#9b87f5] shadow-inner">
+{`from rastion_hub.auto_problem import AutoProblem
+from rastion_hub.auto_optimizer import AutoOptimizer
+from rastion_hub.quantum_classical_pipeline import create_quantum_classical_pipeline
+
+# 1. Load the problem instance
+problem = AutoProblem.from_repo(f"Rastion/max-cut", revision="main")
+
+# 2. Load the quantum optimizer for the VQA pipeline
+quantum_optimizer = AutoOptimizer.from_repo(
+   f"Rastion/vqa-qubit-eff",
+   revision="main",
+   override_params={
+      "num_layers": 6,        
+      "max_iters": 100,
+      "nbitstrings": 5,
+   }
 )
 
-# Load and run an optimizer
-solver = AutoOptimizer.from_repo(
-    "Rastion/particle-swarm", 
-    revision="main"
+# 3. Load the classical optimizer for the VQA pipeline
+classical_optimizer = AutoOptimizer.from_repo(
+      f"Rastion/rl-optimizer",
+      revision="main",
+      override_params={
+            "time_limit": 1  # seconds
+      }
 )
-solution, value = solver.optimize(problem)`}
+      
+# Compose the quantum-classical pipeline
+pipeline = create_quantum_classical_pipeline(
+   quantum_routine=quantum_optimizer,
+   classical_optimizer=classical_optimizer
+)
+
+# Run the VQA pipeline
+print("Running VQA pipeline ...")
+vqa_solution, vqa_cost = pipeline.optimize(problem)
+print(f"VQA Pipeline Solution: {vqa_solution}")
+print(f"VQA Pipeline Cost: {vqa_cost}")`}
+              </pre>
+            </div>
+
+            {/* Example 3: Multiple Independent Solvers */}
+            <div className="bg-gradient-to-br from-[#1A1F2C] to-[#221F26] p-6 rounded-lg shadow-xl mb-8">
+              <h3 className="text-xl font-semibold mb-4 text-white">Example 3: Run multiple solvers independently</h3>
+              <pre className="bg-[#1E1E1E] p-4 rounded text-sm overflow-x-auto font-code text-[#9b87f5] shadow-inner">
+{`from rastion_hub.auto_problem import AutoProblem
+from rastion_hub.auto_optimizer import AutoOptimizer
+from rastion_hub.optimizer_runner import run_optimizers_independently
+
+# Load a small maxcut optimization problem
+problem = AutoProblem.from_repo(f"Rastion/max-cut", revision="main")
+
+# Load several optimizers with optional parameter overrides
+optimizer1 = AutoOptimizer.from_repo(
+   f"Rastion/particle-swarm",
+   revision="main",
+   override_params={"swarm_size": 50, "max_iters": 100}
+)
+optimizer2 = AutoOptimizer.from_repo(
+   f"Rastion/tabu-search",
+   revision="main",
+   override_params={"max_iters": 100, "tabu_tenure": 10, "verbose": True}
+)
+optimizer3 = AutoOptimizer.from_repo(
+   f"Rastion/exhaustive-search",
+   revision="main",
+)
+
+optimizers = [optimizer1, optimizer2, optimizer3]
+
+results = run_optimizers_independently(problem, optimizers)
+
+# Find the best result
+best_optimizer, best_solution, best_cost = min(results, key=lambda x: x[2])
+
+print("=== Independent Runs Results ===")
+for name, sol, cost in results:
+   print(f"Optimizer {name}: Cost = {cost}, Solution = {sol}")
+print(f"\\nBest optimizer: {best_optimizer} with cost = {best_cost}")`}
+              </pre>
+            </div>
+
+            {/* Example 4: Chained Solvers */}
+            <div className="bg-gradient-to-br from-[#1A1F2C] to-[#221F26] p-6 rounded-lg shadow-xl mb-8">
+              <h3 className="text-xl font-semibold mb-4 text-white">Example 4: Run multiple solvers chained together</h3>
+              <pre className="bg-[#1E1E1E] p-4 rounded text-sm overflow-x-auto font-code text-[#9b87f5] shadow-inner">
+{`from rastion_hub.auto_problem import AutoProblem
+from rastion_hub.auto_optimizer import AutoOptimizer
+from rastion_hub.optimizer_runner import run_optimizers_in_chain
+
+# Load a small maxcut optimization problem
+problem = AutoProblem.from_repo(f"Rastion/max-cut", revision="main")
+
+# Load a chain of optimizers
+optimizer1 = AutoOptimizer.from_repo(
+   f"Rastion/particle-swarm",
+   revision="main",
+   override_params={"swarm_size": 50, "max_iters": 100}
+)
+optimizer2 = AutoOptimizer.from_repo(
+   f"Rastion/tabu-search",
+   revision="main",
+   override_params={"max_iters": 100, "tabu_tenure": 10, "verbose": True}
+)
+optimizer3 = AutoOptimizer.from_repo(
+   f"Rastion/rl-optimizer",
+   revision="main",
+   override_params={"time_limit": 1}
+)
+
+optimizers_chain = [optimizer1, optimizer2, optimizer3]
+
+final_solution, final_cost = run_optimizers_in_chain(problem, optimizers_chain)
+
+print("=== Chained Refinement Results ===")
+print(f"Final refined solution: {final_solution} with cost: {final_cost}\\n")
+
+exhaustive_optimizer = AutoOptimizer.from_repo(
+   f"Rastion/exhaustive-search",
+   revision="main",
+)
+
+best_solution, best_cost = exhaustive_optimizer.optimize(problem)
+print("=== Exhaustive Results ===")
+print(f"Best solution: {best_solution} with cost: {best_cost}\\n")`}
               </pre>
             </div>
           </section>
