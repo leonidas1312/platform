@@ -12,8 +12,12 @@ const Docs = () => {
       <div className="container py-12 max-w-[1200px]">
         {/* Header Section */}
         <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold text-github-gray mb-4">Documentation</h1>
-          <p className="text-xl text-github-gray mb-8">Everything you need to get started with Rastion</p>
+          <h1 className="text-4xl font-bold text-github-gray mb-4">
+            Documentation
+          </h1>
+          <p className="text-xl text-github-gray mb-8">
+            Everything you need to get started with Rastion
+          </p>
         </div>
 
         {/* Tabs Navigation */}
@@ -47,7 +51,9 @@ const Docs = () => {
                 Getting Started
               </h2>
               <div className="bg-gradient-to-br from-[#1A1F2C] to-[#221F26] p-6 rounded-lg shadow-xl">
-                <h3 className="text-xl font-semibold mb-4 text-white">Installation</h3>
+                <h3 className="text-xl font-semibold mb-4 text-white">
+                  Installation
+                </h3>
                 <pre className="bg-[#1E1E1E] p-4 rounded text-sm overflow-x-auto font-code text-[#9b87f5] shadow-inner">
                   {`pip install rastion`}
                 </pre>
@@ -58,14 +64,16 @@ const Docs = () => {
           {/* Key Components */}
           <TabsContent value="key-components">
             <section>
-            <h2 className="text-2xl font-semibold text-github-gray mb-6 flex items-center gap-2">
-              <Layers className="w-6 h-6" />
-              Key Components
-            </h2>
-            <div className="grid md:grid-cols-2 gap-8">
-              <div className="bg-gradient-to-br from-[#1A1F2C] to-[#221F26] p-6 rounded-lg shadow-xl">
-                <h3 className="text-xl font-semibold mb-4 text-white">BaseProblem</h3>
-                <pre className="bg-[#1E1E1E] p-4 rounded text-sm overflow-x-auto font-code text-[#9b87f5] shadow-inner">
+              <h2 className="text-2xl font-semibold text-github-gray mb-6 flex items-center gap-2">
+                <Layers className="w-6 h-6" />
+                Key Components
+              </h2>
+              <div className="grid md:grid-cols-2 gap-8">
+                <div className="bg-gradient-to-br from-[#1A1F2C] to-[#221F26] p-6 rounded-lg shadow-xl">
+                  <h3 className="text-xl font-semibold mb-4 text-white">
+                    BaseProblem
+                  </h3>
+                  <pre className="bg-[#1E1E1E] p-4 rounded text-sm overflow-x-auto font-code text-[#9b87f5] shadow-inner">
 {`from abc import ABC, abstractmethod
 
 class BaseProblem(ABC):
@@ -86,12 +94,14 @@ class BaseProblem(ABC):
     def get_qubo(self):
         """Return QUBO matrix and constant."""
         pass`}
-                </pre>
-              </div>
+                  </pre>
+                </div>
 
-              <div className="bg-gradient-to-br from-[#1A1F2C] to-[#221F26] p-6 rounded-lg shadow-xl">
-                <h3 className="text-xl font-semibold mb-4 text-white">BaseOptimizer</h3>
-                <pre className="bg-[#1E1E1E] p-4 rounded text-sm overflow-x-auto font-code text-[#9b87f5] shadow-inner">
+                <div className="bg-gradient-to-br from-[#1A1F2C] to-[#221F26] p-6 rounded-lg shadow-xl">
+                  <h3 className="text-xl font-semibold mb-4 text-white">
+                    BaseOptimizer
+                  </h3>
+                  <pre className="bg-[#1E1E1E] p-4 rounded text-sm overflow-x-auto font-code text-[#9b87f5] shadow-inner">
 {`from abc import ABC, abstractmethod
 
 class BaseOptimizer(ABC):
@@ -102,32 +112,38 @@ class BaseOptimizer(ABC):
         """Run optimization, return tuple:
         (best_solution, best_value)"""
         pass`}
-                </pre>
+                  </pre>
+                </div>
               </div>
-            </div>
-          </section>
+            </section>
           </TabsContent>
 
           {/* Creating a Problem */}
           <TabsContent value="creating-problem">
             <section>
-            <h2 className="text-2xl font-semibold text-github-gray mb-6 flex items-center gap-2">
-              <Code2 className="w-6 h-6" />
-              Creating a Problem
-            </h2>
-            <div className="bg-gradient-to-br from-[#1A1F2C] to-[#221F26] p-6 rounded-lg shadow-xl mb-8">
-              <h3 className="text-xl font-semibold mb-4 text-white">Example: MaxCut Problem</h3>
-              <p className="text-white mb-4">Follow these steps to create and host a new problem:</p>
-              <ol className="list-decimal list-inside space-y-2 text-white mb-6">
-                <li>Create a Python file implementing BaseProblem</li>
-                <li>Create a problem_config.json with entry point and parameters</li>
-                <li>Use Rastion CLI to create and push your problem</li>
-              </ol>
+              <h2 className="text-2xl font-semibold text-github-gray mb-6 flex items-center gap-2">
+                <Code2 className="w-6 h-6" />
+                Creating a Problem
+              </h2>
+              <div className="bg-gradient-to-br from-[#1A1F2C] to-[#221F26] p-6 rounded-lg shadow-xl mb-8">
+                <h3 className="text-xl font-semibold mb-4 text-white">
+                  Example: MaxCut Problem
+                </h3>
+                <p className="text-white mb-4">
+                  Follow these steps to create and host a new problem:
+                </p>
+                <ol className="list-decimal list-inside space-y-2 text-white mb-6">
+                  <li>Create a Python file implementing BaseProblem</li>
+                  <li>Create a <code>problem_config.json</code> with entry point and parameters</li>
+                  <li>Use Rastion CLI to create and push your problem</li>
+                </ol>
 
-              <div className="space-y-4">
-                <div>
-                  <h4 className="text-lg font-semibold text-white mb-2">1. Problem Implementation (max_cut.py)</h4>
-                  <pre className="bg-[#1E1E1E] p-4 rounded text-sm overflow-x-auto font-code text-[#9b87f5] shadow-inner">
+                <div className="space-y-4">
+                  <div>
+                    <h4 className="text-lg font-semibold text-white mb-2">
+                      1. Problem Implementation (<code>max_cut.py</code>)
+                    </h4>
+                    <pre className="bg-[#1E1E1E] p-4 rounded text-sm overflow-x-auto font-code text-[#9b87f5] shadow-inner">
 {`import numpy as np
 from rastion_hub.base_problem import BaseProblem
 
@@ -157,7 +173,7 @@ def create_qubo_matrix(num_nodes, weights):
     
     for i in range(num_nodes):
         incident_weight = sum(weights.get((i, j), 0) 
-                            for j in range(num_nodes) if j != i)
+                              for j in range(num_nodes) if j != i)
         Q[i, i] += -incident_weight
     
     return Q
@@ -174,18 +190,21 @@ class MaxCutProblem(BaseProblem):
     def evaluate_solution(self, solution) -> float:
         sol = np.array(solution)
         return float(sol.T @ self.QUBO_matrix @ sol + 
-                    self.qubo_constant)
+                     self.qubo_constant)
 
     def random_solution(self):
         return np.random.randint(0, 2, self.num_nodes).tolist()
 
     def get_qubo(self):
-        return self.QUBO_matrix, self.qubo_constant`}</pre>
-                </div>
+        return self.QUBO_matrix, self.qubo_constant`}
+                    </pre>
+                  </div>
 
-                <div>
-                  <h4 className="text-lg font-semibold text-white mb-2">2. Problem Configuration (problem_config.json)</h4>
-                  <pre className="bg-[#1E1E1E] p-4 rounded text-sm overflow-x-auto font-code text-[#9b87f5] shadow-inner">
+                  <div>
+                    <h4 className="text-lg font-semibold text-white mb-2">
+                      2. Problem Configuration (<code>problem_config.json</code>)
+                    </h4>
+                    <pre className="bg-[#1E1E1E] p-4 rounded text-sm overflow-x-auto font-code text-[#9b87f5] shadow-inner">
 {`{
     "entry_point": "max_cut:MaxCutProblem",
     "default_params": {
@@ -194,46 +213,55 @@ class MaxCutProblem(BaseProblem):
         "min_weight": 1,
         "max_weight": 10
     }
-}`}</pre>
-                </div>
+}`}
+                    </pre>
+                  </div>
 
-                <div>
-                  <h4 className="text-lg font-semibold text-white mb-2">3. Push to Rastion</h4>
-                  <pre className="bg-[#1E1E1E] p-4 rounded text-sm overflow-x-auto font-code text-[#9b87f5] shadow-inner">
+                  <div>
+                    <h4 className="text-lg font-semibold text-white mb-2">
+                      3. Push to Rastion
+                    </h4>
+                    <pre className="bg-[#1E1E1E] p-4 rounded text-sm overflow-x-auto font-code text-[#9b87f5] shadow-inner">
 {`# Create a new problem repository
 rastion create_repo maxcut-problem
 
 # Push your problem implementation
 rastion push_problem maxcut-problem \\
     --file max_cut.py \\
-    --config problem_config.json`}</pre>
+    --config problem_config.json`}
+                    </pre>
+                  </div>
                 </div>
               </div>
-            </div>
-          </section>
+            </section>
           </TabsContent>
 
           {/* Creating an Optimizer */}
           <TabsContent value="creating-optimizer">
-            {/* Creating an Optimizer Section */}
-          <section>
-            <h2 className="text-2xl font-semibold text-github-gray mb-6 flex items-center gap-2">
-              <Code2 className="w-6 h-6" />
-              Creating an Optimizer
-            </h2>
-            <div className="bg-gradient-to-br from-[#1A1F2C] to-[#221F26] p-6 rounded-lg shadow-xl mb-8">
-              <h3 className="text-xl font-semibold mb-4 text-white">Example: Tabu Search Optimizer</h3>
-              <p className="text-white mb-4">Follow these steps to create and host a new optimizer:</p>
-              <ol className="list-decimal list-inside space-y-2 text-white mb-6">
-                <li>Create a Python file implementing BaseOptimizer</li>
-                <li>Create a solver_config.json with entry point and parameters</li>
-                <li>Use Rastion CLI to create and push your optimizer</li>
-              </ol>
+            <section>
+              <h2 className="text-2xl font-semibold text-github-gray mb-6 flex items-center gap-2">
+                <Code2 className="w-6 h-6" />
+                Creating an Optimizer
+              </h2>
+              <div className="bg-gradient-to-br from-[#1A1F2C] to-[#221F26] p-6 rounded-lg shadow-xl mb-8">
+                <h3 className="text-xl font-semibold mb-4 text-white">
+                  Example: Tabu Search Optimizer
+                </h3>
+                <p className="text-white mb-4">
+                  Follow these steps to create and host a new optimizer:
+                </p>
+                <ol className="list-decimal list-inside space-y-2 text-white mb-6">
+                  <li>Create a Python file implementing BaseOptimizer</li>
+                  <li>Create a <code>solver_config.json</code> with entry point and parameters</li>
+                  <li>Use Rastion CLI to create and push your optimizer</li>
+                </ol>
 
-              <div className="space-y-4">
-                <div>
-                  <h4 className="text-lg font-semibold text-white mb-2">1. Optimizer Implementation (tabu_search.py)</h4>
-                  <pre className="bg-[#1E1E1E] p-4 rounded text-sm overflow-x-auto font-code text-[#9b87f5] shadow-inner">
+                <div className="space-y-4">
+                  <div>
+                    <h4 className="text-lg font-semibold text-white mb-2">
+                      1. Optimizer Implementation (<code>tabu_search.py</code>)
+                    </h4>
+                    <pre className="bg-[#1E1E1E] p-4 rounded text-sm overflow-x-auto font-code text-[#9b87f5] shadow-inner">
 {`from rastion_hub.base_optimizer import BaseOptimizer
 import random
 import copy
@@ -263,12 +291,12 @@ class TabuSearchOptimizer(BaseOptimizer):
                 neighbors.append(problem.random_solution())
                 
             feasible = [n for n in neighbors 
-                       if n not in tabu_list]
+                        if n not in tabu_list]
             if not feasible:
                 feasible = neighbors
                 
             candidate = min(feasible, 
-                key=lambda n: problem.evaluate_solution(n))
+                            key=lambda n: problem.evaluate_solution(n))
             candidate_score = problem.evaluate_solution(candidate)
             
             if candidate_score < best_score:
@@ -283,12 +311,15 @@ class TabuSearchOptimizer(BaseOptimizer):
             if self.verbose:
                 print(f"Iteration {iter}: Score = {best_score}")
                 
-        return best_solution, best_score`}</pre>
-                </div>
+        return best_solution, best_score`}
+                    </pre>
+                  </div>
 
-                <div>
-                  <h4 className="text-lg font-semibold text-white mb-2">2. Optimizer Configuration (solver_config.json)</h4>
-                  <pre className="bg-[#1E1E1E] p-4 rounded text-sm overflow-x-auto font-code text-[#9b87f5] shadow-inner">
+                  <div>
+                    <h4 className="text-lg font-semibold text-white mb-2">
+                      2. Optimizer Configuration (<code>solver_config.json</code>)
+                    </h4>
+                    <pre className="bg-[#1E1E1E] p-4 rounded text-sm overflow-x-auto font-code text-[#9b87f5] shadow-inner">
 {`{
     "entry_point": "tabu_search:TabuSearchOptimizer",
     "default_params": {
@@ -296,37 +327,43 @@ class TabuSearchOptimizer(BaseOptimizer):
         "tabu_tenure": 5,
         "verbose": true
     }
-}`}</pre>
-                </div>
+}`}
+                    </pre>
+                  </div>
 
-                <div>
-                  <h4 className="text-lg font-semibold text-white mb-2">3. Push to Rastion</h4>
-                  <pre className="bg-[#1E1E1E] p-4 rounded text-sm overflow-x-auto font-code text-[#9b87f5] shadow-inner">
+                  <div>
+                    <h4 className="text-lg font-semibold text-white mb-2">
+                      3. Push to Rastion
+                    </h4>
+                    <pre className="bg-[#1E1E1E] p-4 rounded text-sm overflow-x-auto font-code text-[#9b87f5] shadow-inner">
 {`# Create a new optimizer repository
 rastion create_repo tabu-search
 
 # Push your optimizer implementation
 rastion push_solver tabu-search \\
     --file tabu_search.py \\
-    --config solver_config.json`}</pre>
+    --config solver_config.json`}
+                    </pre>
+                  </div>
                 </div>
               </div>
-            </div>
-          </section>
+            </section>
           </TabsContent>
 
           {/* Usage Examples */}
           <TabsContent value="usage-examples">
             <section>
-            <h2 className="text-2xl font-semibold text-github-gray mb-6 flex items-center gap-2">
-              <Code2 className="w-6 h-6" />
-              Usage Examples
-            </h2>
-            <div className="space-y-8">
-              {/* Example 1: Basic Usage */}
-              <div className="bg-gradient-to-br from-[#1A1F2C] to-[#221F26] p-6 rounded-lg shadow-xl">
-                <h3 className="text-xl font-semibold mb-4 text-white">Example 1: Basic Usage</h3>
-                <pre className="bg-[#1E1E1E] p-4 rounded text-sm overflow-x-auto font-code text-[#9b87f5] shadow-inner">
+              <h2 className="text-2xl font-semibold text-github-gray mb-6 flex items-center gap-2">
+                <BookOpen className="w-6 h-6" />
+                Usage Examples
+              </h2>
+              <div className="space-y-8">
+                {/* Example 1: Basic Usage */}
+                <div className="bg-gradient-to-br from-[#1A1F2C] to-[#221F26] p-6 rounded-lg shadow-xl">
+                  <h3 className="text-xl font-semibold mb-4 text-white">
+                    Example 1: Basic Usage
+                  </h3>
+                  <pre className="bg-[#1E1E1E] p-4 rounded text-sm overflow-x-auto font-code text-[#9b87f5] shadow-inner">
 {`from rastion_hub.auto_problem import AutoProblem
 from rastion_hub.auto_optimizer import AutoOptimizer
 
@@ -340,13 +377,15 @@ optimizer = AutoOptimizer.from_repo(
 # Run optimization
 solution, cost = optimizer.optimize(problem)
 print(f"Solution: {solution}\\nCost: {cost}")`}
-                </pre>
-              </div>
+                  </pre>
+                </div>
 
-              {/* Example 2: Multiple Optimizers */}
-              <div className="bg-gradient-to-br from-[#1A1F2C] to-[#221F26] p-6 rounded-lg shadow-xl">
-                <h3 className="text-xl font-semibold mb-4 text-white">Example 2: Multiple Optimizers</h3>
-                <pre className="bg-[#1E1E1E] p-4 rounded text-sm overflow-x-auto font-code text-[#9b87f5] shadow-inner">
+                {/* Example 2: Multiple Optimizers */}
+                <div className="bg-gradient-to-br from-[#1A1F2C] to-[#221F26] p-6 rounded-lg shadow-xl">
+                  <h3 className="text-xl font-semibold mb-4 text-white">
+                    Example 2: Multiple Optimizers
+                  </h3>
+                  <pre className="bg-[#1E1E1E] p-4 rounded text-sm overflow-x-auto font-code text-[#9b87f5] shadow-inner">
 {`from rastion_hub.auto_problem import AutoProblem
 from rastion_hub.auto_optimizer import AutoOptimizer
 from rastion_hub.optimizer_runner import run_optimizers_independently
@@ -371,24 +410,26 @@ best_optimizer, best_sol, best_cost = min(
 print(f"Best optimizer: {best_optimizer}")
 print(f"Best solution: {best_sol}")
 print(f"Best cost: {best_cost}")`}
-                </pre>
+                  </pre>
+                </div>
               </div>
-            </div>
-          </section>
+            </section>
           </TabsContent>
 
           {/* CLI Commands */}
           <TabsContent value="cli-commands">
             <section>
-            <h2 className="text-2xl font-semibold text-github-gray mb-6 flex items-center gap-2">
-              <Terminal className="w-6 h-6" />
-              CLI Commands
-            </h2>
-            <div className="bg-gradient-to-br from-[#1A1F2C] to-[#221F26] p-6 rounded-lg shadow-xl">
-              <div className="space-y-6">
-                <div>
-                  <h3 className="text-xl font-semibold mb-4 text-white">Repository Management</h3>
-                  <pre className="bg-[#1E1E1E] p-4 rounded text-sm overflow-x-auto font-code text-[#9b87f5] shadow-inner">
+              <h2 className="text-2xl font-semibold text-github-gray mb-6 flex items-center gap-2">
+                <Terminal className="w-6 h-6" />
+                CLI Commands
+              </h2>
+              <div className="bg-gradient-to-br from-[#1A1F2C] to-[#221F26] p-6 rounded-lg shadow-xl">
+                <div className="space-y-6">
+                  <div>
+                    <h3 className="text-xl font-semibold mb-4 text-white">
+                      Repository Management
+                    </h3>
+                    <pre className="bg-[#1E1E1E] p-4 rounded text-sm overflow-x-auto font-code text-[#9b87f5] shadow-inner">
 {`# Create new repository
 rastion create_repo my-repo
 
@@ -397,12 +438,14 @@ rastion list_repos
 
 # Delete repository
 rastion delete_repo my-repo`}
-                  </pre>
-                </div>
+                    </pre>
+                  </div>
 
-                <div>
-                  <h3 className="text-xl font-semibold mb-4 text-white">Problem & Optimizer Management</h3>
-                  <pre className="bg-[#1E1E1E] p-4 rounded text-sm overflow-x-auto font-code text-[#9b87f5] shadow-inner">
+                  <div>
+                    <h3 className="text-xl font-semibold mb-4 text-white">
+                      Problem & Optimizer Management
+                    </h3>
+                    <pre className="bg-[#1E1E1E] p-4 rounded text-sm overflow-x-auto font-code text-[#9b87f5] shadow-inner">
 {`# Push problem implementation
 rastion push_problem my-repo --file problem.py --config config.json
 
@@ -411,17 +454,19 @@ rastion push_solver my-repo --file solver.py --config config.json
 
 # List versions
 rastion list_versions my-repo`}
-                  </pre>
+                    </pre>
+                  </div>
                 </div>
               </div>
-            </div>
-          </section>
+            </section>
           </TabsContent>
         </Tabs>
 
         {/* Call to Action */}
         <div className="text-center pt-8">
-          <p className="text-xl text-github-gray mb-6">Ready to get started?</p>
+          <p className="text-xl text-github-gray mb-6">
+            Ready to get started?
+          </p>
           <Button asChild size="lg">
             <Link to="/repositories">Browse Repositories</Link>
           </Button>
