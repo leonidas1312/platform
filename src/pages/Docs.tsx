@@ -58,12 +58,54 @@ const Docs = () => {
           {/* Key Components */}
           <TabsContent value="key-components">
             <section>
-              <h2 className="text-2xl font-semibold text-github-gray mb-6 flex items-center gap-2">
-                <Layers className="w-6 h-6" />
-                Key Components
-              </h2>
-              <p className="text-github-gray mb-4">Understanding the core building blocks of Rastion.</p>
-            </section>
+            <h2 className="text-2xl font-semibold text-github-gray mb-6 flex items-center gap-2">
+              <Layers className="w-6 h-6" />
+              Key Components
+            </h2>
+            <div className="grid md:grid-cols-2 gap-8">
+              <div className="bg-gradient-to-br from-[#1A1F2C] to-[#221F26] p-6 rounded-lg shadow-xl">
+                <h3 className="text-xl font-semibold mb-4 text-white">BaseProblem</h3>
+                <pre className="bg-[#1E1E1E] p-4 rounded text-sm overflow-x-auto font-code text-[#9b87f5] shadow-inner">
+{`from abc import ABC, abstractmethod
+
+class BaseProblem(ABC):
+    """Base class for any Rastion problem.
+    Defines a minimal interface."""
+    
+    @abstractmethod
+    def evaluate_solution(self, solution) -> float:
+        """Return a cost to minimize."""
+        pass
+        
+    @abstractmethod
+    def random_solution(self):
+        """Return a random valid solution."""
+        pass
+        
+    @abstractmethod
+    def get_qubo(self):
+        """Return QUBO matrix and constant."""
+        pass`}
+                </pre>
+              </div>
+
+              <div className="bg-gradient-to-br from-[#1A1F2C] to-[#221F26] p-6 rounded-lg shadow-xl">
+                <h3 className="text-xl font-semibold mb-4 text-white">BaseOptimizer</h3>
+                <pre className="bg-[#1E1E1E] p-4 rounded text-sm overflow-x-auto font-code text-[#9b87f5] shadow-inner">
+{`from abc import ABC, abstractmethod
+
+class BaseOptimizer(ABC):
+    """Base class for any Rastion optimizer."""
+    
+    @abstractmethod
+    def optimize(self, problem, **kwargs):
+        """Run optimization, return tuple:
+        (best_solution, best_value)"""
+        pass`}
+                </pre>
+              </div>
+            </div>
+          </section>
           </TabsContent>
 
           {/* Creating a Problem */}
