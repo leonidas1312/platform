@@ -202,7 +202,7 @@ rastion create_repo binary-onemax-problem --github-token <YOUR_GITHUB_TOKEN>
 
 # Push your problem implementation
 rastion push_problem binary-onemax-problem --file binary_onemax.py --config problem_config.json --github-token <YOUR_GITHUB_TOKEN>`}
-                    </pre>
+                    
 
 
                     </pre>
