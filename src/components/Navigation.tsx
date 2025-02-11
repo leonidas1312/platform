@@ -15,9 +15,10 @@ const Navigation = () => {
     <nav className="border-b">
       <div className="container mx-auto">
         <div className="flex h-16 items-center">
-          <Link to="/" className="text-xl font-bold text-github-gray">
-            Rastion
-          </Link>
+        <Link to="/" className="flex items-center">
+  <img src="/public/rastion1.svg" alt="Rastion Logo" className="w-auto max-w-[70px]" />
+</Link>
+
           <div className="ml-auto flex gap-6">
             {links.map((link) => (
               <Link

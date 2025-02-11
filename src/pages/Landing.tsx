@@ -8,7 +8,13 @@ const Landing = () => {
     <div className="min-h-screen bg-white">
       <div className="container py-12">
         <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold text-github-gray mb-4">Rastion</h1>
+        <h1 className="text-4xl font-bold flex items-center justify-center text-github-gray mb-4"> 
+          <div className="text-center">
+            <img src="/rastion1.svg" alt="Rastion Logo" className="w-full max-w-[250px]" />
+          </div>
+        </h1>
+
+
           <p className="text-xl text-github-gray mb-8">Optimization for everyone</p>
           <div className="max-w-2xl mx-auto text-github-gray mb-12">
             <p className="mb-4">
