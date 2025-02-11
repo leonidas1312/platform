@@ -191,7 +191,7 @@ class BinaryOneMaxProblem(BaseProblem):
     "dimension": 10
   }
 }`}
-                    
+                    </pre>
                     <h4 className="text-lg font-semibold">Step 3: Pushing to Rastion Hub</h4>
                     <p>
                       Use the Rastion CLI to create and push your repository:
