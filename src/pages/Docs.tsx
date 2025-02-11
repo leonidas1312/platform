@@ -146,12 +146,12 @@ class BaseOptimizer(ABC):
               <div className="mt-8">
                 <Button variant="outline" onClick={() => setShowProblemGuide(!showProblemGuide)}>
                   {showProblemGuide
-                    ? "Hide Detailed Guide: Creating a Rastion Problem"
-                    : "Show Detailed Guide: Creating a Rastion Problem"}
+                    ? "Hide Detailed Guide: Creating a Rastion Problem - BinaryOneMax"
+                    : "Show Detailed Guide: Creating a Rastion Problem - BinaryOneMax"}
                 </Button>
                 {showProblemGuide && (
                   <div className="mt-4 p-6 bg-gray-900 rounded-lg text-white space-y-4">
-                    <h3 className="text-xl font-bold mb-2">Guide 1: Creating a Rastion Problem</h3>
+                    <h3 className="text-xl font-bold mb-2">Guide: Creating a Rastion Problem - BinaryOneMax</h3>
                     <p>
                       This guide will walk you through creating a new optimization problem for Rastion Hub.
                       We’ll build a simple <strong>Binary OneMax</strong> problem where the goal is to maximize the number of ones in a binary vector by minimizing the negative sum of bits.
