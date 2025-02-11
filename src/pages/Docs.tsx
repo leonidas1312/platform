@@ -6,6 +6,8 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
 const Docs = () => {
   const [activeTab, setActiveTab] = useState("getting-started");
+  const [showProblemGuide, setShowProblemGuide] = useState(false);
+  const [showOptimizerGuide, setShowOptimizerGuide] = useState(false);
 
   return (
     <div className="min-h-screen bg-white">
@@ -137,101 +139,83 @@ class BaseOptimizer(ABC):
                   <li>Create a <code>problem_config.json</code> with entry point and parameters</li>
                   <li>Use Rastion CLI to create and push your problem</li>
                 </ol>
+                {/* (Existing example content goes here…) */}
+              </div>
 
-                <div className="space-y-4">
-                  <div>
-                    <h4 className="text-lg font-semibold text-white mb-2">
-                      1. Problem Implementation (<code>max_cut.py</code>)
-                    </h4>
-                    <pre className="bg-[#1E1E1E] p-4 rounded text-sm overflow-x-auto font-code text-[#9b87f5] shadow-inner">
+              {/* Collapsible Guide for Creating a Problem */}
+              <div className="mt-8">
+                <Button variant="outline" onClick={() => setShowProblemGuide(!showProblemGuide)}>
+                  {showProblemGuide
+                    ? "Hide Detailed Guide: Creating a Rastion Problem"
+                    : "Show Detailed Guide: Creating a Rastion Problem"}
+                </Button>
+                {showProblemGuide && (
+                  <div className="mt-4 p-6 bg-gray-900 rounded-lg text-white space-y-4">
+                    <h3 className="text-xl font-bold mb-2">Guide 1: Creating a Rastion Problem</h3>
+                    <p>
+                      This guide will walk you through creating a new optimization problem for Rastion Hub.
+                      We’ll build a simple <strong>Binary OneMax</strong> problem where the goal is to maximize the number of ones in a binary vector by minimizing the negative sum of bits.
+                    </p>
+                    <h4 className="text-lg font-semibold">Step 1: Create the Python Module</h4>
+                    <p>Create a file named <code>binary_onemax.py</code> with the following content:</p>
+                    <pre className="bg-[#1E1E1E] p-4 rounded overflow-x-auto font-code text-[#9b87f5]">
 {`import numpy as np
 from rastion_hub.base_problem import BaseProblem
 
-def setup_problem(num_nodes, edge_probability=0.5, 
-                 min_weight=1, max_weight=10):
-    np.random.seed(123)
-    nodes = [f'node{i}' for i in range(num_nodes)]
-    weights = {}
-    for i in range(num_nodes):
-        for j in range(i+1, num_nodes):
-            if np.random.rand() < edge_probability:
-                weight = np.random.randint(min_weight, max_weight+1)
-                weights[(i, j)] = weight
-                weights[(j, i)] = weight
-            else:
-                weights[(i, j)] = 0
-                weights[(j, i)] = 0
-    return nodes, weights
-
-def create_qubo_matrix(num_nodes, weights):
-    Q = np.zeros((num_nodes, num_nodes))
-    for i in range(num_nodes):
-        for j in range(i+1, num_nodes):
-            weight = weights.get((i, j), 0)
-            Q[i, j] += 2 * weight
-            Q[j, i] = Q[i, j]
-    
-    for i in range(num_nodes):
-        incident_weight = sum(weights.get((i, j), 0) 
-                              for j in range(num_nodes) if j != i)
-        Q[i, i] += -incident_weight
-    
-    return Q
-
-class MaxCutProblem(BaseProblem):
-    def __init__(self, num_nodes=6, edge_probability=0.5,
-                 min_weight=1, max_weight=10):
-        self.nodes, self.weights = setup_problem(
-            num_nodes, edge_probability, min_weight, max_weight)
-        self.num_nodes = num_nodes
-        self.QUBO_matrix = create_qubo_matrix(num_nodes, self.weights)
-        self.qubo_constant = 0
+class BinaryOneMaxProblem(BaseProblem):
+    """
+    Binary OneMax Problem:
+    Given a binary vector x, maximize the number of ones by minimizing -sum(x).
+    """
+    def __init__(self, dimension=10):
+        self.dimension = dimension
 
     def evaluate_solution(self, solution) -> float:
-        sol = np.array(solution)
-        return float(sol.T @ self.QUBO_matrix @ sol + 
-                     self.qubo_constant)
-
+        x = np.array(solution)
+        return float(-np.sum(x))
+    
     def random_solution(self):
-        return np.random.randint(0, 2, self.num_nodes).tolist()
+        return np.random.randint(0, 2, self.dimension).tolist()
 
     def get_qubo(self):
-        return self.QUBO_matrix, self.qubo_constant`}
+        Q = -1 * np.eye(self.dimension)
+        qubo_constant = 0
+        return Q, qubo_constant`}
                     </pre>
-                  </div>
-
-                  <div>
-                    <h4 className="text-lg font-semibold text-white mb-2">
-                      2. Problem Configuration (<code>problem_config.json</code>)
-                    </h4>
-                    <pre className="bg-[#1E1E1E] p-4 rounded text-sm overflow-x-auto font-code text-[#9b87f5] shadow-inner">
+                    <h4 className="text-lg font-semibold">Step 2: Create the Problem Configuration</h4>
+                    <p>Create a file named <code>problem_config.json</code> with this content:</p>
+                    <pre className="bg-[#1E1E1E] p-4 rounded overflow-x-auto font-code text-[#9b87f5]">
 {`{
-    "entry_point": "max_cut:MaxCutProblem",
-    "default_params": {
-        "num_nodes": 6,
-        "edge_probability": 0.5,
-        "min_weight": 1,
-        "max_weight": 10
-    }
+  "entry_point": "binary_onemax:BinaryOneMaxProblem",
+  "default_params": {
+    "dimension": 10
+  }
 }`}
                     </pre>
-                  </div>
+                    <h4 className="text-lg font-semibold">Step 3: Testing Locally</h4>
+                    <p>
+                      You can test your problem locally using the Rastion auto-loader:
+                    </p>
+                    <pre className="bg-[#1E1E1E] p-4 rounded overflow-x-auto font-code text-[#9b87f5]">
+{`from rastion_hub.auto_problem import AutoProblem
 
-                  <div>
-                    <h4 className="text-lg font-semibold text-white mb-2">
-                      3. Push to Rastion
-                    </h4>
-                    <pre className="bg-[#1E1E1E] p-4 rounded text-sm overflow-x-auto font-code text-[#9b87f5] shadow-inner">
-{`# Create a new problem repository
-rastion create_repo maxcut-problem
+problem = AutoProblem.from_repo("YourGitHubOrg/binary-onemax-problem", revision="main")
+print(problem.random_solution())
+print(problem.evaluate_solution(problem.random_solution()))`}
+                    </pre>
+                    <h4 className="text-lg font-semibold">Step 4: Pushing to Rastion Hub</h4>
+                    <p>
+                      Use the Rastion CLI to create and push your repository:
+                    </p>
+                    <pre className="bg-[#1E1E1E] p-4 rounded overflow-x-auto font-code text-[#9b87f5]">
+{`# Create repository
+rastion create_repo binary-onemax-problem --github-token <YOUR_GITHUB_TOKEN>
 
 # Push your problem implementation
-rastion push_problem maxcut-problem \\
-    --file max_cut.py \\
-    --config problem_config.json`}
+rastion push_problem binary-onemax-problem --file binary_onemax.py --config problem_config.json --github-token <YOUR_GITHUB_TOKEN>`}
                     </pre>
                   </div>
-                </div>
+                )}
               </div>
             </section>
           </TabsContent>
@@ -255,97 +239,107 @@ rastion push_problem maxcut-problem \\
                   <li>Create a <code>solver_config.json</code> with entry point and parameters</li>
                   <li>Use Rastion CLI to create and push your optimizer</li>
                 </ol>
+                {/* (Existing example content goes here…) */}
+              </div>
 
-                <div className="space-y-4">
-                  <div>
-                    <h4 className="text-lg font-semibold text-white mb-2">
-                      1. Optimizer Implementation (<code>tabu_search.py</code>)
-                    </h4>
-                    <pre className="bg-[#1E1E1E] p-4 rounded text-sm overflow-x-auto font-code text-[#9b87f5] shadow-inner">
-{`from rastion_hub.base_optimizer import BaseOptimizer
-import random
-import copy
+              {/* Collapsible Guide for Creating an Optimizer */}
+              <div className="mt-8">
+                <Button variant="outline" onClick={() => setShowOptimizerGuide(!showOptimizerGuide)}>
+                  {showOptimizerGuide
+                    ? "Hide Detailed Guide: Creating a Rastion Optimizer"
+                    : "Show Detailed Guide: Creating a Rastion Optimizer"}
+                </Button>
+                {showOptimizerGuide && (
+                  <div className="mt-4 p-6 bg-gray-900 rounded-lg text-white space-y-4">
+                    <h3 className="text-xl font-bold mb-2">Guide 2: Creating a Rastion Optimizer</h3>
+                    <p>
+                      This guide will help you create a new optimizer for Rastion Hub.
+                      We’ll implement a simple <strong>Random Search Optimizer</strong> that samples random solutions and returns the best one.
+                    </p>
+                    <h4 className="text-lg font-semibold">Step 1: Create the Python Module</h4>
+                    <p>Create a file named <code>random_search_optimizer.py</code> with the following content:</p>
+                    <pre className="bg-[#1E1E1E] p-4 rounded overflow-x-auto font-code text-[#9b87f5]">
+{`import numpy as np
+from rastion_hub.base_optimizer import BaseOptimizer
 
-class TabuSearchOptimizer(BaseOptimizer):
-    def __init__(self, max_iters=100, tabu_tenure=5, 
-                 verbose=False):
+class RandomSearchOptimizer(BaseOptimizer):
+    """
+    A simple random search optimizer that samples random solutions.
+    """
+    def __init__(self, max_iters=1000, verbose=False):
         self.max_iters = max_iters
-        self.tabu_tenure = tabu_tenure
         self.verbose = verbose
 
-    def optimize(self, problem, **kwargs):
-        current = problem.random_solution()
-        best_solution = copy.deepcopy(current)
-        best_score = problem.evaluate_solution(best_solution)
-        tabu_list = []
-        
-        for iter in range(self.max_iters):
-            neighbors = []
-            if isinstance(current, list) and len(current) >= 2:
-                for _ in range(10):
-                    neighbor = current.copy()
-                    i, j = random.sample(range(len(neighbor)), 2)
-                    neighbor[i], neighbor[j] = neighbor[j], neighbor[i]
-                    neighbors.append(neighbor)
-            else:
-                neighbors.append(problem.random_solution())
-                
-            feasible = [n for n in neighbors 
-                        if n not in tabu_list]
-            if not feasible:
-                feasible = neighbors
-                
-            candidate = min(feasible, 
-                            key=lambda n: problem.evaluate_solution(n))
-            candidate_score = problem.evaluate_solution(candidate)
-            
-            if candidate_score < best_score:
+    def optimize(self, problem, initial_solution=None, **kwargs):
+        if (initial_solution !== null) {
+            best_solution = initial_solution
+            best_cost = problem.evaluate_solution(best_solution)
+        } else {
+            best_solution = problem.random_solution()
+            best_cost = problem.evaluate_solution(best_solution)
+        }
+        for (let iter = 0; iter < this.max_iters; iter++) {
+            const candidate = problem.random_solution()
+            const cost = problem.evaluate_solution(candidate)
+            if (cost < best_cost) {
+                best_cost = cost
                 best_solution = candidate
-                best_score = candidate_score
-                
-            tabu_list.append(candidate)
-            if len(tabu_list) > self.tabu_tenure:
-                tabu_list.pop(0)
-                
-            current = candidate
-            if self.verbose:
-                print(f"Iteration {iter}: Score = {best_score}")
-                
-        return best_solution, best_score`}
+            }
+        }
+        return [best_solution, best_cost]
+    
+    // Note: In JavaScript we use different syntax; here is the Python version:
+    #
+    # def optimize(self, problem, initial_solution=None, **kwargs):
+    #     if initial_solution is not None:
+    #         best_solution = initial_solution
+    #         best_cost = problem.evaluate_solution(best_solution)
+    #     else:
+    #         best_solution = problem.random_solution()
+    #         best_cost = problem.evaluate_solution(best_solution)
+    #
+    #     for iter in range(self.max_iters):
+    #         candidate = problem.random_solution()
+    #         cost = problem.evaluate_solution(candidate)
+    #         if cost < best_cost:
+    #             best_cost = cost
+    #             best_solution = candidate
+    #     return best_solution, best_cost`}
                     </pre>
-                  </div>
-
-                  <div>
-                    <h4 className="text-lg font-semibold text-white mb-2">
-                      2. Optimizer Configuration (<code>solver_config.json</code>)
-                    </h4>
-                    <pre className="bg-[#1E1E1E] p-4 rounded text-sm overflow-x-auto font-code text-[#9b87f5] shadow-inner">
+                    <h4 className="text-lg font-semibold">Step 2: Create the Solver Configuration</h4>
+                    <p>Create a file named <code>solver_config.json</code> with this content:</p>
+                    <pre className="bg-[#1E1E1E] p-4 rounded overflow-x-auto font-code text-[#9b87f5]">
 {`{
-    "entry_point": "tabu_search:TabuSearchOptimizer",
-    "default_params": {
-        "max_iters": 100,
-        "tabu_tenure": 5,
-        "verbose": true
-    }
+  "entry_point": "random_search_optimizer:RandomSearchOptimizer",
+  "default_params": {
+    "max_iters": 1000,
+    "verbose": true
+  }
 }`}
                     </pre>
-                  </div>
+                    <h4 className="text-lg font-semibold">Step 3: Testing Locally</h4>
+                    <p>Test your optimizer using the auto-loader:</p>
+                    <pre className="bg-[#1E1E1E] p-4 rounded overflow-x-auto font-code text-[#9b87f5]">
+{`from rastion_hub.auto_optimizer import AutoOptimizer
+from rastion_hub.auto_problem import AutoProblem
 
-                  <div>
-                    <h4 className="text-lg font-semibold text-white mb-2">
-                      3. Push to Rastion
-                    </h4>
-                    <pre className="bg-[#1E1E1E] p-4 rounded text-sm overflow-x-auto font-code text-[#9b87f5] shadow-inner">
-{`# Create a new optimizer repository
-rastion create_repo tabu-search
+problem = AutoProblem.from_repo("YourGitHubOrg/binary-onemax-problem", revision="main")
+optimizer = AutoOptimizer.from_repo("YourGitHubOrg/random-search-optimizer", revision="main")
+solution, cost = optimizer.optimize(problem)
+print("Best solution:", solution)
+print("Cost:", cost)`}
+                    </pre>
+                    <h4 className="text-lg font-semibold">Step 4: Pushing to Rastion Hub</h4>
+                    <p>Use the Rastion CLI to create and push your optimizer repository:</p>
+                    <pre className="bg-[#1E1E1E] p-4 rounded overflow-x-auto font-code text-[#9b87f5]">
+{`# Create repository
+rastion create_repo random-search-optimizer --github-token <YOUR_GITHUB_TOKEN>
 
 # Push your optimizer implementation
-rastion push_solver tabu-search \\
-    --file tabu_search.py \\
-    --config solver_config.json`}
+rastion push_solver random-search-optimizer --file random_search_optimizer.py --config solver_config.json --github-token <YOUR_GITHUB_TOKEN>`}
                     </pre>
                   </div>
-                </div>
+                )}
               </div>
             </section>
           </TabsContent>
