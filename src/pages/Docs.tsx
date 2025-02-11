@@ -37,14 +37,24 @@ const Docs = () => {
               <div className="bg-gradient-to-br from-[#1A1F2C] to-[#221F26] p-6 rounded-lg shadow-xl">
                 <h3 className="text-xl font-semibold mb-4 text-white">BaseProblem</h3>
                 <div className="bg-[#1E1E1E] p-4 rounded text-sm overflow-x-auto font-code text-[#9b87f5] shadow-inner">
-                  {`class BaseProblem:
-    def evaluate_solution(self, solution) -> float:
-        """Required method to evaluate a solution."""
-        pass
+                  {`from abc import ABC, abstractmethod
 
-    def random_solution(self):
-        """Optional method to generate random solutions."""
-        pass`}
+                    class BaseOptimizer(ABC):
+                        """
+                        Base class for any Rastion optimizer.
+                        Defines a minimal interface so all optimizers
+                        have a consistent `optimize(problem, ...)` method.
+                        """
+                    
+                        @abstractmethod
+                        def optimize(self, problem, **kwargs):
+                            """
+                            Run the optimization on the given problem.
+                            Return a tuple (best_solution, best_value).
+                            Child classes must implement their own logic.
+                            """
+                            pass
+`}
                 </div>
               </div>
 
