@@ -13,10 +13,7 @@ const Landing = () => {
           <div className="max-w-2xl mx-auto text-github-gray mb-12">
             <p className="mb-4">
               Rastion allows users to create and share optimizers and problems by making team accessible to everyone.
-            </p>
-            <p>
-              Join us in building a more efficient future through open source
-              collaboration.
+              Join us in building a more efficient future through open source collaboration.
             </p>
           </div>
           <div className="flex gap-4 justify-center">
