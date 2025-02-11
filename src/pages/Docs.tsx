@@ -318,7 +318,6 @@ rastion push_solver tabu-search \\
           {/* Usage Examples */}
           <TabsContent value="usage-examples">
             <section>
-              <section>
             <h2 className="text-2xl font-semibold text-github-gray mb-6 flex items-center gap-2">
               <Code2 className="w-6 h-6" />
               Usage Examples
