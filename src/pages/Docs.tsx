@@ -5,6 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import ProblemGuidesSection from "@/components/ProblemGuidesSection";
 import OptimizerGuidesSection from "@/components/OptimizerGuidesSection";
+import ContinuousProblemGuides from "@/components/ContinuousProblemGuides"; 
+import UsageExamplesSection from "@/components/UsageExamplesSection";
+import CLIGuidesSection from "@/components/CLIGuidesSection";
 
 const Docs = () => {
   const [activeTab, setActiveTab] = useState("getting-started");
@@ -122,9 +125,11 @@ class BaseOptimizer(ABC):
                 <Code2 className="w-6 h-6" />
                 Creating a Problem
               </h2>
-              {/* Existing content… */}
-              {/* Render the new grid of pop-up guides */}
-              <ProblemGuidesSection />
+            
+              <div className="flex flex-col gap-4">
+                <ProblemGuidesSection />
+                <ContinuousProblemGuides />
+              </div>
             </section>
           </TabsContent>
 
@@ -143,111 +148,14 @@ class BaseOptimizer(ABC):
           {/* Usage Examples */}
           <TabsContent value="usage-examples">
             <section>
-              <h2 className="text-2xl font-semibold text-github-gray mb-6 flex items-center gap-2">
-                <BookOpen className="w-6 h-6" />
-                Usage Examples
-              </h2>
-              <div className="space-y-8">
-                {/* Example 1: Basic Usage */}
-                <div className="bg-gradient-to-br from-[#1A1F2C] to-[#221F26] p-6 rounded-lg shadow-xl">
-                  <h3 className="text-xl font-semibold mb-4 text-white">
-                    Example 1: Basic Usage
-                  </h3>
-                  <pre className="bg-[#1E1E1E] p-4 rounded text-sm overflow-x-auto font-code text-[#9b87f5] shadow-inner">
-{`from rastion_hub.auto_problem import AutoProblem
-from rastion_hub.auto_optimizer import AutoOptimizer
-
-# Load a problem and optimizer
-problem = AutoProblem.from_repo("Rastion/maxcut-problem")
-optimizer = AutoOptimizer.from_repo(
-    "Rastion/tabu-search",
-    override_params={"max_iters": 100}
-)
-
-# Run optimization
-solution, cost = optimizer.optimize(problem)
-print(f"Solution: {solution}\\nCost: {cost}")`}
-                  </pre>
-                </div>
-
-                {/* Example 2: Multiple Optimizers */}
-                <div className="bg-gradient-to-br from-[#1A1F2C] to-[#221F26] p-6 rounded-lg shadow-xl">
-                  <h3 className="text-xl font-semibold mb-4 text-white">
-                    Example 2: Multiple Optimizers
-                  </h3>
-                  <pre className="bg-[#1E1E1E] p-4 rounded text-sm overflow-x-auto font-code text-[#9b87f5] shadow-inner">
-{`from rastion_hub.auto_problem import AutoProblem
-from rastion_hub.auto_optimizer import AutoOptimizer
-from rastion_hub.optimizer_runner import run_optimizers_independently
-
-problem = AutoProblem.from_repo("Rastion/maxcut-problem")
-
-# Load multiple optimizers
-optimizers = [
-    AutoOptimizer.from_repo("Rastion/tabu-search"),
-    AutoOptimizer.from_repo("Rastion/simulated-annealing"),
-    AutoOptimizer.from_repo("Rastion/genetic-algorithm")
-]
-
-# Run all optimizers
-results = run_optimizers_independently(problem, optimizers)
-
-# Find best result
-best_optimizer, best_sol, best_cost = min(
-    results, key=lambda x: x[2]
-)
-
-print(f"Best optimizer: {best_optimizer}")
-print(f"Best solution: {best_sol}")
-print(f"Best cost: {best_cost}")`}
-                  </pre>
-                </div>
-              </div>
+              <UsageExamplesSection />
             </section>
           </TabsContent>
 
           {/* CLI Commands */}
           <TabsContent value="cli-commands">
             <section>
-              <h2 className="text-2xl font-semibold text-github-gray mb-6 flex items-center gap-2">
-                <Terminal className="w-6 h-6" />
-                CLI Commands
-              </h2>
-              <div className="bg-gradient-to-br from-[#1A1F2C] to-[#221F26] p-6 rounded-lg shadow-xl">
-                <div className="space-y-6">
-                  <div>
-                    <h3 className="text-xl font-semibold mb-4 text-white">
-                      Repository Management
-                    </h3>
-                    <pre className="bg-[#1E1E1E] p-4 rounded text-sm overflow-x-auto font-code text-[#9b87f5] shadow-inner">
-{`# Create new repository
-rastion create_repo my-repo
-
-# List repositories
-rastion list_repos
-
-# Delete repository
-rastion delete_repo my-repo`}
-                    </pre>
-                  </div>
-
-                  <div>
-                    <h3 className="text-xl font-semibold mb-4 text-white">
-                      Problem & Optimizer Management
-                    </h3>
-                    <pre className="bg-[#1E1E1E] p-4 rounded text-sm overflow-x-auto font-code text-[#9b87f5] shadow-inner">
-{`# Push problem implementation
-rastion push_problem my-repo --file problem.py --config config.json
-
-# Push optimizer implementation
-rastion push_solver my-repo --file solver.py --config config.json
-
-# List versions
-rastion list_versions my-repo`}
-                    </pre>
-                  </div>
-                </div>
-              </div>
+              <CLIGuidesSection />
             </section>
           </TabsContent>
         </Tabs>

@@ -16,7 +16,7 @@ const Navigation = () => {
       <div className="container mx-auto">
         <div className="flex h-16 items-center">
         <Link to="/" className="flex items-center">
-  <img src="/public/rastion1.svg" alt="Rastion Logo" className="w-auto max-w-[70px]" />
+  <img src="/rastion1.svg" alt="Rastion Logo" className="w-auto max-w-[70px]" />
 </Link>
 
           <div className="ml-auto flex gap-6">
