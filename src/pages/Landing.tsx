@@ -2,18 +2,42 @@
 import { Code2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { createClient } from "@supabase/supabase-js";
+import { useEffect, useState } from "react";
+import GithubAuth from "@/components/auth/GithubAuth";
+
+const supabase = createClient(
+  import.meta.env.VITE_SUPABASE_URL,
+  import.meta.env.VITE_SUPABASE_ANON_KEY
+);
 
 const Landing = () => {
+  const [user, setUser] = useState<any>(null);
+
+  useEffect(() => {
+    const getUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setUser(user);
+    };
+
+    getUser();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
   return (
     <div className="min-h-screen bg-white">
       <div className="container py-12">
         <div className="text-center mb-12">
-        <h1 className="text-4xl font-bold flex items-center justify-center text-github-gray mb-4"> 
-          <div className="text-center">
-            <img src="/rastion1.svg" alt="Rastion Logo" className="w-full max-w-[250px]" />
-          </div>
-        </h1>
-
+          <h1 className="text-4xl font-bold flex items-center justify-center text-github-gray mb-4"> 
+            <div className="text-center">
+              <img src="/rastion1.svg" alt="Rastion Logo" className="w-full max-w-[250px]" />
+            </div>
+          </h1>
 
           <p className="text-xl text-github-gray mb-8">Optimization for everyone</p>
           <div className="max-w-2xl mx-auto text-github-gray mb-12">
@@ -22,6 +46,13 @@ const Landing = () => {
               Join us in building a more efficient future through open source collaboration.
             </p>
           </div>
+          
+          {!user ? (
+            <div className="max-w-sm mx-auto mb-8">
+              <GithubAuth />
+            </div>
+          ) : null}
+          
           <div className="flex gap-4 justify-center">
             <Button asChild>
               <Link to="/repositories">Browse Repositories</Link>
