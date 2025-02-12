@@ -1,4 +1,3 @@
-
 import React, { useState, FC, ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import CodeBlock from "@/components/CodeBlock";
@@ -49,8 +48,9 @@ const ContinuousProblemGuides: FC = () => {
           </p>
           <h4 className="text-lg font-semibold">Step 1: Create the Python Module</h4>
           <p>Create a file named <code>rosenbrock.py</code> with the following content:</p>
-          <CodeBlock
-            code={`import numpy as np
+          <div className="bg-gradient-to-br from-[#1A1F2C] to-[#221F26] p-6 rounded-lg shadow-xl">
+            <CodeBlock
+              code={`import numpy as np
 from rastion_hub.base_problem import BaseProblem
 
 class RosenbrockProblem(BaseProblem):
@@ -76,27 +76,32 @@ class RosenbrockProblem(BaseProblem):
 
     def get_qubo(self):
         raise NotImplementedError("RosenbrockProblem is a continuous problem.")`}
-            language="python"
-          />
+              language="python"
+            />
+          </div>
           <h4 className="text-lg font-semibold">Step 2: Create the Problem Configuration</h4>
-          <CodeBlock
-            code={`{
+          <div className="bg-gradient-to-br from-[#1A1F2C] to-[#221F26] p-6 rounded-lg shadow-xl">
+            <CodeBlock
+              code={`{
   "entry_point": "rosenbrock:RosenbrockProblem",
   "default_params": {
     "dim": 2
   }
 }`}
-            language="json"
-          />
+              language="json"
+            />
+          </div>
           <h4 className="text-lg font-semibold">Step 3: Pushing to Rastion Hub</h4>
-          <CodeBlock
-            code={`# Create repository
+          <div className="bg-gradient-to-br from-[#1A1F2C] to-[#221F26] p-6 rounded-lg shadow-xl">
+            <CodeBlock
+              code={`# Create repository
 rastion create_repo rosenbrock-problem --github-token <YOUR_GITHUB_TOKEN>
 
 # Push your problem implementation
 rastion push_problem rosenbrock-problem --file rosenbrock.py --config problem_config.json --github-token <YOUR_GITHUB_TOKEN>`}
-            language="bash"
-          />
+              language="bash"
+            />
+          </div>
         </>
       )
     },

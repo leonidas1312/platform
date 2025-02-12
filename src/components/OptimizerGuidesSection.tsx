@@ -15,7 +15,7 @@ const GuideModal: FC<GuideModalProps> = ({ title, content, onClose }) => {
       className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
     >
       <div
-        onClick={(e) => e.stopPropagation()} // Prevent modal from closing when clicking inside it.
+        onClick={(e) => e.stopPropagation()}
         className="bg-gray-900 p-6 rounded-lg max-h-full overflow-auto w-11/12 md:w-3/4 lg:w-1/2"
       >
         <h3 className="text-xl font-bold mb-4 text-white">{title}</h3>
@@ -36,7 +36,6 @@ const OptimizerGuidesSection: FC = () => {
   const [activeGuide, setActiveGuide] = useState<GuideKey | null>(null);
   const closeModal = () => setActiveGuide(null);
 
-  // Define the content for each guide
   const guides: Record<GuideKey, { title: string; content: ReactNode }> = {
     simulatedAnnealing: {
       title: "Guide: Creating a Rastion Optimizer – Simulated Annealing",
@@ -48,8 +47,9 @@ const OptimizerGuidesSection: FC = () => {
           </p>
           <h4 className="text-lg font-semibold">Step 1: Create the Python Module</h4>
           <p>Create a file named <code>simulated_annealing_optimizer.py</code> with the following content:</p>
-          <pre className="bg-[#1E1E1E] p-4 rounded overflow-x-auto font-code text-[#9b87f5]">
-{`import numpy as np
+          <div className="bg-gradient-to-br from-[#1A1F2C] to-[#221F26] p-6 rounded-lg shadow-xl">
+            <CodeBlock
+              code={`import numpy as np
 from math import exp
 from rastion_hub.base_optimizer import BaseOptimizer
 
@@ -92,11 +92,13 @@ class SimulatedAnnealingOptimizer(BaseOptimizer):
             if self.verbose:
                 print(f"Iteration {i}: Cost = {current_cost}, Best = {best_cost}")
         return best_solution.tolist(), best_cost`}
-          </pre>
+              language="python"
+            />
+          </div>
           <h4 className="text-lg font-semibold">Step 2: Create the Optimizer Configuration</h4>
-          <p>Create a file named <code>solver_config.json</code> with this content:</p>
-          <pre className="bg-[#1E1E1E] p-4 rounded overflow-x-auto font-code text-[#9b87f5]">
-{`{
+          <div className="bg-gradient-to-br from-[#1A1F2C] to-[#221F26] p-6 rounded-lg shadow-xl">
+            <CodeBlock
+              code={`{
   "entry_point": "simulated_annealing_optimizer:SimulatedAnnealingOptimizer",
   "default_params": {
     "max_iters": 500,
@@ -105,16 +107,20 @@ class SimulatedAnnealingOptimizer(BaseOptimizer):
     "verbose": false
   }
 }`}
-          </pre>
+              language="json"
+            />
+          </div>
           <h4 className="text-lg font-semibold">Step 3: Pushing to Rastion Hub</h4>
-          <p>Use the Rastion CLI to create and push your repository:</p>
-          <pre className="bg-[#1E1E1E] p-4 rounded overflow-x-auto font-code text-[#9b87f5]">
-{`# Create repository
+          <div className="bg-gradient-to-br from-[#1A1F2C] to-[#221F26] p-6 rounded-lg shadow-xl">
+            <CodeBlock
+              code={`# Create repository
 rastion create_repo simulated-annealing-optimizer --github-token <YOUR_GITHUB_TOKEN>
 
 # Push your optimizer implementation
 rastion push_solver simulated-annealing-optimizer --file simulated_annealing_optimizer.py --config solver_config.json --github-token <YOUR_GITHUB_TOKEN>`}
-          </pre>
+              language="bash"
+            />
+          </div>
         </>
       )
     },
