@@ -1,7 +1,7 @@
 
 import React, { useState, FC, ReactNode } from "react";
 import { Button } from "@/components/ui/button";
-import { CodeBlock } from "@/components/CodeBlock";
+import CodeBlock from "@/components/CodeBlock";
 
 interface CLIGuideModalProps {
   title: string;
