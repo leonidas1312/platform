@@ -1,3 +1,4 @@
+
 import React, { useState, FC, ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import CodeBlock from "@/components/CodeBlock";
@@ -110,8 +111,8 @@ rastion push_problem rosenbrock-problem --file rosenbrock.py --config problem_co
           </p>
           <h4 className="text-lg font-semibold">Step 1: Create the Python Module</h4>
           <p>Create a file named <code>rastrigin.py</code> with the following content:</p>
-          <CodeBlock language="python">
-{`import numpy as np
+          <CodeBlock
+            code={`import numpy as np
 from rastion_hub.base_problem import BaseProblem
 
 class RastriginProblem(BaseProblem):
@@ -135,24 +136,27 @@ class RastriginProblem(BaseProblem):
 
     def get_qubo(self):
         raise NotImplementedError("RastriginProblem is a continuous problem.")`}
-          </CodeBlock>
+            language="python"
+          />
           <h4 className="text-lg font-semibold">Step 2: Create the Problem Configuration</h4>
-          <CodeBlock language="json">
-{`{
+          <CodeBlock
+            code={`{
   "entry_point": "rastrigin:RastriginProblem",
   "default_params": {
     "dim": 2
   }
 }`}
-          </CodeBlock>
+            language="json"
+          />
           <h4 className="text-lg font-semibold">Step 3: Pushing to Rastion Hub</h4>
-          <CodeBlock language="bash">
-{`# Create repository
+          <CodeBlock
+            code={`# Create repository
 rastion create_repo rastrigin-problem --github-token <YOUR_GITHUB_TOKEN>
 
 # Push your problem implementation
 rastion push_problem rastrigin-problem --file rastrigin.py --config problem_config.json --github-token <YOUR_GITHUB_TOKEN>`}
-          </CodeBlock>
+            language="bash"
+          />
         </>
       )
     },
@@ -167,8 +171,8 @@ rastion push_problem rastrigin-problem --file rastrigin.py --config problem_conf
           </p>
           <h4 className="text-lg font-semibold">Step 1: Create the Python Module</h4>
           <p>Create a file named <code>ackley.py</code> with the following content:</p>
-          <CodeBlock language="python">
-{`import numpy as np
+          <CodeBlock
+            code={`import numpy as np
 from rastion_hub.base_problem import BaseProblem
 
 class AckleyProblem(BaseProblem):
@@ -194,24 +198,27 @@ class AckleyProblem(BaseProblem):
 
     def get_qubo(self):
         raise NotImplementedError("AckleyProblem is a continuous problem.")`}
-          </CodeBlock>
+            language="python"
+          />
           <h4 className="text-lg font-semibold">Step 2: Create the Problem Configuration</h4>
-          <CodeBlock language="json">
-{`{
+          <CodeBlock
+            code={`{
   "entry_point": "ackley:AckleyProblem",
   "default_params": {
     "dim": 2
   }
 }`}
-          </CodeBlock>
+            language="json"
+          />
           <h4 className="text-lg font-semibold">Step 3: Pushing to Rastion Hub</h4>
-          <CodeBlock language="bash">
-{`# Create repository
+          <CodeBlock
+            code={`# Create repository
 rastion create_repo ackley-problem --github-token <YOUR_GITHUB_TOKEN>
 
 # Push your problem implementation
 rastion push_problem ackley-problem --file ackley.py --config problem_config.json --github-token <YOUR_GITHUB_TOKEN>`}
-          </CodeBlock>
+            language="bash"
+          />
         </>
       )
     },
@@ -226,8 +233,8 @@ rastion push_problem ackley-problem --file ackley.py --config problem_config.jso
           </p>
           <h4 className="text-lg font-semibold">Step 1: Create the Python Module</h4>
           <p>Create a file named <code>himmelblau.py</code> with the following content:</p>
-          <CodeBlock language="python">
-{`import numpy as np
+          <CodeBlock
+            code={`import numpy as np
 from rastion_hub.base_problem import BaseProblem
 
 class HimmelblauProblem(BaseProblem):
@@ -237,7 +244,7 @@ class HimmelblauProblem(BaseProblem):
     Global minima occur at several points; one example is (3, 2) with f(x,y)=0.
     """
     def __init__(self, dim=2):
-        self.dim = 2  // Himmelblau is defined for 2D.
+        self.dim = 2  # Himmelblau is defined for 2D
         self.lower_bound = -5.0
         self.upper_bound = 5.0
 
@@ -250,24 +257,27 @@ class HimmelblauProblem(BaseProblem):
 
     def get_qubo(self):
         raise NotImplementedError("HimmelblauProblem is a continuous problem.")`}
-          </CodeBlock>
+            language="python"
+          />
           <h4 className="text-lg font-semibold">Step 2: Create the Problem Configuration</h4>
-          <CodeBlock language="json">
-{`{
+          <CodeBlock
+            code={`{
   "entry_point": "himmelblau:HimmelblauProblem",
   "default_params": {
     "dim": 2
   }
 }`}
-          </CodeBlock>
+            language="json"
+          />
           <h4 className="text-lg font-semibold">Step 3: Pushing to Rastion Hub</h4>
-          <CodeBlock language="bash">
-{`# Create repository
+          <CodeBlock
+            code={`# Create repository
 rastion create_repo himmelblau-problem --github-token <YOUR_GITHUB_TOKEN>
 
 # Push your problem implementation
 rastion push_problem himmelblau-problem --file himmelblau.py --config problem_config.json --github-token <YOUR_GITHUB_TOKEN>`}
-          </CodeBlock>
+            language="bash"
+          />
         </>
       )
     }
