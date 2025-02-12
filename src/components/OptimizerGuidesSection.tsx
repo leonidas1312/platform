@@ -1,6 +1,6 @@
-// src/components/OptimizerGuidesSection.tsx
 import React, { useState, FC, ReactNode } from "react";
 import { Button } from "@/components/ui/button";
+import CodeBlock from "@/components/CodeBlock";
 
 interface GuideModalProps {
   title: string;

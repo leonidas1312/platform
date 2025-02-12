@@ -1,6 +1,6 @@
-// src/components/ContinuousProblemGuides.tsx
 import React, { useState, FC, ReactNode } from "react";
 import { Button } from "@/components/ui/button";
+import CodeBlock from "@/components/CodeBlock";
 
 interface GuideModalProps {
   title: string;
@@ -48,7 +48,7 @@ const ContinuousProblemGuides: FC = () => {
           </p>
           <h4 className="text-lg font-semibold">Step 1: Create the Python Module</h4>
           <p>Create a file named <code>rosenbrock.py</code> with the following content:</p>
-          <pre className="bg-[#1E1E1E] p-4 rounded overflow-x-auto font-code text-[#9b87f5]">
+          <CodeBlock language="python">
 {`import numpy as np
 from rastion_hub.base_problem import BaseProblem
 
@@ -75,24 +75,24 @@ class RosenbrockProblem(BaseProblem):
 
     def get_qubo(self):
         raise NotImplementedError("RosenbrockProblem is a continuous problem.")`}
-          </pre>
+          </CodeBlock>
           <h4 className="text-lg font-semibold">Step 2: Create the Problem Configuration</h4>
-          <pre className="bg-[#1E1E1E] p-4 rounded overflow-x-auto font-code text-[#9b87f5]">
+          <CodeBlock language="json">
 {`{
   "entry_point": "rosenbrock:RosenbrockProblem",
   "default_params": {
     "dim": 2
   }
 }`}
-          </pre>
+          </CodeBlock>
           <h4 className="text-lg font-semibold">Step 3: Pushing to Rastion Hub</h4>
-          <pre className="bg-[#1E1E1E] p-4 rounded overflow-x-auto font-code text-[#9b87f5]">
+          <CodeBlock language="bash">
 {`# Create repository
 rastion create_repo rosenbrock-problem --github-token <YOUR_GITHUB_TOKEN>
 
 # Push your problem implementation
 rastion push_problem rosenbrock-problem --file rosenbrock.py --config problem_config.json --github-token <YOUR_GITHUB_TOKEN>`}
-          </pre>
+          </CodeBlock>
         </>
       )
     },
@@ -107,7 +107,7 @@ rastion push_problem rosenbrock-problem --file rosenbrock.py --config problem_co
           </p>
           <h4 className="text-lg font-semibold">Step 1: Create the Python Module</h4>
           <p>Create a file named <code>rastrigin.py</code> with the following content:</p>
-          <pre className="bg-[#1E1E1E] p-4 rounded overflow-x-auto font-code text-[#9b87f5]">
+          <CodeBlock language="python">
 {`import numpy as np
 from rastion_hub.base_problem import BaseProblem
 
@@ -132,24 +132,24 @@ class RastriginProblem(BaseProblem):
 
     def get_qubo(self):
         raise NotImplementedError("RastriginProblem is a continuous problem.")`}
-          </pre>
+          </CodeBlock>
           <h4 className="text-lg font-semibold">Step 2: Create the Problem Configuration</h4>
-          <pre className="bg-[#1E1E1E] p-4 rounded overflow-x-auto font-code text-[#9b87f5]">
+          <CodeBlock language="json">
 {`{
   "entry_point": "rastrigin:RastriginProblem",
   "default_params": {
     "dim": 2
   }
 }`}
-          </pre>
+          </CodeBlock>
           <h4 className="text-lg font-semibold">Step 3: Pushing to Rastion Hub</h4>
-          <pre className="bg-[#1E1E1E] p-4 rounded overflow-x-auto font-code text-[#9b87f5]">
+          <CodeBlock language="bash">
 {`# Create repository
 rastion create_repo rastrigin-problem --github-token <YOUR_GITHUB_TOKEN>
 
 # Push your problem implementation
 rastion push_problem rastrigin-problem --file rastrigin.py --config problem_config.json --github-token <YOUR_GITHUB_TOKEN>`}
-          </pre>
+          </CodeBlock>
         </>
       )
     },
@@ -164,7 +164,7 @@ rastion push_problem rastrigin-problem --file rastrigin.py --config problem_conf
           </p>
           <h4 className="text-lg font-semibold">Step 1: Create the Python Module</h4>
           <p>Create a file named <code>ackley.py</code> with the following content:</p>
-          <pre className="bg-[#1E1E1E] p-4 rounded overflow-x-auto font-code text-[#9b87f5]">
+          <CodeBlock language="python">
 {`import numpy as np
 from rastion_hub.base_problem import BaseProblem
 
@@ -191,24 +191,24 @@ class AckleyProblem(BaseProblem):
 
     def get_qubo(self):
         raise NotImplementedError("AckleyProblem is a continuous problem.")`}
-          </pre>
+          </CodeBlock>
           <h4 className="text-lg font-semibold">Step 2: Create the Problem Configuration</h4>
-          <pre className="bg-[#1E1E1E] p-4 rounded overflow-x-auto font-code text-[#9b87f5]">
+          <CodeBlock language="json">
 {`{
   "entry_point": "ackley:AckleyProblem",
   "default_params": {
     "dim": 2
   }
 }`}
-          </pre>
+          </CodeBlock>
           <h4 className="text-lg font-semibold">Step 3: Pushing to Rastion Hub</h4>
-          <pre className="bg-[#1E1E1E] p-4 rounded overflow-x-auto font-code text-[#9b87f5]">
+          <CodeBlock language="bash">
 {`# Create repository
 rastion create_repo ackley-problem --github-token <YOUR_GITHUB_TOKEN>
 
 # Push your problem implementation
 rastion push_problem ackley-problem --file ackley.py --config problem_config.json --github-token <YOUR_GITHUB_TOKEN>`}
-          </pre>
+          </CodeBlock>
         </>
       )
     },
@@ -223,7 +223,7 @@ rastion push_problem ackley-problem --file ackley.py --config problem_config.jso
           </p>
           <h4 className="text-lg font-semibold">Step 1: Create the Python Module</h4>
           <p>Create a file named <code>himmelblau.py</code> with the following content:</p>
-          <pre className="bg-[#1E1E1E] p-4 rounded overflow-x-auto font-code text-[#9b87f5]">
+          <CodeBlock language="python">
 {`import numpy as np
 from rastion_hub.base_problem import BaseProblem
 
@@ -247,24 +247,24 @@ class HimmelblauProblem(BaseProblem):
 
     def get_qubo(self):
         raise NotImplementedError("HimmelblauProblem is a continuous problem.")`}
-          </pre>
+          </CodeBlock>
           <h4 className="text-lg font-semibold">Step 2: Create the Problem Configuration</h4>
-          <pre className="bg-[#1E1E1E] p-4 rounded overflow-x-auto font-code text-[#9b87f5]">
+          <CodeBlock language="json">
 {`{
   "entry_point": "himmelblau:HimmelblauProblem",
   "default_params": {
     "dim": 2
   }
 }`}
-          </pre>
+          </CodeBlock>
           <h4 className="text-lg font-semibold">Step 3: Pushing to Rastion Hub</h4>
-          <pre className="bg-[#1E1E1E] p-4 rounded overflow-x-auto font-code text-[#9b87f5]">
+          <CodeBlock language="bash">
 {`# Create repository
 rastion create_repo himmelblau-problem --github-token <YOUR_GITHUB_TOKEN>
 
 # Push your problem implementation
 rastion push_problem himmelblau-problem --file himmelblau.py --config problem_config.json --github-token <YOUR_GITHUB_TOKEN>`}
-          </pre>
+          </CodeBlock>
         </>
       )
     }
