@@ -1,6 +1,7 @@
 // src/components/CLIGuidesSection.tsx
 import React, { useState, FC, ReactNode } from "react";
 import { Button } from "@/components/ui/button";
+import { CodeBlock } from "@/components/ui/code-block";
 
 interface CLIGuideModalProps {
   title: string;
@@ -15,7 +16,7 @@ const CLIGuideModal: FC<CLIGuideModalProps> = ({ title, content, onClose }) => {
       className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
     >
       <div
-        onClick={(e) => e.stopPropagation()} // Prevent closing when clicking inside the modal
+        onClick={(e) => e.stopPropagation()}
         className="bg-gray-900 p-6 rounded-lg max-h-full overflow-auto w-11/12 md:w-3/4 lg:w-1/2"
       >
         <h3 className="text-xl font-bold mb-4 text-white">{title}</h3>
@@ -43,7 +44,6 @@ const CLIGuidesSection: FC = () => {
   const [activeGuide, setActiveGuide] = useState<CLIGuideKey | null>(null);
   const closeModal = () => setActiveGuide(null);
 
-  // Detailed help text for each command (simulating a --help output)
   const guides: Record<CLIGuideKey, { title: string; content: ReactNode }> = {
     create_repo: {
       title: "CLI Command: create_repo",
@@ -67,10 +67,8 @@ const CLIGuidesSection: FC = () => {
             </li>
           </ul>
           <h4 className="text-lg font-semibold">Example:</h4>
-          <pre className="bg-[#1E1E1E] p-4 rounded overflow-x-auto font-code text-[#9b87f5]">
-{`export GITHUB_TOKEN="your_token_here"
-rastion create_repo my-new-repo --github-token $GITHUB_TOKEN`}
-          </pre>
+          <CodeBlock code={`export GITHUB_TOKEN="your_token_here"
+rastion create_repo my-new-repo --github-token $GITHUB_TOKEN`} />
         </>
       ),
     },
@@ -100,10 +98,8 @@ rastion create_repo my-new-repo --github-token $GITHUB_TOKEN`}
             </li>
           </ul>
           <h4 className="text-lg font-semibold">Example:</h4>
-          <pre className="bg-[#1E1E1E] p-4 rounded overflow-x-auto font-code text-[#9b87f5]">
-{`export GITHUB_TOKEN="your_token_here"
-rastion update_repo my-new-repo --local-dir ./my_project --branch main --github-token $GITHUB_TOKEN`}
-          </pre>
+          <CodeBlock code={`export GITHUB_TOKEN="your_token_here"
+rastion update_repo my-new-repo --local-dir ./my_project --branch main --github-token $GITHUB_TOKEN`} />
         </>
       ),
     },
@@ -123,10 +119,8 @@ rastion update_repo my-new-repo --local-dir ./my_project --branch main --github-
             </li>
           </ul>
           <h4 className="text-lg font-semibold">Example:</h4>
-          <pre className="bg-[#1E1E1E] p-4 rounded overflow-x-auto font-code text-[#9b87f5]">
-{`export GITHUB_TOKEN="your_token_here"
-rastion delete_repo my-new-repo --github-token $GITHUB_TOKEN`}
-          </pre>
+          <CodeBlock code={`export GITHUB_TOKEN="your_token_here"
+rastion delete_repo my-new-repo --github-token $GITHUB_TOKEN`} />
         </>
       ),
     },
@@ -149,9 +143,7 @@ rastion delete_repo my-new-repo --github-token $GITHUB_TOKEN`}
             </li>
           </ul>
           <h4 className="text-lg font-semibold">Example:</h4>
-          <pre className="bg-[#1E1E1E] p-4 rounded overflow-x-auto font-code text-[#9b87f5]">
-{`rastion clone_repo my-new-repo --branch main --dest ./local_folder`}
-          </pre>
+          <CodeBlock code={`rastion clone_repo my-new-repo --branch main --dest ./local_folder`} />
         </>
       ),
     },
@@ -180,10 +172,8 @@ rastion delete_repo my-new-repo --github-token $GITHUB_TOKEN`}
             </li>
           </ul>
           <h4 className="text-lg font-semibold">Example:</h4>
-          <pre className="bg-[#1E1E1E] p-4 rounded overflow-x-auto font-code text-[#9b87f5]">
-{`export GITHUB_TOKEN="your_token_here"
-rastion push_solver my-solver-repo --file solver.py --config solver_config.json --branch main --github-token $GITHUB_TOKEN`}
-          </pre>
+          <CodeBlock code={`export GITHUB_TOKEN="your_token_here"
+rastion push_solver my-solver-repo --file solver.py --config solver_config.json --branch main --github-token $GITHUB_TOKEN`} />
         </>
       ),
     },
@@ -213,10 +203,8 @@ rastion push_solver my-solver-repo --file solver.py --config solver_config.json 
             </li>
           </ul>
           <h4 className="text-lg font-semibold">Example:</h4>
-          <pre className="bg-[#1E1E1E] p-4 rounded overflow-x-auto font-code text-[#9b87f5]">
-{`export GITHUB_TOKEN="your_token_here"
-rastion push_problem my-problem-repo --file problem.py --config problem_config.json --branch main --github-token $GITHUB_TOKEN`}
-          </pre>
+          <CodeBlock code={`export GITHUB_TOKEN="your_token_here"
+rastion push_problem my-problem-repo --file problem.py --config problem_config.json --branch main --github-token $GITHUB_TOKEN`} />
         </>
       ),
     },
@@ -243,10 +231,8 @@ rastion push_problem my-problem-repo --file problem.py --config problem_config.j
             </li>
           </ul>
           <h4 className="text-lg font-semibold">Example:</h4>
-          <pre className="bg-[#1E1E1E] p-4 rounded overflow-x-auto font-code text-[#9b87f5]">
-{`export GITHUB_TOKEN="your_token_here"
-rastion run_solver Rastion/my-solver-repo --solver-rev main --problem-repo Rastion/my-problem-repo --problem-rev main`}
-          </pre>
+          <CodeBlock code={`export GITHUB_TOKEN="your_token_here"
+rastion run_solver Rastion/my-solver-repo --solver-rev main --problem-repo Rastion/my-problem-repo --problem-rev main`} />
         </>
       ),
     },

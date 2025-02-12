@@ -1,6 +1,6 @@
-// src/components/UsageExamplesSection.tsx
 import React, { useState, FC, ReactNode } from "react";
 import { Button } from "@/components/ui/button";
+import CodeBlock from "@/components/CodeBlock";
 
 interface GuideModalProps {
   title: string;
@@ -44,8 +44,7 @@ const UsageExamplesSection: FC = () => {
           <p>
             This example shows how to load the BinaryOneMax problem and the Simulated Annealing optimizer, then run the optimization.
           </p>
-          <pre className="bg-[#1E1E1E] p-4 rounded overflow-x-auto font-code text-[#9b87f5]">
-{`from rastion_hub.auto_problem import AutoProblem
+          <CodeBlock code={`from rastion_hub.auto_problem import AutoProblem
 from rastion_hub.auto_optimizer import AutoOptimizer
 
 # Load the BinaryOneMax problem
@@ -58,8 +57,7 @@ optimizer = AutoOptimizer.from_repo("Rastion/simulated-annealing-optimizer", rev
 # Run optimization
 solution, cost = optimizer.optimize(problem)
 print("Best solution:", solution)
-print("Best cost:", cost)`}
-          </pre>
+print("Best cost:", cost)`} />
         </>
       )
     },
@@ -70,8 +68,7 @@ print("Best cost:", cost)`}
           <p>
             In this example, we load the Rosenbrock problem and use the PyTorch Adam optimizer to minimize the Rosenbrock function.
           </p>
-          <pre className="bg-[#1E1E1E] p-4 rounded overflow-x-auto font-code text-[#9b87f5]">
-{`from rastion_hub.auto_problem import AutoProblem
+          <CodeBlock code={`from rastion_hub.auto_problem import AutoProblem
 from rastion_hub.auto_optimizer import AutoOptimizer
 
 # Load the Rosenbrock problem
@@ -84,8 +81,7 @@ optimizer = AutoOptimizer.from_repo("Rastion/adam-optimizer", revision="main",
 # Run optimization
 solution, cost = optimizer.optimize(problem)
 print("Rosenbrock solution:", solution)
-print("Rosenbrock cost:", cost)`}
-          </pre>
+print("Rosenbrock cost:", cost)`} />
         </>
       )
     },
@@ -96,8 +92,7 @@ print("Rosenbrock cost:", cost)`}
           <p>
             This example runs several optimizers independently on a problem and compares their results.
           </p>
-          <pre className="bg-[#1E1E1E] p-4 rounded overflow-x-auto font-code text-[#9b87f5]">
-{`from rastion_hub.auto_problem import AutoProblem
+          <CodeBlock code={`from rastion_hub.auto_problem import AutoProblem
 from rastion_hub.auto_optimizer import AutoOptimizer
 from rastion_hub.optimizer_runner import run_optimizers_independently
 
@@ -116,8 +111,7 @@ results = run_optimizers_independently(problem, [optimizer1, optimizer2, optimiz
 best_optimizer, best_solution, best_cost = min(results, key=lambda x: x[2])
 print("Best optimizer:", best_optimizer)
 print("Best solution:", best_solution)
-print("Best cost:", best_cost)`}
-          </pre>
+print("Best cost:", best_cost)`} />
         </>
       )
     },
@@ -128,8 +122,7 @@ print("Best cost:", best_cost)`}
           <p>
             This example demonstrates running a chain of optimizers sequentially, where each optimizer refines the solution from the previous one.
           </p>
-          <pre className="bg-[#1E1E1E] p-4 rounded overflow-x-auto font-code text-[#9b87f5]">
-{`from rastion_hub.auto_problem import AutoProblem
+          <CodeBlock code={`from rastion_hub.auto_problem import AutoProblem
 from rastion_hub.auto_optimizer import AutoOptimizer
 from rastion_hub.optimizer_runner import run_optimizers_in_chain
 
@@ -144,8 +137,7 @@ optimizer2 = AutoOptimizer.from_repo("Rastion/adam-optimizer", revision="main",
 
 final_solution, final_cost = run_optimizers_in_chain(problem, [optimizer1, optimizer2])
 print("Final refined solution:", final_solution)
-print("Final cost:", final_cost)`}
-          </pre>
+print("Final cost:", final_cost)`} />
         </>
       )
     }
