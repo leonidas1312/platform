@@ -1,6 +1,7 @@
 // src/components/ProblemGuidesSection.tsx
 import React, { useState, FC, ReactNode } from "react";
 import { Button } from "@/components/ui/button";
+import CodeBlock from "@/components/CodeBlock";
 
 interface GuideModalProps {
   title: string;
@@ -51,8 +52,8 @@ const ProblemGuidesSection: FC = () => {
           </p>
           <h4 className="text-lg font-semibold">Step 1: Create the Python Module</h4>
           <p>Create a file named <code>min_vertex_cover.py</code> with the following content:</p>
-          <pre className="bg-[#1E1E1E] p-4 rounded overflow-x-auto font-code text-[#9b87f5]">
-{`import numpy as np
+          <CodeBlock
+code={`import numpy as np
 from rastion_hub.base_problem import BaseProblem
 
 class MinVertexCoverProblem(BaseProblem):
@@ -96,11 +97,11 @@ class MinVertexCoverProblem(BaseProblem):
 
     def get_qubo(self):
         return self.Q, self.qubo_constant`}
-          </pre>
+          />
           <h4 className="text-lg font-semibold">Step 2: Create the Problem Configuration</h4>
           <p>Create a file named <code>problem_config.json</code> with this content:</p>
-          <pre className="bg-[#1E1E1E] p-4 rounded overflow-x-auto font-code text-[#9b87f5]">
-{`{
+          <CodeBlock
+code={`{
   "entry_point": "min_vertex_cover:MinVertexCoverProblem",
   "default_params": {
     "num_vertices": 6,
@@ -109,29 +110,29 @@ class MinVertexCoverProblem(BaseProblem):
     "B": 10
   }
 }`}
-          </pre>
+          />
           <h4 className="text-lg font-semibold">Step 3: Pushing to Rastion Hub</h4>
           <p>
             Use the Rastion CLI to create and push your repository:
           </p>
-          <pre className="bg-[#1E1E1E] p-4 rounded overflow-x-auto font-code text-[#9b87f5]">
-{`# Create repository
+          <CodeBlock
+code={`# Create repository
 rastion create_repo min-vertex-cover-problem --github-token <YOUR_GITHUB_TOKEN>
 
 # Push your problem implementation
 rastion push_problem min-vertex-cover-problem --file min_vertex_cover.py --config problem_config.json --github-token <YOUR_GITHUB_TOKEN>`}
-          </pre>
+          />
           <h4 className="text-lg font-semibold">Step 4: Testing</h4>
           <p>
             Test your problem using the auto-loader:
           </p>
-          <pre className="bg-[#1E1E1E] p-4 rounded overflow-x-auto font-code text-[#9b87f5]">
-{`from rastion_hub.auto_problem import AutoProblem
+          <CodeBlock
+code={`from rastion_hub.auto_problem import AutoProblem
 
 problem = AutoProblem.from_repo("Rastion/min-vertex-cover-problem", revision="main")
 print(problem.random_solution())
 print(problem.evaluate_solution(problem.random_solution()))`}
-          </pre>
+          />
         </>
       )
     },
@@ -145,8 +146,8 @@ print(problem.evaluate_solution(problem.random_solution()))`}
           </p>
           <h4 className="text-lg font-semibold">Step 1: Create the Python Module</h4>
           <p>Create a file named <code>set_cover.py</code> with the following content:</p>
-          <pre className="bg-[#1E1E1E] p-4 rounded overflow-x-auto font-code text-[#9b87f5]">
-{`import numpy as np
+          <CodeBlock
+code={`import numpy as np
 from rastion_hub.base_problem import BaseProblem
 
 class SetCoverProblem(BaseProblem):
@@ -188,11 +189,11 @@ class SetCoverProblem(BaseProblem):
 
     def get_qubo(self):
         return self.Q, self.qubo_constant`}
-          </pre>
+          />
           <h4 className="text-lg font-semibold">Step 2: Create the Problem Configuration</h4>
           <p>Create a file named <code>problem_config.json</code> with this content:</p>
-          <pre className="bg-[#1E1E1E] p-4 rounded overflow-x-auto font-code text-[#9b87f5]">
-{`{
+          <CodeBlock
+code={`{
   "entry_point": "set_cover:SetCoverProblem",
   "default_params": {
     "num_elements": 5,
@@ -201,24 +202,24 @@ class SetCoverProblem(BaseProblem):
     "penalty": 50
   }
 }`}
-          </pre>
+          />
           <h4 className="text-lg font-semibold">Step 3: Pushing to Rastion Hub</h4>
           <p>Use the Rastion CLI:</p>
-          <pre className="bg-[#1E1E1E] p-4 rounded overflow-x-auto font-code text-[#9b87f5]">
-{`# Create repository
+          <CodeBlock
+code={`# Create repository
 rastion create_repo set-cover-problem --github-token <YOUR_GITHUB_TOKEN>
 
 # Push your problem implementation
 rastion push_problem set-cover-problem --file set_cover.py --config problem_config.json --github-token <YOUR_GITHUB_TOKEN>`}
-          </pre>
+          />
           <h4 className="text-lg font-semibold">Step 4: Testing</h4>
-          <pre className="bg-[#1E1E1E] p-4 rounded overflow-x-auto font-code text-[#9b87f5]">
-{`from rastion_hub.auto_problem import AutoProblem
+          <CodeBlock
+code={`from rastion_hub.auto_problem import AutoProblem
 
 problem = AutoProblem.from_repo("Rastion/set-cover-problem", revision="main")
 print(problem.random_solution())
 print(problem.evaluate_solution(problem.random_solution()))`}
-          </pre>
+          />
         </>
       )
     },
@@ -233,8 +234,8 @@ print(problem.evaluate_solution(problem.random_solution()))`}
           </p>
           <h4 className="text-lg font-semibold">Step 1: Create the Python Module</h4>
           <p>Create a file named <code>logistic_regression.py</code> with the following content:</p>
-          <pre className="bg-[#1E1E1E] p-4 rounded overflow-x-auto font-code text-[#9b87f5]">
-{`import numpy as np
+          <CodeBlock
+code={`import numpy as np
 from rastion_hub.base_problem import BaseProblem
 
 class LogisticRegressionProblem(BaseProblem):
@@ -268,32 +269,32 @@ class LogisticRegressionProblem(BaseProblem):
     
     def get_qubo(self):
         throw new Error("LogisticRegressionProblem is not a QUBO problem.");`}
-          </pre>
+          />
           <h4 className="text-lg font-semibold">Step 2: Create the Problem Configuration</h4>
-          <pre className="bg-[#1E1E1E] p-4 rounded overflow-x-auto font-code text-[#9b87f5]">
-{`{
+          <CodeBlock
+code={`{
   "entry_point": "logistic_regression:LogisticRegressionProblem",
   "default_params": {
     "reg": 0.01
   }
 }`}
-          </pre>
+          />
           <h4 className="text-lg font-semibold">Step 3: Pushing to Rastion Hub</h4>
-          <pre className="bg-[#1E1E1E] p-4 rounded overflow-x-auto font-code text-[#9b87f5]">
-{`# Create repository
+          <CodeBlock
+code={`# Create repository
 rastion create_repo logistic-regression-problem --github-token <YOUR_GITHUB_TOKEN>
 
 # Push your problem implementation
 rastion push_problem logistic-regression-problem --file logistic_regression.py --config problem_config.json --github-token <YOUR_GITHUB_TOKEN>`}
-          </pre>
+          />
           <h4 className="text-lg font-semibold">Step 4: Testing</h4>
-          <pre className="bg-[#1E1E1E] p-4 rounded overflow-x-auto font-code text-[#9b87f5]">
-{`from rastion_hub.auto_problem import AutoProblem
+          <CodeBlock
+code={`from rastion_hub.auto_problem import AutoProblem
 
 problem = AutoProblem.from_repo("Rastion/logistic-regression-problem", revision="main")
 print(problem.random_solution())
 print(problem.evaluate_solution(problem.random_solution()))`}
-          </pre>
+          />
         </>
       )
     },
@@ -308,8 +309,8 @@ print(problem.evaluate_solution(problem.random_solution()))`}
           </p>
           <h4 className="text-lg font-semibold">Step 1: Create the Python Module</h4>
           <p>Create a file named <code>least_squares_regression.py</code> with the following content:</p>
-          <pre className="bg-[#1E1E1E] p-4 rounded overflow-x-auto font-code text-[#9b87f5]">
-{`import numpy as np
+          <CodeBlock
+code={`import numpy as np
 from rastion_hub.base_problem import BaseProblem
 
 class LeastSquaresRegressionProblem(BaseProblem):
@@ -340,30 +341,30 @@ class LeastSquaresRegressionProblem(BaseProblem):
     
     def get_qubo(self):
         throw new Error("LeastSquaresRegressionProblem is not a QUBO problem.");`}
-          </pre>
+          />
           <h4 className="text-lg font-semibold">Step 2: Create the Problem Configuration</h4>
-          <pre className="bg-[#1E1E1E] p-4 rounded overflow-x-auto font-code text-[#9b87f5]">
-{`{
+          <CodeBlock
+code={`{
   "entry_point": "least_squares_regression:LeastSquaresRegressionProblem",
   "default_params": {}
 }`}
-          </pre>
+          />
           <h4 className="text-lg font-semibold">Step 3: Pushing to Rastion Hub</h4>
-          <pre className="bg-[#1E1E1E] p-4 rounded overflow-x-auto font-code text-[#9b87f5]">
-{`# Create repository
+          <CodeBlock
+code={`# Create repository
 rastion create_repo least-squares-regression-problem --github-token <YOUR_GITHUB_TOKEN>
 
 # Push your problem implementation
 rastion push_problem least-squares-regression-problem --file least_squares_regression.py --config problem_config.json --github-token <YOUR_GITHUB_TOKEN>`}
-          </pre>
+          />
           <h4 className="text-lg font-semibold">Step 4: Testing</h4>
-          <pre className="bg-[#1E1E1E] p-4 rounded overflow-x-auto font-code text-[#9b87f5]">
-{`from rastion_hub.auto_problem import AutoProblem
+          <CodeBlock
+code={`from rastion_hub.auto_problem import AutoProblem
 
 problem = AutoProblem.from_repo("Rastion/least-squares-regression-problem", revision="main")
 print(problem.random_solution())
 print(problem.evaluate_solution(problem.random_solution()))`}
-          </pre>
+          />
         </>
       )
     }

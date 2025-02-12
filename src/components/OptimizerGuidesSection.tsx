@@ -134,8 +134,8 @@ rastion push_solver simulated-annealing-optimizer --file simulated_annealing_opt
           </p>
           <h4 className="text-lg font-semibold">Step 1: Create the Python Module</h4>
           <p>Create a file named <code>adam_optimizer.py</code> with the following content:</p>
-          <pre className="bg-[#1E1E1E] p-4 rounded overflow-x-auto font-code text-[#9b87f5]">
-{`import torch
+          <CodeBlock
+code={`import torch
 import numpy as np
 from rastion_hub.base_optimizer import BaseOptimizer
 
@@ -171,11 +171,11 @@ class AdamOptimizer(BaseOptimizer):
             if self.verbose:
                 print(f"Iteration {i}: Loss = {loss.item()}")
         return best_solution, best_loss`}
-          </pre>
+          />
           <h4 className="text-lg font-semibold">Step 2: Create the Optimizer Configuration</h4>
           <p>Create a file named <code>solver_config.json</code> with this content:</p>
-          <pre className="bg-[#1E1E1E] p-4 rounded overflow-x-auto font-code text-[#9b87f5]">
-{`{
+          <CodeBlock
+code={`{
   "entry_point": "adam_optimizer:AdamOptimizer",
   "default_params": {
     "max_iters": 1000,
@@ -183,16 +183,16 @@ class AdamOptimizer(BaseOptimizer):
     "verbose": false
   }
 }`}
-          </pre>
+          />
           <h4 className="text-lg font-semibold">Step 3: Pushing to Rastion Hub</h4>
           <p>Use the Rastion CLI to create and push your repository:</p>
-          <pre className="bg-[#1E1E1E] p-4 rounded overflow-x-auto font-code text-[#9b87f5]">
-{`# Create repository
+          <CodeBlock
+code={`# Create repository
 rastion create_repo adam-optimizer --github-token <YOUR_GITHUB_TOKEN>
 
 # Push your optimizer implementation
 rastion push_solver adam-optimizer --file adam_optimizer.py --config solver_config.json --github-token <YOUR_GITHUB_TOKEN>`}
-          </pre>
+          />
         </>
       )
     },
@@ -206,8 +206,8 @@ rastion push_solver adam-optimizer --file adam_optimizer.py --config solver_conf
           </p>
           <h4 className="text-lg font-semibold">Step 1: Create the Python Module</h4>
           <p>Create a file named <code>sgd_optimizer.py</code> with the following content:</p>
-          <pre className="bg-[#1E1E1E] p-4 rounded overflow-x-auto font-code text-[#9b87f5]">
-{`import torch
+          <CodeBlock
+code={`import torch
 import numpy as np
 from rastion_hub.base_optimizer import BaseOptimizer
 
@@ -242,11 +242,11 @@ class SGDOptimizer(BaseOptimizer):
             if self.verbose:
                 print(f"Iteration {i}: Loss = {loss.item()}")
         return best_solution, best_loss`}
-          </pre>
+          />
           <h4 className="text-lg font-semibold">Step 2: Create the Optimizer Configuration</h4>
           <p>Create a file named <code>solver_config.json</code> with this content:</p>
-          <pre className="bg-[#1E1E1E] p-4 rounded overflow-x-auto font-code text-[#9b87f5]">
-{`{
+          <CodeBlock
+code={`{
   "entry_point": "sgd_optimizer:SGDOptimizer",
   "default_params": {
     "max_iters": 1000,
@@ -254,16 +254,16 @@ class SGDOptimizer(BaseOptimizer):
     "verbose": false
   }
 }`}
-          </pre>
+          />
           <h4 className="text-lg font-semibold">Step 3: Pushing to Rastion Hub</h4>
           <p>Use the Rastion CLI to create and push your repository:</p>
-          <pre className="bg-[#1E1E1E] p-4 rounded overflow-x-auto font-code text-[#9b87f5]">
-{`# Create repository
+          <CodeBlock
+code={`# Create repository
 rastion create_repo sgd-optimizer --github-token <YOUR_GITHUB_TOKEN>
 
 # Push your optimizer implementation
 rastion push_solver sgd-optimizer --file sgd_optimizer.py --config solver_config.json --github-token <YOUR_GITHUB_TOKEN>`}
-          </pre>
+          />
         </>
       )
     },
@@ -277,8 +277,8 @@ rastion push_solver sgd-optimizer --file sgd_optimizer.py --config solver_config
           </p>
           <h4 className="text-lg font-semibold">Step 1: Create the Python Module</h4>
           <p>Create a file named <code>rmsprop_optimizer.py</code> with the following content:</p>
-          <pre className="bg-[#1E1E1E] p-4 rounded overflow-x-auto font-code text-[#9b87f5]">
-{`import torch
+          <CodeBlock
+code={`import torch
 import numpy as np
 from rastion_hub.base_optimizer import BaseOptimizer
 
@@ -314,11 +314,11 @@ class RMSPropOptimizer(BaseOptimizer):
             if self.verbose:
                 print(f"Iteration {i}: Loss = {loss.item()}")
         return best_solution, best_loss`}
-          </pre>
+          />
           <h4 className="text-lg font-semibold">Step 2: Create the Optimizer Configuration</h4>
           <p>Create a file named <code>solver_config.json</code> with this content:</p>
-          <pre className="bg-[#1E1E1E] p-4 rounded overflow-x-auto font-code text-[#9b87f5]">
-{`{
+          <CodeBlock
+code={`{
   "entry_point": "rmsprop_optimizer:RMSPropOptimizer",
   "default_params": {
     "max_iters": 1000,
@@ -327,16 +327,16 @@ class RMSPropOptimizer(BaseOptimizer):
     "verbose": false
   }
 }`}
-          </pre>
+          />
           <h4 className="text-lg font-semibold">Step 3: Pushing to Rastion Hub</h4>
           <p>Use the Rastion CLI to create and push your repository:</p>
-          <pre className="bg-[#1E1E1E] p-4 rounded overflow-x-auto font-code text-[#9b87f5]">
-{`# Create repository
+          <CodeBlock
+code={`# Create repository
 rastion create_repo rmsprop-optimizer --github-token <YOUR_GITHUB_TOKEN>
 
 # Push your optimizer implementation
 rastion push_solver rmsprop-optimizer --file rmsprop_optimizer.py --config solver_config.json --github-token <YOUR_GITHUB_TOKEN>`}
-          </pre>
+          />
         </>
       )
     }
