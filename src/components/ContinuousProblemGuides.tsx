@@ -48,8 +48,8 @@ const ContinuousProblemGuides: FC = () => {
           </p>
           <h4 className="text-lg font-semibold">Step 1: Create the Python Module</h4>
           <p>Create a file named <code>rosenbrock.py</code> with the following content:</p>
-          <CodeBlock language="python">
-{`import numpy as np
+          <CodeBlock
+            code={`import numpy as np
 from rastion_hub.base_problem import BaseProblem
 
 class RosenbrockProblem(BaseProblem):
@@ -75,24 +75,27 @@ class RosenbrockProblem(BaseProblem):
 
     def get_qubo(self):
         raise NotImplementedError("RosenbrockProblem is a continuous problem.")`}
-          </CodeBlock>
+            language="python"
+          />
           <h4 className="text-lg font-semibold">Step 2: Create the Problem Configuration</h4>
-          <CodeBlock language="json">
-{`{
+          <CodeBlock
+            code={`{
   "entry_point": "rosenbrock:RosenbrockProblem",
   "default_params": {
     "dim": 2
   }
 }`}
-          </CodeBlock>
+            language="json"
+          />
           <h4 className="text-lg font-semibold">Step 3: Pushing to Rastion Hub</h4>
-          <CodeBlock language="bash">
-{`# Create repository
+          <CodeBlock
+            code={`# Create repository
 rastion create_repo rosenbrock-problem --github-token <YOUR_GITHUB_TOKEN>
 
 # Push your problem implementation
 rastion push_problem rosenbrock-problem --file rosenbrock.py --config problem_config.json --github-token <YOUR_GITHUB_TOKEN>`}
-          </CodeBlock>
+            language="bash"
+          />
         </>
       )
     },
