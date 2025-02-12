@@ -1,3 +1,4 @@
+
 #root {
   max-width: 1280px;
   margin: 0 auto;
@@ -39,4 +40,14 @@
 
 .read-the-docs {
   color: #888;
+}
+
+/* Prism.js theme overrides */
+pre[class*="language-"] {
+  @apply bg-[#1E1E1E] rounded-lg p-4 my-0;
+}
+
+code[class*="language-"] {
+  text-shadow: none;
+  @apply font-mono text-sm;
 }

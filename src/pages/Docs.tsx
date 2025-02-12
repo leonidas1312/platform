@@ -5,9 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import ProblemGuidesSection from "@/components/ProblemGuidesSection";
 import OptimizerGuidesSection from "@/components/OptimizerGuidesSection";
-import ContinuousProblemGuides from "@/components/ContinuousProblemGuides"; 
+import ContinuousProblemGuides from "@/components/ContinuousProblemGuides";
 import UsageExamplesSection from "@/components/UsageExamplesSection";
 import CLIGuidesSection from "@/components/CLIGuidesSection";
+import CodeBlock from "@/components/CodeBlock";
 
 const Docs = () => {
   const [activeTab, setActiveTab] = useState("getting-started");
@@ -17,14 +18,11 @@ const Docs = () => {
   return (
     <div className="min-h-screen bg-white">
       <div className="container py-12 max-w-[1200px]">
-        {/* Header Section */}
         <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold text-github-gray mb-4">
-            Everything you need to get started with Rastion
-          </h1>
+          <h1 className="text-4xl font-bold text-github-gray mb-4">Documentation</h1>
+          <p className="text-xl text-github-gray mb-8">Everything you need to get started with Rastion</p>
         </div>
 
-        {/* Tabs Navigation */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="flex justify-center gap-6 mb-8">
             <TabsTrigger value="getting-started">
@@ -44,35 +42,52 @@ const Docs = () => {
             </TabsTrigger>
           </TabsList>
 
-          {/* Getting Started */}
           <TabsContent value="getting-started">
             <section>
               <h2 className="text-2xl font-semibold text-github-gray mb-6 flex items-center gap-2">
                 <Flag className="w-6 h-6" />
                 Getting Started
               </h2>
-              <div className="bg-gradient-to-br from-[#1A1F2C] to-[#221F26] p-6 rounded-lg shadow-xl">
-                <h3 className="text-xl font-semibold mb-4 text-white">
-                  Installation
-                </h3>
-                <pre className="bg-[#1E1E1E] p-4 rounded text-sm overflow-x-auto font-code text-[#9b87f5] shadow-inner">
-                  {`pip install rastion`}
-                </pre>
-              </div>
-            </section>
 
-            <section>
-              <h2 className="text-2xl font-semibold text-github-gray mb-6 flex items-center gap-2">
-                <Layers className="w-6 h-6" />
-                Key Components
-              </h2>
-              <div className="grid md:grid-cols-2 gap-8">
+              <div className="prose max-w-none mb-8">
+                <h3 className="text-xl font-semibold text-github-gray mb-4">What is Rastion?</h3>
+                <p className="text-gray-700 mb-6">
+                  Rastion is a powerful optimization framework designed to bridge the gap between classical and quantum optimization algorithms. 
+                  It provides a unified interface for implementing, sharing, and running optimization problems and solvers, making it easier 
+                  for researchers and developers to experiment with different optimization approaches.
+                </p>
+
+                <h3 className="text-xl font-semibold text-github-gray mb-4">Key Features</h3>
+                <ul className="list-disc list-inside space-y-2 text-gray-700 mb-6">
+                  <li>Unified interface for classical and quantum optimization problems</li>
+                  <li>Easy-to-use repository system for sharing implementations</li>
+                  <li>Support for both discrete and continuous optimization problems</li>
+                  <li>Flexible optimizer framework supporting various algorithms</li>
+                  <li>Built-in tools for problem conversion and analysis</li>
+                </ul>
+
+                <h3 className="text-xl font-semibold text-github-gray mb-4">How it Works</h3>
+                <p className="text-gray-700 mb-4">
+                  Rastion follows a simple workflow:
+                </p>
+                <ol className="list-decimal list-inside space-y-2 text-gray-700 mb-6">
+                  <li>Define your optimization problem by implementing the BaseProblem interface</li>
+                  <li>Create an optimizer by implementing the BaseOptimizer interface or use existing ones</li>
+                  <li>Push your implementations to Rastion's repository system</li>
+                  <li>Use the auto-loading system to easily run optimizations</li>
+                </ol>
+              </div>
+
+              <div className="space-y-8">
                 <div className="bg-gradient-to-br from-[#1A1F2C] to-[#221F26] p-6 rounded-lg shadow-xl">
-                  <h3 className="text-xl font-semibold mb-4 text-white">
-                    BaseProblem
-                  </h3>
-                  <pre className="bg-[#1E1E1E] p-4 rounded text-sm overflow-x-auto font-code text-[#9b87f5] shadow-inner">
-{`from abc import ABC, abstractmethod
+                  <h3 className="text-xl font-semibold mb-4 text-white">Installation</h3>
+                  <CodeBlock code="pip install rastion" />
+                </div>
+
+                <div className="bg-gradient-to-br from-[#1A1F2C] to-[#221F26] p-6 rounded-lg shadow-xl">
+                  <h3 className="text-xl font-semibold mb-4 text-white">Base Problem Interface</h3>
+                  <CodeBlock
+                    code={`from abc import ABC, abstractmethod
 
 class BaseProblem(ABC):
     """Base class for any Rastion problem.
@@ -92,15 +107,13 @@ class BaseProblem(ABC):
     def get_qubo(self):
         """Return QUBO matrix and constant."""
         pass`}
-                  </pre>
+                  />
                 </div>
 
                 <div className="bg-gradient-to-br from-[#1A1F2C] to-[#221F26] p-6 rounded-lg shadow-xl">
-                  <h3 className="text-xl font-semibold mb-4 text-white">
-                    BaseOptimizer
-                  </h3>
-                  <pre className="bg-[#1E1E1E] p-4 rounded text-sm overflow-x-auto font-code text-[#9b87f5] shadow-inner">
-{`from abc import ABC, abstractmethod
+                  <h3 className="text-xl font-semibold mb-4 text-white">Base Optimizer Interface</h3>
+                  <CodeBlock
+                    code={`from abc import ABC, abstractmethod
 
 class BaseOptimizer(ABC):
     """Base class for any Rastion optimizer."""
@@ -110,15 +123,12 @@ class BaseOptimizer(ABC):
         """Run optimization, return tuple:
         (best_solution, best_value)"""
         pass`}
-                  </pre>
+                  />
                 </div>
               </div>
             </section>
-
           </TabsContent>
 
-
-          {/* Creating a Problem */}
           <TabsContent value="creating-problem">
             <section>
               <h2 className="text-2xl font-semibold text-github-gray mb-6 flex items-center gap-2">
@@ -133,7 +143,6 @@ class BaseOptimizer(ABC):
             </section>
           </TabsContent>
 
-          {/* Creating an Optimizer */}
           <TabsContent value="creating-optimizer">
             <section>
               <h2 className="text-2xl font-semibold text-github-gray mb-6 flex items-center gap-2">
@@ -145,22 +154,18 @@ class BaseOptimizer(ABC):
             </section>
           </TabsContent>
 
-          {/* Usage Examples */}
           <TabsContent value="usage-examples">
             <section>
               <UsageExamplesSection />
             </section>
           </TabsContent>
 
-          {/* CLI Commands */}
           <TabsContent value="cli-commands">
             <section>
               <CLIGuidesSection />
             </section>
           </TabsContent>
         </Tabs>
-
-        
       </div>
     </div>
   );
