@@ -1,4 +1,3 @@
-
 import { Code2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -7,8 +6,8 @@ import { useEffect, useState } from "react";
 import GithubAuth from "@/components/auth/GithubAuth";
 
 const supabase = createClient(
-  import.meta.env.VITE_SUPABASE_URL,
-  import.meta.env.VITE_SUPABASE_ANON_KEY
+  'https://qpqtbkionqkpkoznkhtv.supabase.co',
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFwcXRia2lvbnFrcGtvem5raHR2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MDk5MzEwNjUsImV4cCI6MjAyNTUwNzA2NX0.oVDEhm-hXMqSBfIeYcvexWXzKi-jS3QUgTD3NDaZVvI'
 );
 
 const Landing = () => {
