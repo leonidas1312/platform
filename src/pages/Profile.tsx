@@ -1,3 +1,4 @@
+// src/pages/Profile.tsx
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,21 +12,54 @@ const Profile = () => {
   const [githubToken, setGithubToken] = useState("");
 
   useEffect(() => {
-    const getUser = async () => {
+    const getUserAndEnsureProfile = async () => {
       try {
-        const { data: { user } } = await supabase.auth.getUser();
+        // Fetch the authenticated user
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
         setUser(user);
-        
-        // Fetch existing token if any
+
         if (user) {
+          // Check if the profile exists in the "profiles" table
+          const { data: profile, error: profileError } = await supabase
+            .from("profiles")
+            .select("*")
+            .eq("id", user.id)
+            .maybeSingle();
+
+          if (profileError || !profile) {
+            // If not, insert a new profile record
+            const { error: insertError } = await supabase
+              .from("profiles")
+              .insert({
+                id: user.id,
+                full_name: user.user_metadata?.full_name || "",
+                avatar_url: user.user_metadata?.avatar_url || "",
+                updated_at: new Date().toISOString(),
+              });
+            if (insertError) {
+              console.error("Error creating profile:", insertError);
+              toast({
+                title: "Error",
+                description: "Failed to create profile",
+                variant: "destructive",
+              });
+            }
+          }
+
+          // Fetch GitHub token if one exists
           const { data, error } = await supabase
-            .from('github_tokens')
-            .select('token')
-            .eq('user_id', user.id)
+            .from("github_tokens")
+            .select("token")
+            .eq("user_id", user.id)
             .single();
-            
           if (data?.token) {
             setGithubToken(data.token);
+          }
+          if (error && error.code !== "PGRST116") {
+            // PGRST116 means no row was found—this is expected.
+            console.error("Error fetching token:", error);
           }
         }
       } catch (error) {
@@ -40,7 +74,7 @@ const Profile = () => {
       }
     };
 
-    getUser();
+    getUserAndEnsureProfile();
   }, []);
 
   const handleTokenUpdate = async () => {
@@ -48,15 +82,13 @@ const Profile = () => {
 
     try {
       const { error } = await supabase
-        .from('github_tokens')
-        .upsert({ 
+        .from("github_tokens")
+        .upsert({
           user_id: user.id,
           token: githubToken,
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString(),
         });
-
       if (error) throw error;
-
       toast({
         title: "Success",
         description: "GitHub token updated successfully",
@@ -103,16 +135,18 @@ const Profile = () => {
     <div className="min-h-screen bg-white">
       <div className="container py-12 max-w-2xl">
         <h1 className="text-4xl font-bold text-github-gray mb-8">Profile</h1>
-        
+
         <div className="bg-white rounded-lg shadow p-6 mb-6">
           <div className="flex items-center gap-4 mb-6">
-            <img 
-              src={user.user_metadata.avatar_url} 
-              alt="Profile" 
+            <img
+              src={user.user_metadata.avatar_url}
+              alt="Profile"
               className="w-16 h-16 rounded-full"
             />
             <div>
-              <h2 className="text-xl font-semibold">{user.user_metadata.full_name}</h2>
+              <h2 className="text-xl font-semibold">
+                {user.user_metadata.full_name}
+              </h2>
               <p className="text-gray-600">{user.email}</p>
             </div>
           </div>
@@ -123,7 +157,7 @@ const Profile = () => {
             <Key className="w-5 h-5" />
             GitHub Token Management
           </h3>
-          
+
           <div className="space-y-4">
             <div>
               <Input
@@ -134,17 +168,17 @@ const Profile = () => {
                 className="mb-2"
               />
               <p className="text-sm text-gray-600 mb-4">
-                This token will be used to create repositories in the Rastion organization.
+                This token will be used to create repositories in the Rastion
+                organization.
               </p>
             </div>
-            
             <div className="flex gap-4">
-              <Button onClick={handleTokenUpdate}>
-                Update Token
-              </Button>
-              <Button 
-                variant="outline" 
-                onClick={() => window.open("https://github.com/settings/tokens/new", "_blank")}
+              <Button onClick={handleTokenUpdate}>Update Token</Button>
+              <Button
+                variant="outline"
+                onClick={() =>
+                  window.open("https://github.com/settings/tokens/new", "_blank")
+                }
               >
                 Generate New Token
               </Button>
