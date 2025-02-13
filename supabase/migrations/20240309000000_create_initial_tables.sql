@@ -61,8 +61,3 @@ begin
   return new;
 end;
 $$ language plpgsql security definer;
-
--- Trigger to automatically create profile on signup
-create or replace trigger on_auth_user_created
-  after insert on auth.users
-  for each row execute procedure public.handle_new_user();

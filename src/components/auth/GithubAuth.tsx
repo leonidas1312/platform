@@ -10,9 +10,9 @@ const GithubAuth = () => {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "github",
         options: {
-          scopes: "repo user",
-          redirectTo: `${window.location.origin}/profile`,
-        },
+          scopes: "read:user",
+          redirectTo: `${window.location.origin}/profile`
+                },
       });
 
       if (error) {

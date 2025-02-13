@@ -77,6 +77,10 @@ const Profile = () => {
     getUserAndEnsureProfile();
   }, []);
 
+  if (loading || !user) {
+    return <div>Loading...</div>;
+  }
+
   const handleTokenUpdate = async () => {
     if (!user) return;
 
@@ -124,11 +128,6 @@ const Profile = () => {
         <Loader2 className="animate-spin" />
       </div>
     );
-  }
-
-  if (!user) {
-    window.location.href = "/";
-    return null;
   }
 
   return (
