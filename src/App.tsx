@@ -10,6 +10,7 @@ import Docs from "./pages/Docs";
 import Profile from "./pages/Profile";
 import Repositories from "./pages/Repositories";
 import NotFound from "./pages/NotFound";
+import SignIn from "./pages/SignIn";
 
 const queryClient = new QueryClient();
 
@@ -25,6 +26,7 @@ const App = () => (
           <Route path="/docs" element={<Docs />} />
           <Route path="/repositories" element={<Repositories />} />
           <Route path="/profile" element={<Profile />} />
+          <Route path="/signin" element={<SignIn />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

@@ -1,8 +1,8 @@
+
 import { Code2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
-import GithubAuth from "@/components/auth/GithubAuth";
 import { supabase } from "@/lib/supabase";
 
 const Landing = () => {
@@ -40,12 +40,6 @@ const Landing = () => {
               Join us in building a more efficient future through open source collaboration.
             </p>
           </div>
-          
-          {!user ? (
-            <div className="max-w-sm mx-auto mb-8">
-              <GithubAuth />
-            </div>
-          ) : null}
           
           <div className="flex gap-4 justify-center">
             <Button asChild>

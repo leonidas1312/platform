@@ -1,7 +1,11 @@
+
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { Button } from "@/components/ui/button";
+import { User, LogOut } from "lucide-react";
+import { toast } from "@/components/ui/use-toast";
 
 const Navigation = () => {
   const location = useLocation();
@@ -21,6 +25,20 @@ const Navigation = () => {
 
     return () => subscription.unsubscribe();
   }, []);
+
+  const handleSignOut = async () => {
+    try {
+      await supabase.auth.signOut();
+      toast({
+        title: "Signed out successfully",
+      });
+    } catch (error) {
+      toast({
+        title: "Error signing out",
+        variant: "destructive",
+      });
+    }
+  };
 
   const links = [
     { href: "/", label: "Home" },
@@ -51,24 +69,51 @@ const Navigation = () => {
                 {link.label}
               </Link>
             ))}
+            
             {user ? (
+              <>
+                <Link
+                  to="/profile"
+                  className={cn(
+                    "flex items-center gap-2",
+                    "text-sm font-medium transition-colors hover:text-github-gray",
+                    location.pathname === "/profile"
+                      ? "text-github-gray"
+                      : "text-github-gray/60"
+                  )}
+                >
+                  {user.user_metadata?.avatar_url ? (
+                    <img
+                      src={user.user_metadata.avatar_url}
+                      alt="Profile"
+                      className="w-8 h-8 rounded-full"
+                    />
+                  ) : (
+                    <User className="w-5 h-5" />
+                  )}
+                </Link>
+                <Button 
+                  variant="ghost" 
+                  size="icon"
+                  onClick={handleSignOut}
+                  className="text-github-gray/60 hover:text-github-gray"
+                >
+                  <LogOut className="w-5 h-5" />
+                </Button>
+              </>
+            ) : (
               <Link
-                to="/profile"
+                to="/signin"
                 className={cn(
-                  "flex items-center gap-2",
                   "text-sm font-medium transition-colors hover:text-github-gray",
-                  location.pathname === "/profile"
+                  location.pathname === "/signin"
                     ? "text-github-gray"
                     : "text-github-gray/60"
                 )}
               >
-                <img
-                  src={user.user_metadata.avatar_url}
-                  alt="Profile"
-                  className="w-8 h-8 rounded-full"
-                />
+                Sign In
               </Link>
-            ) : null}
+            )}
           </div>
         </div>
       </div>
