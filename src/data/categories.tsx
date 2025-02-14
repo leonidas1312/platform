@@ -1,8 +1,14 @@
 
 import { CategoryData } from "@/types/repository";
-import { TrendingUp, Star, GitFork, Clock } from "lucide-react";
+import { TrendingUp, Star, GitFork, Clock, LayoutGrid } from "lucide-react";
 
 export const categories: Record<string, CategoryData> = {
+  "all": {
+    label: "All Repos",
+    description: "View all repositories",
+    icon: <LayoutGrid className="w-4 h-4" />,
+    repos: []  // Empty array since this will show all repos
+  },
   "trending": {
     label: "Trending",
     description: "Most active repositories in the last 30 days",
@@ -26,20 +32,5 @@ export const categories: Record<string, CategoryData> = {
     description: "Latest updates and improvements",
     icon: <Clock className="w-4 h-4" />,
     repos: ["newton-method", "simplex", "portfolio-optimization"]
-  },
-  "graph-theory": {
-    label: "Graph Theory",
-    description: "Optimization problems related to graphs and networks",
-    repos: ["graph-coloring", "traveling-salesman", "minimum-spanning-tree"]
-  },
-  "quantum": {
-    label: "Quantum Computing",
-    description: "Quantum-inspired algorithms and optimizers",
-    repos: ["quantum-annealing", "quantum-approximate-optimization"]
-  },
-  "machine-learning": {
-    label: "Machine Learning",
-    description: "ML-based optimization techniques",
-    repos: ["neural-optimizer", "reinforcement-learning-solver"]
   }
 };

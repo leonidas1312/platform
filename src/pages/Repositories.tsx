@@ -10,7 +10,7 @@ import { GitHubRepo } from "@/types/repository";
 
 const Repositories = () => {
   const [searchTerm, setSearchTerm] = useState("");
-  const [currentCategory, setCurrentCategory] = useState("trending");
+  const [currentCategory, setCurrentCategory] = useState("all");
   const { data: repos, isLoading, error } = useQuery({
     queryKey: ["repos"],
     queryFn: fetchRepos,
@@ -34,7 +34,7 @@ const Repositories = () => {
           </div>
         ) : (
           <div>
-            <Tabs defaultValue="trending" onValueChange={setCurrentCategory} className="mb-8">
+            <Tabs defaultValue="all" onValueChange={setCurrentCategory} className="mb-8">
               <TabsList className="w-full flex-wrap h-auto p-2 gap-2">
                 {Object.entries(categories).map(([key, { label, icon }]) => (
                   <TabsTrigger key={key} value={key} className="mb-1 flex items-center gap-2">

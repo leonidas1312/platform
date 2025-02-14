@@ -25,6 +25,8 @@ export const filterRepos = (
   );
 
   switch (currentCategory) {
+    case "all":
+      return filteredRepos;
     case "trending":
       return filteredRepos.sort((a, b) => 
         (b.stargazers_count + b.forks_count) - (a.stargazers_count + a.forks_count)

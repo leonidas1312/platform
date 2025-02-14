@@ -1,6 +1,11 @@
-import { useState, useEffect } from "react";
-import { Github, ArrowUp, ArrowDown, Folder } from "lucide-react";
+
+import { Github, Folder } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 interface ConfigParams {
   [key: string]: any;
@@ -26,13 +31,12 @@ interface RepositoryCardProps {
 }
 
 export const RepositoryCard = ({ repo }: RepositoryCardProps) => {
-  const [isExpanded, setIsExpanded] = useState(false);
   const [config, setConfig] = useState<Config | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     const fetchConfig = async () => {
-      if (isExpanded && !config) {
+      if (!config) {
         setIsLoading(true);
         try {
           const configTypes = ['problem_config.json', 'solver_config.json'];
@@ -83,7 +87,7 @@ export const RepositoryCard = ({ repo }: RepositoryCardProps) => {
     };
 
     fetchConfig();
-  }, [isExpanded, repo.name, config]);
+  }, [repo.name, config]);
 
   const getTypeLabel = () => {
     if (!config?.type) return '';
@@ -93,76 +97,64 @@ export const RepositoryCard = ({ repo }: RepositoryCardProps) => {
   };
 
   return (
-    <div className="border border-github-border rounded-lg overflow-hidden transition-all duration-200 hover:border-github-blue">
-      <div
-        className={`p-6 cursor-pointer transition-colors duration-200 ${
-          isExpanded ? "bg-github-hover" : "hover:bg-github-hover"
-        }`}
-        onClick={() => setIsExpanded(!isExpanded)}
-      >
-        <div className="flex items-start justify-between">
-          <div className="flex items-center gap-3">
-            <Folder className="w-5 h-5 text-github-gray" />
-            <div>
-              <h2 className="text-xl font-semibold text-github-blue">{repo.name}</h2>
-              {config?.type && (
-                <span className="text-sm font-medium text-github-gray">
-                  {getTypeLabel()}
-                </span>
-              )}
+    <Popover>
+      <PopoverTrigger asChild>
+        <div className="border border-github-border rounded-lg p-6 cursor-pointer transition-all duration-200 hover:border-github-blue bg-white">
+          <div className="flex items-start justify-between">
+            <div className="flex items-center gap-3">
+              <Folder className="w-5 h-5 text-github-gray" />
+              <div>
+                <h2 className="text-xl font-semibold text-github-blue">{repo.name}</h2>
+                {config?.type && (
+                  <span className="text-sm font-medium text-github-gray">
+                    {getTypeLabel()}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
-          {isExpanded ? (
-            <ArrowUp className="w-5 h-5 text-github-gray" />
-          ) : (
-            <ArrowDown className="w-5 h-5 text-github-gray" />
-          )}
+          <div className="mt-4 flex items-center gap-4 text-sm text-github-gray">
+            <span>⭐ {repo.stars}</span>
+            <span>🍴 {repo.forks}</span>
+            <span>Updated {new Date(repo.updatedAt).toLocaleDateString()}</span>
+          </div>
         </div>
-        <p className="mt-2 text-github-gray">{repo.description}</p>
-        <div className="mt-4 flex items-center gap-4 text-sm text-github-gray">
-          <span>⭐ {repo.stars}</span>
-          <span>🍴 {repo.forks}</span>
-          <span>Updated {new Date(repo.updatedAt).toLocaleDateString()}</span>
-        </div>
-      </div>
-      
-      {isExpanded && (
-        <div className="p-6 border-t border-github-border bg-white">
-          {isLoading ? (
-            <div className="text-center text-github-gray">Loading configuration...</div>
-          ) : config ? (
-            <div className="space-y-4">
-              <div>
-                <h3 className="font-semibold mb-2">Entry Point</h3>
-                <pre className="bg-github-hover p-3 rounded font-code text-sm overflow-x-auto">
-                  {config.entry_point}
-                </pre>
-              </div>
-              <div>
-                <h3 className="font-semibold mb-2">Default Parameters</h3>
-                <pre className="bg-github-hover p-3 rounded font-code text-sm overflow-x-auto">
-                  {JSON.stringify(config.default_params, null, 2)}
-                </pre>
-              </div>
-              <div>
-                <a
-                  href={repo.docsUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-github-blue hover:underline inline-flex items-center gap-2"
-                >
-                  <Github className="w-4 h-4" />
-                  View Repository
-                </a>
-              </div>
+      </PopoverTrigger>
+      <PopoverContent className="w-80">
+        {isLoading ? (
+          <div className="text-center text-github-gray">Loading configuration...</div>
+        ) : config ? (
+          <div className="space-y-4">
+            <div>
+              <h3 className="font-semibold mb-2">Entry Point</h3>
+              <pre className="bg-github-hover p-3 rounded font-code text-sm overflow-x-auto">
+                {config.entry_point}
+              </pre>
             </div>
-          ) : (
-            <div className="text-center text-github-gray">
-              No configuration file found for this repository.
+            <div>
+              <h3 className="font-semibold mb-2">Default Parameters</h3>
+              <pre className="bg-github-hover p-3 rounded font-code text-sm overflow-x-auto">
+                {JSON.stringify(config.default_params, null, 2)}
+              </pre>
             </div>
-          )}
-        </div>
-      )}
-    </div>
+            <div>
+              <a
+                href={repo.docsUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-github-blue hover:underline inline-flex items-center gap-2"
+              >
+                <Github className="w-4 h-4" />
+                View Repository
+              </a>
+            </div>
+          </div>
+        ) : (
+          <div className="text-center text-github-gray">
+            No configuration file found for this repository.
+          </div>
+        )}
+      </PopoverContent>
+    </Popover>
   );
 };
