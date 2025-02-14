@@ -3,7 +3,7 @@ import { useState } from "react";
 import { RepositoryCard } from "@/components/RepositoryCard";
 import { Input } from "@/components/ui/input";
 import { useQuery } from "@tanstack/react-query";
-import { Search } from "lucide-react";
+import { Search, TrendingUp, Star, GitFork, Clock } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/components/ui/use-toast";
 
@@ -19,10 +19,35 @@ interface GitHubRepo {
 interface CategoryData {
   label: string;
   description: string;
+  icon?: React.ReactNode;
   repos: string[];
 }
 
 const categories: Record<string, CategoryData> = {
+  "trending": {
+    label: "Trending",
+    description: "Most active repositories in the last 30 days",
+    icon: <TrendingUp className="w-4 h-4" />,
+    repos: ["quantum-annealing", "graph-coloring", "neural-optimizer"]
+  },
+  "most-starred": {
+    label: "Most Starred",
+    description: "Repositories with the highest number of stars",
+    icon: <Star className="w-4 h-4" />,
+    repos: ["particle-swarm", "genetic-algorithm", "quantum-approximate-optimization"]
+  },
+  "most-forked": {
+    label: "Most Forked",
+    description: "Repositories with the highest number of forks",
+    icon: <GitFork className="w-4 h-4" />,
+    repos: ["traveling-salesman", "minimum-spanning-tree", "gradient-descent"]
+  },
+  "recently-updated": {
+    label: "Recently Updated",
+    description: "Latest updates and improvements",
+    icon: <Clock className="w-4 h-4" />,
+    repos: ["newton-method", "simplex", "portfolio-optimization"]
+  },
   "graph-theory": {
     label: "Graph Theory",
     description: "Optimization problems related to graphs and networks",
@@ -37,21 +62,6 @@ const categories: Record<string, CategoryData> = {
     label: "Machine Learning",
     description: "ML-based optimization techniques",
     repos: ["neural-optimizer", "reinforcement-learning-solver"]
-  },
-  "metaheuristics": {
-    label: "Metaheuristics",
-    description: "Nature-inspired and evolutionary algorithms",
-    repos: ["particle-swarm", "genetic-algorithm", "ant-colony"]
-  },
-  "numerical": {
-    label: "Numerical Methods",
-    description: "Classical numerical optimization techniques",
-    repos: ["gradient-descent", "newton-method", "simplex"]
-  },
-  "applications": {
-    label: "Applications",
-    description: "Real-world optimization problems",
-    repos: ["portfolio-optimization", "supply-chain", "facility-location"]
   }
 };
 
@@ -80,27 +90,49 @@ const fetchRepos = async () => {
 
 const Repositories = () => {
   const [searchTerm, setSearchTerm] = useState("");
-  const [currentCategory, setCurrentCategory] = useState("all");
+  const [currentCategory, setCurrentCategory] = useState("trending");
   const { data: repos, isLoading, error } = useQuery({
     queryKey: ["repos"],
     queryFn: fetchRepos,
   });
 
-  const getCategoryForRepo = (repoName: string): string => {
-    for (const [category, data] of Object.entries(categories)) {
+  const getCategoryForRepo = (repoName: string): string[] => {
+    const categories: string[] = [];
+    Object.entries(categories).forEach(([category, data]) => {
       if (data.repos.includes(repoName)) {
-        return category;
+        categories.push(category);
       }
-    }
-    return "uncategorized";
+    });
+    return categories;
   };
 
   const filterRepos = (repos: GitHubRepo[]) => {
-    return repos?.filter((repo: GitHubRepo) => {
-      const matchesSearch = repo.name.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesCategory = currentCategory === "all" || getCategoryForRepo(repo.name) === currentCategory;
-      return matchesSearch && matchesCategory;
-    });
+    if (!repos) return [];
+    
+    let filteredRepos = repos.filter((repo: GitHubRepo) => 
+      repo.name.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
+    switch (currentCategory) {
+      case "trending":
+        // Sort by recent activity (stars + forks + recent updates)
+        return filteredRepos.sort((a, b) => 
+          (b.stargazers_count + b.forks_count) - (a.stargazers_count + a.forks_count)
+        ).slice(0, 6);
+      case "most-starred":
+        return filteredRepos.sort((a, b) => b.stargazers_count - a.stargazers_count);
+      case "most-forked":
+        return filteredRepos.sort((a, b) => b.forks_count - a.forks_count);
+      case "recently-updated":
+        return filteredRepos.sort((a, b) => 
+          new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
+        );
+      default:
+        // For other categories, filter by category
+        return filteredRepos.filter(repo => 
+          getCategoryForRepo(repo.name).includes(currentCategory)
+        );
+    }
   };
 
   const formatRepoData = (repo: GitHubRepo) => ({
@@ -112,22 +144,7 @@ const Repositories = () => {
     docsUrl: repo.html_url,
   });
 
-  const organizeReposByCategory = (repos: GitHubRepo[]) => {
-    const organized: Record<string, GitHubRepo[]> = {};
-    
-    repos?.forEach((repo) => {
-      const category = getCategoryForRepo(repo.name);
-      if (!organized[category]) {
-        organized[category] = [];
-      }
-      organized[category].push(repo);
-    });
-    
-    return organized;
-  };
-
   const filteredRepos = repos ? filterRepos(repos) : [];
-  const organizedRepos = organizeReposByCategory(filteredRepos);
 
   return (
     <div className="min-h-screen bg-white">
@@ -151,46 +168,26 @@ const Repositories = () => {
           </div>
         ) : (
           <div>
-            <Tabs defaultValue="all" onValueChange={setCurrentCategory} className="mb-8">
+            <Tabs defaultValue="trending" onValueChange={setCurrentCategory} className="mb-8">
               <TabsList className="w-full flex-wrap h-auto p-2 gap-2">
-                <TabsTrigger value="all" className="mb-1">
-                  All Repositories
-                </TabsTrigger>
-                {Object.entries(categories).map(([key, { label }]) => (
-                  <TabsTrigger key={key} value={key} className="mb-1">
+                {Object.entries(categories).map(([key, { label, icon }]) => (
+                  <TabsTrigger key={key} value={key} className="mb-1 flex items-center gap-2">
+                    {icon}
                     {label}
                   </TabsTrigger>
                 ))}
               </TabsList>
 
-              <TabsContent value="all">
-                <div className="space-y-8">
-                  {Object.entries(categories).map(([category, data]) => {
-                    const categoryRepos = organizedRepos[category] || [];
-                    if (categoryRepos.length === 0) return null;
-
-                    return (
-                      <div key={category} className="mb-8">
-                        <h2 className="text-2xl font-semibold text-github-gray mb-2">{data.label}</h2>
-                        <p className="text-github-gray/80 mb-4">{data.description}</p>
-                        <div className="grid gap-6 md:grid-cols-2">
-                          {categoryRepos.map((repo: GitHubRepo) => (
-                            <RepositoryCard key={repo.name} repo={formatRepoData(repo)} />
-                          ))}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </TabsContent>
-
               {Object.entries(categories).map(([category, data]) => (
                 <TabsContent key={category} value={category}>
                   <div>
-                    <h2 className="text-2xl font-semibold text-github-gray mb-2">{data.label}</h2>
+                    <h2 className="text-2xl font-semibold text-github-gray mb-2 flex items-center gap-2">
+                      {data.icon}
+                      {data.label}
+                    </h2>
                     <p className="text-github-gray/80 mb-4">{data.description}</p>
-                    <div className="grid gap-6 md:grid-cols-2">
-                      {(organizedRepos[category] || []).map((repo: GitHubRepo) => (
+                    <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                      {filteredRepos.map((repo: GitHubRepo) => (
                         <RepositoryCard key={repo.name} repo={formatRepoData(repo)} />
                       ))}
                     </div>
