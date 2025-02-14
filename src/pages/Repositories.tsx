@@ -97,13 +97,13 @@ const Repositories = () => {
   });
 
   const getCategoryForRepo = (repoName: string): string[] => {
-    const categories: string[] = [];
-    Object.entries(categories).forEach(([category, data]) => {
-      if (data.repos.includes(repoName)) {
-        categories.push(category);
+    const matchingCategories: string[] = [];
+    Object.entries(categories).forEach(([categoryKey, categoryData]) => {
+      if (categoryData.repos.includes(repoName)) {
+        matchingCategories.push(categoryKey);
       }
     });
-    return categories;
+    return matchingCategories;
   };
 
   const filterRepos = (repos: GitHubRepo[]) => {
