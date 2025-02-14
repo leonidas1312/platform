@@ -1,92 +1,12 @@
 
 import { useState } from "react";
 import { RepositoryCard } from "@/components/RepositoryCard";
-import { Input } from "@/components/ui/input";
+import { RepositorySearch } from "@/components/RepositorySearch";
 import { useQuery } from "@tanstack/react-query";
-import { Search, TrendingUp, Star, GitFork, Clock } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { toast } from "@/components/ui/use-toast";
-
-interface GitHubRepo {
-  name: string;
-  description: string;
-  stargazers_count: number;
-  forks_count: number;
-  updated_at: string;
-  html_url: string;
-}
-
-interface CategoryData {
-  label: string;
-  description: string;
-  icon?: React.ReactNode;
-  repos: string[];
-}
-
-const categories: Record<string, CategoryData> = {
-  "trending": {
-    label: "Trending",
-    description: "Most active repositories in the last 30 days",
-    icon: <TrendingUp className="w-4 h-4" />,
-    repos: ["quantum-annealing", "graph-coloring", "neural-optimizer"]
-  },
-  "most-starred": {
-    label: "Most Starred",
-    description: "Repositories with the highest number of stars",
-    icon: <Star className="w-4 h-4" />,
-    repos: ["particle-swarm", "genetic-algorithm", "quantum-approximate-optimization"]
-  },
-  "most-forked": {
-    label: "Most Forked",
-    description: "Repositories with the highest number of forks",
-    icon: <GitFork className="w-4 h-4" />,
-    repos: ["traveling-salesman", "minimum-spanning-tree", "gradient-descent"]
-  },
-  "recently-updated": {
-    label: "Recently Updated",
-    description: "Latest updates and improvements",
-    icon: <Clock className="w-4 h-4" />,
-    repos: ["newton-method", "simplex", "portfolio-optimization"]
-  },
-  "graph-theory": {
-    label: "Graph Theory",
-    description: "Optimization problems related to graphs and networks",
-    repos: ["graph-coloring", "traveling-salesman", "minimum-spanning-tree"]
-  },
-  "quantum": {
-    label: "Quantum Computing",
-    description: "Quantum-inspired algorithms and optimizers",
-    repos: ["quantum-annealing", "quantum-approximate-optimization"]
-  },
-  "machine-learning": {
-    label: "Machine Learning",
-    description: "ML-based optimization techniques",
-    repos: ["neural-optimizer", "reinforcement-learning-solver"]
-  }
-};
-
-const fetchRepos = async () => {
-  try {
-    const response = await fetch(
-      "https://api.github.com/users/Rastion/repos"
-    );
-    
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.message || "Failed to fetch repositories");
-    }
-    
-    return response.json();
-  } catch (error) {
-    console.error("Error fetching repos:", error);
-    toast({
-      title: "Error",
-      description: "Unable to fetch repositories. Please check the organization name and try again.",
-      variant: "destructive",
-    });
-    throw error;
-  }
-};
+import { categories } from "@/data/categories";
+import { fetchRepos, filterRepos, formatRepoData } from "@/utils/repository";
+import { GitHubRepo } from "@/types/repository";
 
 const Repositories = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -96,69 +16,15 @@ const Repositories = () => {
     queryFn: fetchRepos,
   });
 
-  const getCategoryForRepo = (repoName: string): string[] => {
-    const matchingCategories: string[] = [];
-    Object.entries(categories).forEach(([categoryKey, categoryData]) => {
-      if (categoryData.repos.includes(repoName)) {
-        matchingCategories.push(categoryKey);
-      }
-    });
-    return matchingCategories;
-  };
-
-  const filterRepos = (repos: GitHubRepo[]) => {
-    if (!repos) return [];
-    
-    let filteredRepos = repos.filter((repo: GitHubRepo) => 
-      repo.name.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-
-    switch (currentCategory) {
-      case "trending":
-        // Sort by recent activity (stars + forks + recent updates)
-        return filteredRepos.sort((a, b) => 
-          (b.stargazers_count + b.forks_count) - (a.stargazers_count + a.forks_count)
-        ).slice(0, 6);
-      case "most-starred":
-        return filteredRepos.sort((a, b) => b.stargazers_count - a.stargazers_count);
-      case "most-forked":
-        return filteredRepos.sort((a, b) => b.forks_count - a.forks_count);
-      case "recently-updated":
-        return filteredRepos.sort((a, b) => 
-          new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
-        );
-      default:
-        // For other categories, filter by category
-        return filteredRepos.filter(repo => 
-          getCategoryForRepo(repo.name).includes(currentCategory)
-        );
-    }
-  };
-
-  const formatRepoData = (repo: GitHubRepo) => ({
-    name: repo.name,
-    description: repo.description || "No description available",
-    stars: repo.stargazers_count,
-    forks: repo.forks_count,
-    updatedAt: repo.updated_at,
-    docsUrl: repo.html_url,
-  });
-
-  const filteredRepos = repos ? filterRepos(repos) : [];
+  const filteredRepos = repos ? filterRepos(repos, searchTerm, currentCategory) : [];
 
   return (
     <div className="min-h-screen bg-white">
       <div className="container py-12">
-        <div className="relative max-w-md mx-auto mb-8">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-          <Input
-            type="text"
-            placeholder="Search repositories..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10"
-          />
-        </div>
+        <RepositorySearch 
+          searchTerm={searchTerm}
+          onSearchChange={setSearchTerm}
+        />
 
         {isLoading ? (
           <div className="text-center text-github-gray">Loading repositories...</div>
