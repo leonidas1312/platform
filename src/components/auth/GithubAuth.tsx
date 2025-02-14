@@ -1,4 +1,5 @@
-import { createClient } from "@supabase/supabase-js";
+// src/components/auth/GithubAuth.tsx
+
 import { Button } from "@/components/ui/button";
 import { Github } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
@@ -10,9 +11,9 @@ const GithubAuth = () => {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "github",
         options: {
-          scopes: "read:user",
-          redirectTo: `${window.location.origin}/profile`
-                },
+          scopes: "read:user repo",
+          redirectTo: `${window.location.origin}/profile`,
+        },
       });
 
       if (error) {
