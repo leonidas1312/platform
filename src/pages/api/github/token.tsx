@@ -23,8 +23,8 @@ if (process.env.PRIVATE_KEY_GITHUB) {
   }
 }
 
-if (!process.env.GITHUB_APP_ID) {
-  throw new Error("Missing GITHUB_APP_ID environment variable");
+if (!process.env.APP_ID_GITHUB) {
+  throw new Error("Missing APP_ID_GITHUB environment variable");
 }
 
 export default async function handler(
@@ -60,7 +60,7 @@ export default async function handler(
   try {
     // Create an auth instance for your GitHub App.
     const auth = createAppAuth({
-      appId: Number(process.env.GITHUB_APP_ID),
+      appId: Number(process.env.APP_ID_GITHUB),
       privateKey: githubPrivateKey,
       installationId: Number(installationId),
     });
