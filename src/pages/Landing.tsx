@@ -4,7 +4,6 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
-import { Slideshow } from "@/components/Slideshow";
 
 const Landing = () => {
   const [user, setUser] = useState<any>(null);
@@ -34,13 +33,11 @@ const Landing = () => {
             </div>
           </h1>
 
-          <p className="text-xl text-github-gray mb-8">
-            Quantum-Inspired Optimization for Everyone
-          </p>
+          <p className="text-xl text-github-gray mb-8">Optimization for everyone</p>
           <div className="max-w-2xl mx-auto text-github-gray mb-12">
             <p className="mb-4">
-              Rastion brings the power of quantum-inspired algorithms to classical optimization problems.
-              Our platform combines quantum computing principles with classical algorithms to solve complex optimization challenges efficiently.
+              Rastion allows users to create and share optimizers and problems by making team accessible to everyone.
+              Join us in building a more efficient future through open source collaboration.
             </p>
           </div>
           
@@ -49,16 +46,9 @@ const Landing = () => {
               <Link to="/repositories">Browse Repositories</Link>
             </Button>
             <Button asChild variant="outline">
-              <Link to="/signin">Sign In</Link>
+              <Link to="/docs">Read Documentation</Link>
             </Button>
           </div>
-        </div>
-
-        <div className="mb-16">
-          <h2 className="text-2xl font-semibold text-github-gray mb-6">
-            Quantum-Inspired Solutions
-          </h2>
-          <Slideshow />
         </div>
 
         <div className="mb-16">
@@ -73,15 +63,15 @@ const Landing = () => {
 {`from rastion_hub.auto_optimizer import AutoOptimizer
 from rastion_hub.auto_problem import AutoProblem
 
-# Load a quantum-inspired problem
+# Load a problem from the hub
 problem = AutoProblem.from_repo(
-    "Rastion/quantum-maxcut", 
+    "Rastion/portfolio-optimization", 
     revision="main"
 )
 
 # Load and run an optimizer
 solver = AutoOptimizer.from_repo(
-    "Rastion/quantum-annealer", 
+    "Rastion/particle-swarm", 
     revision="main"
 )
 solution, value = solver.optimize(problem)`}
@@ -91,21 +81,21 @@ solution, value = solver.optimize(problem)`}
             <div className="bg-gradient-to-br from-[#1A1F2C] to-[#221F26] p-6 rounded-lg shadow-xl transform hover:scale-[1.02] transition-all duration-300">
               <h3 className="text-xl font-semibold mb-4 flex items-center gap-2 text-white">
                 <Code2 className="w-5 h-5" />
-                Creating Custom Solutions
+                Sharing Your Work
               </h3>
               <pre className="bg-[#1E1E1E] p-4 rounded text-sm overflow-x-auto font-code text-[#9b87f5] shadow-inner animate-fade-in">
-{`# Create a new quantum solver
-rastion create_repo quantum-solver --org Rastion
+{`# Create a new solver repository
+rastion create_repo my-solver --org Rastion
 
-# Push your quantum-inspired implementation
-rastion push_solver quantum-solver \\
-    --file quantum_solver.py \\
+# Push your solver code and config
+rastion push_solver my-solver \\
+    --file my_solver.py \\
     --config solver_config.json
 
-# Create and push a quantum problem
-rastion create_repo quantum-problem --org Rastion
-rastion push_problem quantum-problem \\
-    --file quantum_problem.py \\
+# Create and push a problem
+rastion create_repo my-problem --org Rastion
+rastion push_problem my-problem \\
+    --file my_problem.py \\
     --config problem_config.json`}
               </pre>
             </div>
