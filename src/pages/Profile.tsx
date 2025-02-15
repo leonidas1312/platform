@@ -1,5 +1,3 @@
-// src/pages/Profile.tsx
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,76 +8,51 @@ import { supabase } from "@/lib/supabase";
 const Profile = () => {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  // This will store the GitHub OAuth token from Supabase's session.
   const [githubToken, setGithubToken] = useState("");
-  const [installationId, setInstallationId] = useState("");
 
+  // Retrieve the session from Supabase and store the GitHub user token.
   useEffect(() => {
-    const getUserAndToken = async () => {
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        setUser(user);
-      } catch (error) {
-        console.error("Error fetching user:", error);
-        toast({
-          title: "Error",
-          description: "Failed to load user profile",
-          variant: "destructive",
-        });
-      } finally {
-        setLoading(false);
+    const getSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        setUser(session.user);
+        if (session.provider_token) {
+          console.log("GitHub user token:", session.provider_token);
+          setGithubToken(session.provider_token);
+          // Optionally, you could save this token in localStorage for CLI use:
+          // localStorage.setItem("github_user_token", session.provider_token);
+        }
       }
+      setLoading(false);
     };
-
-    getUserAndToken();
+    getSession();
   }, []);
 
-  const handleGenerateToken = async () => {
-    if (!installationId) {
-      toast({
-        title: "Missing Installation ID",
-        description: "Please provide your GitHub App installation ID.",
-        variant: "destructive",
-      });
-      return;
-    }
-
+  const handleCopyToken = async () => {
     try {
-      const response = await fetch(
-        `/api/github/token?installationId=${installationId}`
-      );
-      const data = await response.json();
-      if (response.ok) {
-        toast({
-          title: "Token Generated",
-          description: "Short-lived token generated successfully.",
-        });
-        setGithubToken(data.token);
-      } else {
-        throw new Error(data.error || "Token generation failed");
-      }
-    } catch (error) {
-      console.error("Error generating token:", error);
+      await navigator.clipboard.writeText(githubToken);
+      toast({
+        title: "Copied!",
+        description: "Token copied to clipboard.",
+      });
+    } catch (err) {
+      console.error("Copy failed:", err);
       toast({
         title: "Error",
-        description: "Failed to generate token.",
+        description: "Failed to copy token.",
         variant: "destructive",
       });
     }
   };
 
-  if (loading) {
-    return <div>Loading...</div>;
-  }
-
-  if (!user) {
-    return <div>User not authenticated</div>;
-  }
+  if (loading) return <div>Loading...</div>;
+  if (!user) return <div>User not authenticated</div>;
 
   return (
     <div className="min-h-screen bg-white">
       <div className="container py-12 max-w-2xl">
         <h1 className="text-4xl font-bold text-gray-800 mb-8">Profile</h1>
-
         <div className="bg-white rounded-lg shadow p-6 mb-6">
           <div className="flex items-center gap-4 mb-6">
             <img
@@ -89,38 +62,31 @@ const Profile = () => {
             />
             <div>
               <h2 className="text-xl font-semibold">
-                {user.user_metadata.full_name}
+                {user.user_metadata.full_name || "Anonymous"}
               </h2>
               <p className="text-gray-600">{user.email}</p>
             </div>
           </div>
         </div>
-
         <div className="bg-white rounded-lg shadow p-6">
           <h3 className="text-xl font-semibold mb-4 flex items-center gap-2">
             <Key className="w-5 h-5" />
-            Generate GitHub Installation Token
+            Your GitHub Token
           </h3>
-          <div className="space-y-4">
-            <Input
-              type="text"
-              value={installationId}
-              onChange={(e) => setInstallationId(e.target.value)}
-              placeholder="Enter your GitHub App installation ID"
-              className="mb-2"
-            />
-            <div className="flex gap-4">
-              <Button onClick={handleGenerateToken}>Generate Token</Button>
-            </div>
-            {githubToken && (
-              <div className="mt-4">
-                <p className="text-sm text-gray-600">
-                  Your generated token (valid for ~60 minutes):
-                </p>
+          <p className="text-gray-700 mb-4">
+            Below is your GitHub OAuth token. You can copy it and use it with Rastion.
+          </p>
+          {githubToken ? (
+            <div className="mt-4 flex flex-col gap-2">
+              <div className="flex items-center gap-2">
                 <Input type="text" readOnly value={githubToken} />
+                <Button onClick={handleCopyToken}>Copy</Button>
               </div>
-            )}
-          </div>
+              <p className="mt-2 font-mono text-sm text-gray-700">{githubToken}</p>
+            </div>
+          ) : (
+            <p className="text-gray-600">No GitHub token found.</p>
+          )}
         </div>
       </div>
     </div>
