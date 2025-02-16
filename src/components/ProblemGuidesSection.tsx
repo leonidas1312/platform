@@ -1,8 +1,10 @@
 // src/components/ProblemGuidesSection.tsx
+
 import React, { useState, FC, ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import CodeBlock from "@/components/CodeBlock";
 
+// Modal for displaying each guide's content
 interface GuideModalProps {
   title: string;
   content: ReactNode;
@@ -31,36 +33,42 @@ const GuideModal: FC<GuideModalProps> = ({ title, content, onClose }) => {
   );
 };
 
-type GuideKey = "minVertexCover" | "setCover" | "logisticRegression" | "leastSquares";
+// Identify each guide
+type GuideKey = "minVertexCover" | "setCover";
 
 const ProblemGuidesSection: FC = () => {
-  // activeGuide is set to a key identifying the guide; otherwise, null means no modal is open.
+  // activeGuide controls which modal is open (null = none)
   const [activeGuide, setActiveGuide] = useState<GuideKey | null>(null);
 
   const closeModal = () => setActiveGuide(null);
 
-  // Define the guide content for each new problem.
+  // Detailed instructions for each example problem
   const guides: Record<GuideKey, { title: string; content: ReactNode }> = {
     minVertexCover: {
       title: "Guide: Creating a Rastion Problem – Minimum Vertex Cover",
       content: (
         <>
           <p>
-            This guide walks you through creating a new QUBO problem for Rastion Hub:
-            the Minimum Vertex Cover. In this problem you must select a subset of vertices in
-            an undirected graph so that every edge is covered while minimizing the number of vertices selected.
+            In this guide, we build a QUBO-based <em>Minimum Vertex Cover</em> problem.
+            You must choose a subset of vertices in an undirected graph such that
+            every edge is covered—while minimizing the number of vertices selected.
           </p>
+
           <h4 className="text-lg font-semibold">Step 1: Create the Python Module</h4>
-          <p>Create a file named <code>min_vertex_cover.py</code> with the following content:</p>
+          <p>
+            Create a file named <code>min_vertex_cover.py</code>. Below is an example
+            of how to implement <code>MinVertexCoverProblem</code> by extending the
+            <code>BaseProblem</code> class and providing QUBO matrices.
+          </p>
           <CodeBlock
-code={`import numpy as np
-from rastion_hub.base_problem import BaseProblem
+            code={`import numpy as np
+from qubots.base_problem import BaseProblem
 
 class MinVertexCoverProblem(BaseProblem):
     """
     Minimum Vertex Cover Problem:
-    Given an undirected graph, select a subset of vertices such that every edge is covered.
-    QUBO formulation uses cost A=1 per vertex and penalty B=10 for uncovered edges.
+    Given an undirected graph, select a subset of vertices so every edge is covered.
+    QUBO formulation: cost A=1 per vertex + penalty B=10 for each uncovered edge.
     """
     def __init__(self, num_vertices=6, edge_probability=0.5, A=1, B=10, seed=123):
         self.num_vertices = num_vertices
@@ -78,8 +86,10 @@ class MinVertexCoverProblem(BaseProblem):
         n = self.num_vertices
         Q = np.zeros((n, n))
         constant = 0
+        # Cost for each selected vertex
         for i in range(n):
             Q[i, i] += self.A
+        # Penalty for uncovered edges
         for (i, j) in self.edges:
             Q[i, i] += -self.B
             Q[j, j] += -self.B
@@ -98,10 +108,14 @@ class MinVertexCoverProblem(BaseProblem):
     def get_qubo(self):
         return self.Q, self.qubo_constant`}
           />
-          <h4 className="text-lg font-semibold">Step 2: Create the Problem Configuration</h4>
-          <p>Create a file named <code>problem_config.json</code> with this content:</p>
+
+          <h4 className="text-lg font-semibold">Step 2: Create the Configuration</h4>
+          <p>
+            In <code>problem_config.json</code>, specify where your problem class is
+            located (<code>entry_point</code>) and any default parameters. For example:
+          </p>
           <CodeBlock
-code={`{
+            code={`{
   "entry_point": "min_vertex_cover:MinVertexCoverProblem",
   "default_params": {
     "num_vertices": 6,
@@ -111,57 +125,67 @@ code={`{
   }
 }`}
           />
+
           <h4 className="text-lg font-semibold">Step 3: Pushing to Rastion Hub</h4>
           <p>
-            Use the Rastion CLI to create and push your repository:
+            With your files ready (<code>min_vertex_cover.py</code> and{" "}
+            <code>problem_config.json</code>), create a new repository and push:
           </p>
           <CodeBlock
-code={`# Create repository
-rastion create_repo min-vertex-cover-problem --github-token <YOUR_GITHUB_TOKEN>
+            code={`# Create repository
+rastion create_repo min-vertex-cover-problem
 
 # Push your problem implementation
-rastion push_problem min-vertex-cover-problem --file min_vertex_cover.py --config problem_config.json --github-token <YOUR_GITHUB_TOKEN>`}
+rastion push_problem min-vertex-cover-problem --source PATH_TO_MY_LOCAL_FOLDER`}
           />
-          <h4 className="text-lg font-semibold">Step 4: Testing</h4>
+
+          <h4 className="text-lg font-semibold">Step 4: Testing the Problem</h4>
           <p>
-            Test your problem using the auto-loader:
+            Finally, confirm it works by loading via <code>AutoProblem</code>:
           </p>
           <CodeBlock
-code={`from rastion_hub.auto_problem import AutoProblem
+            code={`from qubots.auto_problem import AutoProblem
 
-problem = AutoProblem.from_repo("Rastion/min-vertex-cover-problem", revision="main")
-print(problem.random_solution())
-print(problem.evaluate_solution(problem.random_solution()))`}
+problem = AutoProblem.from_repo("Rastion/min-vertex-cover-problem")
+sol = problem.random_solution()
+print("Random solution:", sol)
+print("Solution cost:", problem.evaluate_solution(sol))`}
           />
         </>
-      )
+      ),
     },
     setCover: {
       title: "Guide: Creating a Rastion Problem – Set Cover",
       content: (
         <>
           <p>
-            This guide explains how to create a QUBO formulation of the Set Cover problem.
-            In this problem you select a subset of sets (with associated costs) so that every element is covered.
+            This guide covers a <em>Set Cover</em> formulation in QUBO form, where you
+            select certain sets from a collection to cover all elements at minimal cost.
           </p>
+
           <h4 className="text-lg font-semibold">Step 1: Create the Python Module</h4>
-          <p>Create a file named <code>set_cover.py</code> with the following content:</p>
+          <p>
+            Create <code>set_cover.py</code> containing your implementation of
+            <code>SetCoverProblem</code>:
+          </p>
           <CodeBlock
-code={`import numpy as np
-from rastion_hub.base_problem import BaseProblem
+            code={`import numpy as np
+from qubots.base_problem import BaseProblem
 
 class SetCoverProblem(BaseProblem):
     """
     Set Cover Problem:
-    Given a universe and a collection of sets (with costs), select sets to cover all elements.
-    QUBO formulation uses cost terms and a penalty to enforce coverage.
+    Select a subset of sets (with costs) so that every element in the universe is covered.
+    We use a penalty to ensure coverage in the QUBO formulation.
     """
     def __init__(self, num_elements=5, num_sets=8, p_coverage=0.5, penalty=50, seed=123):
         self.num_elements = num_elements
         self.num_sets = num_sets
         self.penalty = penalty
         np.random.seed(seed)
+        # c = cost array for each set
         self.c = np.random.randint(1, 11, size=num_sets)
+        # M = coverage matrix: rows=elements, cols=sets
         self.M = (np.random.rand(num_elements, num_sets) < p_coverage).astype(int)
         self.Q, self.qubo_constant = self._build_qubo()
         
@@ -171,13 +195,18 @@ class SetCoverProblem(BaseProblem):
         P = self.penalty
         Q = np.zeros((m, m))
         constant = P * n
+
+        # Diagonal terms: cost minus coverage penalty
         for i in range(m):
             Q[i, i] = self.c[i] - P * np.sum(self.M[:, i])
+
+        # Off-diagonal terms: reward overlap
         for i in range(m):
             for j in range(i+1, m):
-                const = P * np.sum(self.M[:, i] * self.M[:, j])
-                Q[i, j] = const
-                Q[j, i] = const
+                overlap = P * np.sum(self.M[:, i] * self.M[:, j])
+                Q[i, j] = overlap
+                Q[j, i] = overlap
+
         return Q, constant
 
     def evaluate_solution(self, solution) -> float:
@@ -190,10 +219,10 @@ class SetCoverProblem(BaseProblem):
     def get_qubo(self):
         return self.Q, self.qubo_constant`}
           />
-          <h4 className="text-lg font-semibold">Step 2: Create the Problem Configuration</h4>
-          <p>Create a file named <code>problem_config.json</code> with this content:</p>
+
+          <h4 className="text-lg font-semibold">Step 2: Configuration</h4>
           <CodeBlock
-code={`{
+            code={`{
   "entry_point": "set_cover:SetCoverProblem",
   "default_params": {
     "num_elements": 5,
@@ -203,175 +232,56 @@ code={`{
   }
 }`}
           />
-          <h4 className="text-lg font-semibold">Step 3: Pushing to Rastion Hub</h4>
-          <p>Use the Rastion CLI:</p>
-          <CodeBlock
-code={`# Create repository
-rastion create_repo set-cover-problem --github-token <YOUR_GITHUB_TOKEN>
 
-# Push your problem implementation
-rastion push_problem set-cover-problem --file set_cover.py --config problem_config.json --github-token <YOUR_GITHUB_TOKEN>`}
+          <h4 className="text-lg font-semibold">Step 3: Push to Rastion</h4>
+          <CodeBlock
+            code={`# Create repo
+rastion create_repo set-cover-problem
+
+# Push implementation
+rastion push_problem set-cover-problem --source PATH_TO_MY_LOCAL_FOLDER`}
           />
+
           <h4 className="text-lg font-semibold">Step 4: Testing</h4>
           <CodeBlock
-code={`from rastion_hub.auto_problem import AutoProblem
+            code={`from qubots.auto_problem import AutoProblem
 
-problem = AutoProblem.from_repo("Rastion/set-cover-problem", revision="main")
-print(problem.random_solution())
-print(problem.evaluate_solution(problem.random_solution()))`}
+problem = AutoProblem.from_repo("Rastion/set-cover-problem")
+sol = problem.random_solution()
+print("Random solution:", sol)
+print("Solution cost:", problem.evaluate_solution(sol))`}
           />
         </>
-      )
+      ),
     },
-    logisticRegression: {
-      title: "Guide: Creating a Rastion Problem – Logistic Regression",
-      content: (
-        <>
-          <p>
-            In this guide you’ll create a realistic continuous optimization problem—logistic regression.
-            Given a dataset with features and binary labels, the task is to find a weight vector that minimizes
-            the logistic loss with L2 regularization.
-          </p>
-          <h4 className="text-lg font-semibold">Step 1: Create the Python Module</h4>
-          <p>Create a file named <code>logistic_regression.py</code> with the following content:</p>
-          <CodeBlock
-code={`import numpy as np
-from rastion_hub.base_problem import BaseProblem
-
-class LogisticRegressionProblem(BaseProblem):
-    """
-    Logistic Regression Problem:
-    Find a weight vector w that minimizes the logistic loss with L2 regularization.
-    Loss: (1/N)*sum(log(1+exp(-y*(X.w))) + reg*||w||^2
-    """
-    def __init__(self, X=None, y=None, reg=0.01, seed=123):
-        np.random.seed(seed)
-        if X is None or y is None:
-            const N = 100, d = 5;
-            X = np.random.randn(100, 5)
-            const true_w = np.random.randn(5)
-            const logits = X @ true_w
-            y = np.where(logits > 0, 1, -1)
-        self.X = np.array(X)
-        self.y = np.array(y)
-        self.reg = reg
-        self.d = self.X.shape[1]
     
-    def evaluate_solution(self, weights) -> float:
-        weights = np.array(weights)
-        const logits = self.X @ weights
-        const losses = np.log(1 + np.exp(-this.y * logits))
-        const loss = np.mean(losses) + self.reg * np.sum(weights**2)
-        return float(loss)
-    
-    def random_solution(self):
-        return np.random.randn(self.d).tolist()
-    
-    def get_qubo(self):
-        throw new Error("LogisticRegressionProblem is not a QUBO problem.");`}
-          />
-          <h4 className="text-lg font-semibold">Step 2: Create the Problem Configuration</h4>
-          <CodeBlock
-code={`{
-  "entry_point": "logistic_regression:LogisticRegressionProblem",
-  "default_params": {
-    "reg": 0.01
-  }
-}`}
-          />
-          <h4 className="text-lg font-semibold">Step 3: Pushing to Rastion Hub</h4>
-          <CodeBlock
-code={`# Create repository
-rastion create_repo logistic-regression-problem --github-token <YOUR_GITHUB_TOKEN>
-
-# Push your problem implementation
-rastion push_problem logistic-regression-problem --file logistic_regression.py --config problem_config.json --github-token <YOUR_GITHUB_TOKEN>`}
-          />
-          <h4 className="text-lg font-semibold">Step 4: Testing</h4>
-          <CodeBlock
-code={`from rastion_hub.auto_problem import AutoProblem
-
-problem = AutoProblem.from_repo("Rastion/logistic-regression-problem", revision="main")
-print(problem.random_solution())
-print(problem.evaluate_solution(problem.random_solution()))`}
-          />
-        </>
-      )
-    },
-    leastSquares: {
-      title: "Guide: Creating a Rastion Problem – Least Squares Regression",
-      content: (
-        <>
-          <p>
-            This guide explains how to set up a realistic continuous optimization problem for least squares regression.
-            Given a dataset of features and target values, your task is to find a weight vector that minimizes
-            the mean squared error (MSE).
-          </p>
-          <h4 className="text-lg font-semibold">Step 1: Create the Python Module</h4>
-          <p>Create a file named <code>least_squares_regression.py</code> with the following content:</p>
-          <CodeBlock
-code={`import numpy as np
-from rastion_hub.base_problem import BaseProblem
-
-class LeastSquaresRegressionProblem(BaseProblem):
-    """
-    Least Squares Regression Problem:
-    Find a weight vector w that minimizes the mean squared error on a dataset.
-    """
-    def __init__(self, X=None, y=None, seed=123):
-        np.random.seed(seed)
-        if (X == null || y == null) {
-            const N = 100, d = 5;
-            X = np.random.randn(100, 5)
-            const true_w = np.random.randn(5)
-            y = X @ true_w + 0.1 * np.random.randn(100)
-        }
-        this.X = np.array(X)
-        this.y = np.array(y)
-        this.d = this.X.shape[1]
-    
-    def evaluate_solution(self, weights) -> float:
-        weights = np.array(weights)
-        const predictions = this.X @ weights
-        const mse = np.mean((this.y - predictions)**2)
-        return float(mse)
-    
-    def random_solution(self):
-        return np.random.randn(this.d).tolist()
-    
-    def get_qubo(self):
-        throw new Error("LeastSquaresRegressionProblem is not a QUBO problem.");`}
-          />
-          <h4 className="text-lg font-semibold">Step 2: Create the Problem Configuration</h4>
-          <CodeBlock
-code={`{
-  "entry_point": "least_squares_regression:LeastSquaresRegressionProblem",
-  "default_params": {}
-}`}
-          />
-          <h4 className="text-lg font-semibold">Step 3: Pushing to Rastion Hub</h4>
-          <CodeBlock
-code={`# Create repository
-rastion create_repo least-squares-regression-problem --github-token <YOUR_GITHUB_TOKEN>
-
-# Push your problem implementation
-rastion push_problem least-squares-regression-problem --file least_squares_regression.py --config problem_config.json --github-token <YOUR_GITHUB_TOKEN>`}
-          />
-          <h4 className="text-lg font-semibold">Step 4: Testing</h4>
-          <CodeBlock
-code={`from rastion_hub.auto_problem import AutoProblem
-
-problem = AutoProblem.from_repo("Rastion/least-squares-regression-problem", revision="main")
-print(problem.random_solution())
-print(problem.evaluate_solution(problem.random_solution()))`}
-          />
-        </>
-      )
-    }
   };
 
   return (
     <div>
+      <h2 className="text-2xl font-bold mb-6 text-github-gray">
+        Problem Creation Guides
+      </h2>
+
+      <div className="mb-6 space-y-3">
+        <p>
+          Below, you’ll find sample implementations of various optimization
+          problems—both <em>QUBO</em> (binary) and <em>continuous</em>. Each
+          guide details:
+        </p>
+        <ul className="list-disc list-inside ml-4">
+          <li>The Python module you’ll create, extending <code>BaseProblem</code>.</li>
+          <li>A <code>problem_config.json</code> file specifying how Rastion loads it.</li>
+          <li>Commands to push the problem to Rastion Hub.</li>
+          <li>A quick test snippet to verify everything is working.</li>
+        </ul>
+        <p>
+          Click any button below to see the step-by-step guide for that specific
+          problem.
+        </p>
+      </div>
+
+      {/* Buttons to open each guide modal */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <Button variant="outline" onClick={() => setActiveGuide("minVertexCover")}>
           Minimum Vertex Cover
@@ -379,14 +289,10 @@ print(problem.evaluate_solution(problem.random_solution()))`}
         <Button variant="outline" onClick={() => setActiveGuide("setCover")}>
           Set Cover
         </Button>
-        <Button variant="outline" onClick={() => setActiveGuide("logisticRegression")}>
-          Logistic Regression
-        </Button>
-        <Button variant="outline" onClick={() => setActiveGuide("leastSquares")}>
-          Least Squares Regression
-        </Button>
+        
       </div>
 
+      {/* Modal content conditional */}
       {activeGuide && (
         <GuideModal
           title={guides[activeGuide].title}

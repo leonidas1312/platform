@@ -3,15 +3,18 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import CodeBlock from "@/components/CodeBlock";  // Import the CodeBlock component
 
 // Dummy dropdown options – you can expand these as needed.
 const problemOptions = [
   { label: "Rastion/max-cut", value: "max-cut" },
+  { label: "Rastion/portfolio-optimization", value: "portfolio-optimization" },
   // Add more problems here.
 ];
 
 const optimizerOptions = [
   { label: "Rastion/exhaustive-search", value: "exhaustive-search" },
+  { label: "Rastion/particle-swarm", value: "particle-swarm" },
   // Add more optimizers here.
 ];
 
@@ -21,7 +24,7 @@ const ExecutableCodeBox = ({ codeSnippet }) => {
 
   const runCode = async () => {
     setLoading(true);
-    setOutput(""); // clear previous output
+    setOutput(""); // Clear previous output
 
     try {
       const response = await fetch("/.netlify/functions/run-code", {
@@ -29,9 +32,21 @@ const ExecutableCodeBox = ({ codeSnippet }) => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ code: codeSnippet }),
       });
-      const data = await response.json();
-      setOutput(data.output);
-    } catch (error) {
+
+      if (!response.body) {
+        throw new Error("ReadableStream not supported in this browser/environment.");
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+
+      // Read the stream chunk by chunk.
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        setOutput((prev) => prev + decoder.decode(value));
+      }
+    } catch (error: any) {
       setOutput("Error: " + error.message);
     } finally {
       setLoading(false);
@@ -40,9 +55,9 @@ const ExecutableCodeBox = ({ codeSnippet }) => {
 
   return (
     <div className="relative">
-      <pre className="bg-[#1E1E1E] p-4 rounded text-sm overflow-x-auto font-code text-[#9b87f5] shadow-inner">
-        {codeSnippet}
-      </pre>
+      {/* Render the code snippet with CodeBlock (non-executable display) */}
+      <CodeBlock code={codeSnippet} language="python" />
+
       <Button onClick={runCode} className="mt-2" disabled={loading}>
         {loading ? "Running..." : "Run Code"}
       </Button>
@@ -68,7 +83,9 @@ const Landing = () => {
 
     getUser();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
     });
 
@@ -80,15 +97,17 @@ const Landing = () => {
 from qubots.auto_optimizer import AutoOptimizer
 
 # Load the max-cut problem from the repository.
-problem = AutoProblem.from_repo(f"Rastion/${selectedProblem}")
+problem = AutoProblem.from_repo("Rastion/${selectedProblem}")
 
 # Load the optimizer from the repository.
-optimizer = AutoOptimizer.from_repo(f"Rastion/${selectedOptimizer}")
+optimizer = AutoOptimizer.from_repo("Rastion/${selectedOptimizer}")
 
 best_solution, best_cost = optimizer.optimize(problem)
+print(180*"=")
 print("Solved maxcut using exhaustive search")
 print("Best Solution:", best_solution)
-print("Best Cost:", best_cost)`;
+print("Best Cost:", best_cost)
+print(180*"=")`;
 
   return (
     <div className="min-h-screen bg-white">
@@ -100,13 +119,12 @@ print("Best Cost:", best_cost)`;
             </div>
           </h1>
 
-          <p className="text-xl text-github-gray mb-8">Optimization for everyone</p>
-          <div className="max-w-2xl mx-auto text-github-gray mb-12">
-            <p className="mb-4">
-              Rastion allows users to create and share optimizers and problems by making team accessible to everyone.
-              Join us in building a more efficient future through open source collaboration.
-            </p>
-          </div>
+          <p className="text-xl text-github-gray mb-8 text-center">
+            An open source community for optimization.
+            <br />
+            <span className="text-xl text-github-gray mb-8 text-center">Currently under development, see Documentation for more info.</span>
+          </p>
+          
 
           <div className="flex gap-4 justify-center">
             <Button asChild>
@@ -118,12 +136,19 @@ print("Best Cost:", best_cost)`;
           </div>
         </div>
 
+        <div className="max-w text-github-gray">
+          <p className="mb-4 text-2xl">
+              🚀 Use qubots on the fly!
+          </p>
+        </div>
+
+        
+
         {/* Get Started Section */}
         <div className="mb-16">
-          <h2 className="text-2xl font-semibold text-github-gray mb-6">Get Started with Rastion</h2>
           <div className="bg-gradient-to-br from-[#1A1F2C] to-[#221F26] p-6 rounded-lg shadow-xl">
             <div className="mb-4 text-white text-xl">
-              I want to optimize this&nbsp;
+              I want to solve this problem&nbsp;
               <select
                 value={selectedProblem}
                 onChange={(e) => setSelectedProblem(e.target.value)}
@@ -135,7 +160,7 @@ print("Best Cost:", best_cost)`;
                   </option>
                 ))}
               </select>
-              &nbsp;using this&nbsp;
+              &nbsp;using this optimizer&nbsp;
               <select
                 value={selectedOptimizer}
                 onChange={(e) => setSelectedOptimizer(e.target.value)}
@@ -152,8 +177,14 @@ print("Best Cost:", best_cost)`;
             <ExecutableCodeBox codeSnippet={codeSnippet} />
           </div>
         </div>
+
       </div>
     </div>
+
+      
+
+
+
   );
 };
 

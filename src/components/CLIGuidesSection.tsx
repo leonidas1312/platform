@@ -1,4 +1,3 @@
-
 import React, { useState, FC, ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import CodeBlock from "@/components/CodeBlock";
@@ -44,235 +43,74 @@ const CLIGuidesSection: FC = () => {
   const [activeGuide, setActiveGuide] = useState<CLIGuideKey | null>(null);
   const closeModal = () => setActiveGuide(null);
 
-  const guides: Record<CLIGuideKey, { title: string; content: ReactNode }> = {
-    create_repo: {
-      title: "CLI Command: create_repo",
-      content: (
-        <>
-          <p>
-            <strong>Usage:</strong> <code>rastion create_repo &lt;repo_name&gt; [options]</code>
-          </p>
-          <p>
-            Create a new GitHub repository under the "Rastion" organization.
-          </p>
-          <p>
-            <strong>Options:</strong>
-          </p>
-          <ul className="list-disc list-inside">
-            <li>
-              <code>--private</code>: Create a private repository (default is public).
-            </li>
-            <li>
-              <code>--github-token</code>: Your GitHub personal access token (or set via <code>GITHUB_TOKEN</code> env var).
-            </li>
-          </ul>
-          <h4 className="text-lg font-semibold">Example:</h4>
-          <CodeBlock code={`export GITHUB_TOKEN="your_token_here"
-rastion create_repo my-new-repo --github-token $GITHUB_TOKEN`} />
-        </>
-      ),
-    },
-    update_repo: {
-      title: "CLI Command: update_repo",
-      content: (
-        <>
-          <p>
-            <strong>Usage:</strong> <code>rastion update_repo &lt;repo_name&gt; [options]</code>
-          </p>
-          <p>
-            Update an existing GitHub repository with new local changes. This command clones the repository,
-            copies files from a local directory (excluding the .git folder), commits the changes, and pushes them.
-          </p>
-          <p>
-            <strong>Options:</strong>
-          </p>
-          <ul className="list-disc list-inside">
-            <li>
-              <code>--local-dir</code>: Local directory with updated files (default: current directory).
-            </li>
-            <li>
-              <code>--branch</code>: Branch to update (default: "main").
-            </li>
-            <li>
-              <code>--github-token</code>: Your GitHub token.
-            </li>
-          </ul>
-          <h4 className="text-lg font-semibold">Example:</h4>
-          <CodeBlock code={`export GITHUB_TOKEN="your_token_here"
-rastion update_repo my-new-repo --local-dir ./my_project --branch main --github-token $GITHUB_TOKEN`} />
-        </>
-      ),
-    },
-    delete_repo: {
-      title: "CLI Command: delete_repo",
-      content: (
-        <>
-          <p>
-            <strong>Usage:</strong> <code>rastion delete_repo &lt;repo_name&gt; [options]</code>
-          </p>
-          <p>
-            Delete a GitHub repository from the "Rastion" organization.
-          </p>
-          <ul className="list-disc list-inside">
-            <li>
-              <code>--github-token</code>: Your GitHub token.
-            </li>
-          </ul>
-          <h4 className="text-lg font-semibold">Example:</h4>
-          <CodeBlock code={`export GITHUB_TOKEN="your_token_here"
-rastion delete_repo my-new-repo --github-token $GITHUB_TOKEN`} />
-        </>
-      ),
-    },
-    clone_repo: {
-      title: "CLI Command: clone_repo",
-      content: (
-        <>
-          <p>
-            <strong>Usage:</strong> <code>rastion clone_repo &lt;repo_name&gt; [options]</code>
-          </p>
-          <p>
-            Clone a repository from the "Rastion" organization.
-          </p>
-          <ul className="list-disc list-inside">
-            <li>
-              <code>--branch</code>: Branch to checkout (default: "main").
-            </li>
-            <li>
-              <code>--dest</code>: Destination folder (default: current directory).
-            </li>
-          </ul>
-          <h4 className="text-lg font-semibold">Example:</h4>
-          <CodeBlock code={`rastion clone_repo my-new-repo --branch main --dest ./local_folder`} />
-        </>
-      ),
-    },
-    push_solver: {
-      title: "CLI Command: push_solver",
-      content: (
-        <>
-          <p>
-            <strong>Usage:</strong> <code>rastion push_solver &lt;repo_name&gt; --file &lt;file&gt; --config &lt;config&gt; [options]</code>
-          </p>
-          <p>
-            Push a local solver implementation to an existing GitHub repository. The command clones the repository, copies the solver file and solver_config.json, commits the changes, and pushes them.
-          </p>
-          <ul className="list-disc list-inside">
-            <li>
-              <code>--file</code>: Path to the local .py solver file.
-            </li>
-            <li>
-              <code>--config</code>: Path to solver_config.json.
-            </li>
-            <li>
-              <code>--branch</code>: Branch name (default: "main").
-            </li>
-            <li>
-              <code>--github-token</code>: Your GitHub token.
-            </li>
-          </ul>
-          <h4 className="text-lg font-semibold">Example:</h4>
-          <CodeBlock code={`export GITHUB_TOKEN="your_token_here"
-rastion push_solver my-solver-repo --file solver.py --config solver_config.json --branch main --github-token $GITHUB_TOKEN`} />
-        </>
-      ),
-    },
-    push_problem: {
-      title: "CLI Command: push_problem",
-      content: (
-        <>
-          <p>
-            <strong>Usage:</strong> <code>rastion push_problem &lt;repo_name&gt; --file &lt;file&gt; --config &lt;config&gt; [options]</code>
-          </p>
-          <p>
-            Push a local problem implementation to an existing GitHub repository. It clones the repo, copies the problem file and problem_config.json,
-            commits the changes, and pushes them.
-          </p>
-          <ul className="list-disc list-inside">
-            <li>
-              <code>--file</code>: Path to the local .py problem file.
-            </li>
-            <li>
-              <code>--config</code>: Path to problem_config.json.
-            </li>
-            <li>
-              <code>--branch</code>: Branch name (default: "main").
-            </li>
-            <li>
-              <code>--github-token</code>: Your GitHub token.
-            </li>
-          </ul>
-          <h4 className="text-lg font-semibold">Example:</h4>
-          <CodeBlock code={`export GITHUB_TOKEN="your_token_here"
-rastion push_problem my-problem-repo --file problem.py --config problem_config.json --branch main --github-token $GITHUB_TOKEN`} />
-        </>
-      ),
-    },
-    run_solver: {
-      title: "CLI Command: run_solver",
-      content: (
-        <>
-          <p>
-            <strong>Usage:</strong> <code>rastion run_solver &lt;solver_repo&gt; [options]</code>
-          </p>
-          <p>
-            Clone or pull the solver repository, load the solver (and optionally a problem),
-            and run the optimization.
-          </p>
-          <ul className="list-disc list-inside">
-            <li>
-              <code>--solver-rev</code>: Solver branch or tag (default: "main").
-            </li>
-            <li>
-              <code>--problem-repo</code>: Repository for the problem (optional).
-            </li>
-            <li>
-              <code>--problem-rev</code>: Problem branch or tag (default: "main").
-            </li>
-          </ul>
-          <h4 className="text-lg font-semibold">Example:</h4>
-          <CodeBlock code={`export GITHUB_TOKEN="your_token_here"
-rastion run_solver Rastion/my-solver-repo --solver-rev main --problem-repo Rastion/my-problem-repo --problem-rev main`} />
-        </>
-      ),
-    },
-  };
+  // Introductory text that references `--help` usage and explains how
+  // to adapt user code to BaseProblem/BaseOptimizer, plus a full upload pipeline example.
+  const introduction = (
+    <div className="mb-6 space-y-4">
+      <p>
+        Once the Rastion client is installed, you can type{" "}
+        <code>rastion --help</code> or <code>rastion [command] --help</code> to
+        see all available commands and their parameters. This is a great way to
+        explore the CLI without memorizing every detail.
+      </p>
+      <p>
+        If you have an existing problem or optimizer that <strong>doesn’t</strong> extend{" "}
+        <code>BaseProblem</code> or <code>BaseOptimizer</code>, here’s the basic
+        idea to transform your code into a <em>qubot</em>:
+      </p>
+      <ul className="list-disc list-inside ml-4">
+        <li>
+          Create a class for your problem that implements{" "}
+          <code>evaluate_solution(solution) -&gt; float</code> and optionally{" "}
+          <code>random_solution()</code>. Then extend{" "}
+          <code>BaseProblem</code>.
+        </li>
+        <li>
+          Create a class for your solver that implements{" "}
+          <code>optimize(problem, initial_solution=None)</code>, returning a
+          tuple <code>(best_solution, best_cost)</code>. Then extend{" "}
+          <code>BaseOptimizer</code>.
+        </li>
+        <li>
+          Prepare a <code>problem_config.json</code> or{" "}
+          <code>solver_config.json</code> with an <code>entry_point</code> field
+          pointing to <code>"module_name:ClassName"</code> and any default
+          parameters.
+        </li>
+      </ul>
+      <p>
+        Below is an example pipeline showing how to create a new repository,
+        push your problem or solver code, and make it accessible on Rastion:
+      </p>
+      <CodeBlock
+        code={`# 1. Login using your generated github token
+rastion login --github-token MY_GITHUB_TOKEN
+
+# 2. Create a new repo for your problem
+rastion create_repo my-new-problem-repo 
+
+# 3. Push your local problem file + problem_config.json to that repo
+rastion push_problem my-new-problem-repo --source path_to_problem_folder
+
+# 4. Create a new repo for your solver
+rastion create_repo my-new-solver-repo 
+
+# 5. Push your local solver file + solver_config.json
+rastion push_solver my-new-solver-repo --source path_to_optimizer_folder
+
+# Once both repos are set up, you (or anyone) can run them together:
+rastion run_solver Rastion/my-new-solver-repo --problem-repo Rastion/my-new-problem-repo`}
+      />
+    </div>
+  );
 
   return (
     <div>
-      <h2 className="text-2xl font-bold mb-4 text-github-gray">
-        CLI Commands
-      </h2>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        <Button variant="outline" onClick={() => setActiveGuide("create_repo")}>
-          create_repo
-        </Button>
-        <Button variant="outline" onClick={() => setActiveGuide("update_repo")}>
-          update_repo
-        </Button>
-        <Button variant="outline" onClick={() => setActiveGuide("delete_repo")}>
-          delete_repo
-        </Button>
-        <Button variant="outline" onClick={() => setActiveGuide("clone_repo")}>
-          clone_repo
-        </Button>
-        <Button variant="outline" onClick={() => setActiveGuide("push_solver")}>
-          push_solver
-        </Button>
-        <Button variant="outline" onClick={() => setActiveGuide("push_problem")}>
-          push_problem
-        </Button>
-        <Button variant="outline" onClick={() => setActiveGuide("run_solver")}>
-          run_solver
-        </Button>
-      </div>
-      {activeGuide && (
-        <CLIGuideModal
-          title={guides[activeGuide].title}
-          content={guides[activeGuide].content}
-          onClose={closeModal}
-        />
-      )}
+      <h2 className="text-2xl font-bold mb-4 text-github-gray">CLI Commands</h2>
+
+      {/* Intro Section */}
+      {introduction}
+
     </div>
   );
 };

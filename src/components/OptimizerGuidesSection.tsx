@@ -36,28 +36,66 @@ const OptimizerGuidesSection: FC = () => {
   const [activeGuide, setActiveGuide] = useState<GuideKey | null>(null);
   const closeModal = () => setActiveGuide(null);
 
+  // Introductory text and instructions for building optimizers
+  const introduction = (
+    <div className="mb-6 space-y-3">
+      <p>
+        Below are examples of how to create various <strong>Rastion optimizers</strong>:
+        from a classical <em>Simulated Annealing</em> approach to several 
+        <em>PyTorch-based</em> optimizers (<strong>Adam</strong>, <strong>SGD</strong>, 
+        and <strong>RMSProp</strong>). Each optimizer extends the{" "}
+        <code>BaseOptimizer</code> interface, ensuring compatibility with all Rastion 
+        and Qubots problems.
+      </p>
+      <ul className="list-disc list-inside ml-4">
+        <li>
+          <strong>Python Module:</strong> Showcases the optimizer class (logic and parameters).
+        </li>
+        <li>
+          <strong>Configuration:</strong> A <code>solver_config.json</code> file 
+          specifying the <code>entry_point</code> and default parameters.
+        </li>
+        <li>
+          <strong>Pushing to Rastion:</strong> Use <code>rastion create_repo</code> 
+          and <code>push_solver</code> commands to publish your optimizer.
+        </li>
+      </ul>
+      <p>
+        Choose one of the guides below to see a fully working example of how to implement,
+        configure, and share an optimizer in the Rastion ecosystem.
+      </p>
+    </div>
+  );
+
+  // Guides for each example optimizer
   const guides: Record<GuideKey, { title: string; content: ReactNode }> = {
     simulatedAnnealing: {
       title: "Guide: Creating a Rastion Optimizer – Simulated Annealing",
       content: (
         <>
           <p>
-            This guide walks you through creating a simulated annealing optimizer for Rastion Hub.
-            Simulated annealing explores the solution space by accepting both better and (with a decreasing probability) worse solutions.
+            <em>Simulated Annealing</em> explores the solution space by occasionally
+            accepting worse solutions with a probability that decreases over time
+            (the “temperature”). This makes it suitable for both binary and continuous
+            problems, with a small modification in how we “perturb” the candidate solution.
           </p>
-          <h4 className="text-lg font-semibold">Step 1: Create the Python Module</h4>
-          <p>Create a file named <code>simulated_annealing_optimizer.py</code> with the following content:</p>
+
+          <h4 className="text-lg font-semibold">Step 1: Python Module</h4>
+          <p>
+            Create a file named <code>simulated_annealing_optimizer.py</code>, extending 
+            <code>BaseOptimizer</code>:
+          </p>
           <div className="bg-gradient-to-br from-[#1A1F2C] to-[#221F26] p-6 rounded-lg shadow-xl">
             <CodeBlock
               code={`import numpy as np
 from math import exp
-from rastion_hub.base_optimizer import BaseOptimizer
+from qubots.base_optimizer import BaseOptimizer
 
 class SimulatedAnnealingOptimizer(BaseOptimizer):
     """
     Simulated Annealing Optimizer:
     Perturbs a candidate solution and accepts worse solutions with a probability
-    that decreases over time (temperature).
+    decreasing over time (temperature).
     """
     def __init__(self, max_iters=500, initial_temp=100.0, cooling_rate=0.95, verbose=False):
         self.max_iters = max_iters
@@ -78,7 +116,7 @@ class SimulatedAnnealingOptimizer(BaseOptimizer):
         for i in range(self.max_iters):
             candidate = current_solution.copy()
             idx = np.random.randint(len(candidate))
-            # For binary solutions, flip the bit; for continuous, add a small perturbation.
+            # For binary solutions, flip the bit; for continuous, add a small perturbation
             candidate[idx] = 1 - candidate[idx] if candidate[idx] in [0,1] else candidate[idx] + np.random.randn() * 0.1
             candidate_cost = problem.evaluate_solution(candidate)
             delta = candidate_cost - current_cost
@@ -92,12 +130,17 @@ class SimulatedAnnealingOptimizer(BaseOptimizer):
             if self.verbose:
                 print(f"Iteration {i}: Cost = {current_cost}, Best = {best_cost}")
         return best_solution.tolist(), best_cost`}
-              language="python"
             />
           </div>
-          <h4 className="text-lg font-semibold">Step 2: Create the Optimizer Configuration</h4>
+
+          <h4 className="text-lg font-semibold">Step 2: Configuration</h4>
+          <p>
+            Create a <code>solver_config.json</code> referencing the above 
+            <code>SimulatedAnnealingOptimizer</code>:
+          </p>
           <div className="bg-gradient-to-br from-[#1A1F2C] to-[#221F26] p-6 rounded-lg shadow-xl">
             <CodeBlock
+              language="json"
               code={`{
   "entry_point": "simulated_annealing_optimizer:SimulatedAnnealingOptimizer",
   "default_params": {
@@ -107,18 +150,18 @@ class SimulatedAnnealingOptimizer(BaseOptimizer):
     "verbose": false
   }
 }`}
-              language="json"
             />
           </div>
-          <h4 className="text-lg font-semibold">Step 3: Pushing to Rastion Hub</h4>
+
+          <h4 className="text-lg font-semibold">Step 3: Pushing to Rastion</h4>
           <div className="bg-gradient-to-br from-[#1A1F2C] to-[#221F26] p-6 rounded-lg shadow-xl">
             <CodeBlock
-              code={`# Create repository
-rastion create_repo simulated-annealing-optimizer --github-token <YOUR_GITHUB_TOKEN>
+              language="bash"
+              code={`# Create repository for your optimizer
+rastion create_repo simulated-annealing-optimizer
 
 # Push your optimizer implementation
-rastion push_solver simulated-annealing-optimizer --file simulated_annealing_optimizer.py --config solver_config.json --github-token <YOUR_GITHUB_TOKEN>`}
-              language="bash"
+rastion push_solver simulated-annealing-optimizer --source MY_LOCAL_FOLDER_PATH_WITH_FILES`}
             />
           </div>
         </>
@@ -129,15 +172,19 @@ rastion push_solver simulated-annealing-optimizer --file simulated_annealing_opt
       content: (
         <>
           <p>
-            This guide shows you how to create an optimizer using PyTorch's Adam optimizer.
-            It converts the problem’s initial solution to a tensor and iteratively optimizes it.
+            This guide shows how to adapt PyTorch’s <em>Adam</em> to the
+            Rastion ecosystem. Adam is a popular optimizer for continuous
+            problems (though it can be adapted for discrete variables with custom logic).
           </p>
-          <h4 className="text-lg font-semibold">Step 1: Create the Python Module</h4>
-          <p>Create a file named <code>adam_optimizer.py</code> with the following content:</p>
+
+          <h4 className="text-lg font-semibold">Step 1: Python Module</h4>
+          <p>
+            Create <code>adam_optimizer.py</code> extending <code>BaseOptimizer</code>:
+          </p>
           <CodeBlock
-code={`import torch
+            code={`import torch
 import numpy as np
-from rastion_hub.base_optimizer import BaseOptimizer
+from qubots.base_optimizer import BaseOptimizer
 
 class AdamOptimizer(BaseOptimizer):
     """
@@ -158,9 +205,9 @@ class AdamOptimizer(BaseOptimizer):
         optimizer = torch.optim.Adam([w], lr=self.lr)
         best_loss = float('inf')
         best_solution = None
+
         for i in range(self.max_iters):
             optimizer.zero_grad()
-            # Evaluate loss using problem.evaluate_solution; note that this function may not be differentiable.
             loss_value = problem.evaluate_solution(w.detach().numpy())
             loss = torch.tensor(loss_value, dtype=torch.float32, requires_grad=True)
             loss.backward()
@@ -170,12 +217,17 @@ class AdamOptimizer(BaseOptimizer):
                 best_solution = w.detach().numpy().tolist()
             if self.verbose:
                 print(f"Iteration {i}: Loss = {loss.item()}")
+
         return best_solution, best_loss`}
           />
-          <h4 className="text-lg font-semibold">Step 2: Create the Optimizer Configuration</h4>
-          <p>Create a file named <code>solver_config.json</code> with this content:</p>
+
+          <h4 className="text-lg font-semibold">Step 2: Configuration</h4>
+          <p>
+            In <code>solver_config.json</code>, specify the entry point for
+            <code>AdamOptimizer</code>:
+          </p>
           <CodeBlock
-code={`{
+            code={`{
   "entry_point": "adam_optimizer:AdamOptimizer",
   "default_params": {
     "max_iters": 1000,
@@ -184,14 +236,17 @@ code={`{
   }
 }`}
           />
-          <h4 className="text-lg font-semibold">Step 3: Pushing to Rastion Hub</h4>
-          <p>Use the Rastion CLI to create and push your repository:</p>
+
+          <h4 className="text-lg font-semibold">Step 3: Pushing to Rastion</h4>
+          <p>
+            Use the CLI to publish:
+          </p>
           <CodeBlock
-code={`# Create repository
-rastion create_repo adam-optimizer --github-token <YOUR_GITHUB_TOKEN>
+            code={`# Create repository
+rastion create_repo adam-optimizer
 
 # Push your optimizer implementation
-rastion push_solver adam-optimizer --file adam_optimizer.py --config solver_config.json --github-token <YOUR_GITHUB_TOKEN>`}
+rastion push_solver adam-optimizer --source MY_LOCAL_FOLDER_PATH_WITH_FILES`}
           />
         </>
       )
@@ -201,15 +256,19 @@ rastion push_solver adam-optimizer --file adam_optimizer.py --config solver_conf
       content: (
         <>
           <p>
-            This guide demonstrates how to build an optimizer using PyTorch's SGD.
-            It follows a similar approach to the Adam optimizer but uses SGD.
+            <em>Stochastic Gradient Descent (SGD)</em> is simpler than Adam, but
+            often works well for many continuous problems. This snippet is quite similar 
+            to the Adam implementation, just swapping <code>torch.optim.SGD</code>.
           </p>
-          <h4 className="text-lg font-semibold">Step 1: Create the Python Module</h4>
-          <p>Create a file named <code>sgd_optimizer.py</code> with the following content:</p>
+
+          <h4 className="text-lg font-semibold">Step 1: Python Module</h4>
+          <p>
+            Create <code>sgd_optimizer.py</code> extending <code>BaseOptimizer</code>:
+          </p>
           <CodeBlock
-code={`import torch
+            code={`import torch
 import numpy as np
-from rastion_hub.base_optimizer import BaseOptimizer
+from qubots.base_optimizer import BaseOptimizer
 
 class SGDOptimizer(BaseOptimizer):
     """
@@ -230,6 +289,7 @@ class SGDOptimizer(BaseOptimizer):
         optimizer = torch.optim.SGD([w], lr=self.lr)
         best_loss = float('inf')
         best_solution = None
+
         for i in range(self.max_iters):
             optimizer.zero_grad()
             loss_value = problem.evaluate_solution(w.detach().numpy())
@@ -241,12 +301,13 @@ class SGDOptimizer(BaseOptimizer):
                 best_solution = w.detach().numpy().tolist()
             if self.verbose:
                 print(f"Iteration {i}: Loss = {loss.item()}")
+
         return best_solution, best_loss`}
           />
-          <h4 className="text-lg font-semibold">Step 2: Create the Optimizer Configuration</h4>
-          <p>Create a file named <code>solver_config.json</code> with this content:</p>
+
+          <h4 className="text-lg font-semibold">Step 2: Configuration</h4>
           <CodeBlock
-code={`{
+            code={`{
   "entry_point": "sgd_optimizer:SGDOptimizer",
   "default_params": {
     "max_iters": 1000,
@@ -255,14 +316,14 @@ code={`{
   }
 }`}
           />
-          <h4 className="text-lg font-semibold">Step 3: Pushing to Rastion Hub</h4>
-          <p>Use the Rastion CLI to create and push your repository:</p>
+
+          <h4 className="text-lg font-semibold">Step 3: Pushing to Rastion</h4>
           <CodeBlock
-code={`# Create repository
-rastion create_repo sgd-optimizer --github-token <YOUR_GITHUB_TOKEN>
+            code={`# Create repository
+rastion create_repo sgd-optimizer
 
 # Push your optimizer implementation
-rastion push_solver sgd-optimizer --file sgd_optimizer.py --config solver_config.json --github-token <YOUR_GITHUB_TOKEN>`}
+rastion push_solver sgd-optimizer --source MY_LOCAL_FOLDER_PATH_WITH_FILES`}
           />
         </>
       )
@@ -272,15 +333,19 @@ rastion push_solver sgd-optimizer --file sgd_optimizer.py --config solver_config
       content: (
         <>
           <p>
-            This guide explains how to build an optimizer using PyTorch's RMSProp optimizer.
-            It uses torch.optim.RMSprop to optimize continuous solutions.
+            <em>RMSProp</em> is another popular gradient-based optimizer often used
+            in deep learning frameworks. It adjusts the learning rate based on
+            a moving average of recent gradient magnitudes.
           </p>
-          <h4 className="text-lg font-semibold">Step 1: Create the Python Module</h4>
-          <p>Create a file named <code>rmsprop_optimizer.py</code> with the following content:</p>
+
+          <h4 className="text-lg font-semibold">Step 1: Python Module</h4>
+          <p>
+            Create <code>rmsprop_optimizer.py</code> extending <code>BaseOptimizer</code>:
+          </p>
           <CodeBlock
-code={`import torch
+            code={`import torch
 import numpy as np
-from rastion_hub.base_optimizer import BaseOptimizer
+from qubots.base_optimizer import BaseOptimizer
 
 class RMSPropOptimizer(BaseOptimizer):
     """
@@ -302,6 +367,7 @@ class RMSPropOptimizer(BaseOptimizer):
         optimizer = torch.optim.RMSprop([w], lr=self.lr, alpha=self.alpha)
         best_loss = float('inf')
         best_solution = None
+
         for i in range(self.max_iters):
             optimizer.zero_grad()
             loss_value = problem.evaluate_solution(w.detach().numpy())
@@ -313,12 +379,13 @@ class RMSPropOptimizer(BaseOptimizer):
                 best_solution = w.detach().numpy().tolist()
             if self.verbose:
                 print(f"Iteration {i}: Loss = {loss.item()}")
+
         return best_solution, best_loss`}
           />
-          <h4 className="text-lg font-semibold">Step 2: Create the Optimizer Configuration</h4>
-          <p>Create a file named <code>solver_config.json</code> with this content:</p>
+
+          <h4 className="text-lg font-semibold">Step 2: Configuration</h4>
           <CodeBlock
-code={`{
+            code={`{
   "entry_point": "rmsprop_optimizer:RMSPropOptimizer",
   "default_params": {
     "max_iters": 1000,
@@ -328,14 +395,14 @@ code={`{
   }
 }`}
           />
-          <h4 className="text-lg font-semibold">Step 3: Pushing to Rastion Hub</h4>
-          <p>Use the Rastion CLI to create and push your repository:</p>
+
+          <h4 className="text-lg font-semibold">Step 3: Pushing to Rastion</h4>
           <CodeBlock
-code={`# Create repository
-rastion create_repo rmsprop-optimizer --github-token <YOUR_GITHUB_TOKEN>
+            code={`# Create repository
+rastion create_repo rmsprop-optimizer
 
 # Push your optimizer implementation
-rastion push_solver rmsprop-optimizer --file rmsprop_optimizer.py --config solver_config.json --github-token <YOUR_GITHUB_TOKEN>`}
+rastion push_solver rmsprop-optimizer --source MY_LOCAL_FOLDER_PATH_WITH_FILES`}
           />
         </>
       )
@@ -344,6 +411,13 @@ rastion push_solver rmsprop-optimizer --file rmsprop_optimizer.py --config solve
 
   return (
     <div>
+      {/* Intro Section */}
+      <h2 className="text-2xl font-bold mb-4 text-github-gray">
+        Optimizer Creation Guides
+      </h2>
+      {introduction}
+
+      {/* Buttons for each optimizer guide */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <Button variant="outline" onClick={() => setActiveGuide("simulatedAnnealing")}>
           Simulated Annealing
@@ -359,6 +433,7 @@ rastion push_solver rmsprop-optimizer --file rmsprop_optimizer.py --config solve
         </Button>
       </div>
 
+      {/* Modal content */}
       {activeGuide && (
         <GuideModal
           title={guides[activeGuide].title}
