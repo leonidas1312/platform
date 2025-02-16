@@ -1,16 +1,68 @@
-
 import { Code2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 
+// Dummy dropdown options – you can expand these as needed.
+const problemOptions = [
+  { label: "Rastion/max-cut", value: "max-cut" },
+  // Add more problems here.
+];
+
+const optimizerOptions = [
+  { label: "Rastion/exhaustive-search", value: "exhaustive-search" },
+  // Add more optimizers here.
+];
+
+const ExecutableCodeBox = ({ codeSnippet }) => {
+  const [output, setOutput] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const runCode = async () => {
+    setLoading(true);
+    setOutput(""); // clear previous output
+
+    try {
+      const response = await fetch("/.netlify/functions/run-code", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: codeSnippet }),
+      });
+      const data = await response.json();
+      setOutput(data.output);
+    } catch (error) {
+      setOutput("Error: " + error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="relative">
+      <pre className="bg-[#1E1E1E] p-4 rounded text-sm overflow-x-auto font-code text-[#9b87f5] shadow-inner">
+        {codeSnippet}
+      </pre>
+      <Button onClick={runCode} className="mt-2" disabled={loading}>
+        {loading ? "Running..." : "Run Code"}
+      </Button>
+      <div className="mt-4 bg-black text-green-400 p-4 rounded font-mono text-sm h-48 overflow-y-auto">
+        {output || "Terminal output..."}
+      </div>
+    </div>
+  );
+};
+
 const Landing = () => {
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState(null);
+  const [selectedProblem, setSelectedProblem] = useState(problemOptions[0].value);
+  const [selectedOptimizer, setSelectedOptimizer] = useState(optimizerOptions[0].value);
 
   useEffect(() => {
     const getUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       setUser(user);
     };
 
@@ -23,11 +75,26 @@ const Landing = () => {
     return () => subscription.unsubscribe();
   }, []);
 
+  // The code snippet – using the selected values dynamically.
+  const codeSnippet = `from qubots.auto_problem import AutoProblem
+from qubots.auto_optimizer import AutoOptimizer
+
+# Load the max-cut problem from the repository.
+problem = AutoProblem.from_repo(f"Rastion/${selectedProblem}")
+
+# Load the optimizer from the repository.
+optimizer = AutoOptimizer.from_repo(f"Rastion/${selectedOptimizer}")
+
+best_solution, best_cost = optimizer.optimize(problem)
+print("Solved maxcut using exhaustive search")
+print("Best Solution:", best_solution)
+print("Best Cost:", best_cost)`;
+
   return (
     <div className="min-h-screen bg-white">
       <div className="container py-12">
         <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold flex items-center justify-center text-github-gray mb-4"> 
+          <h1 className="text-4xl font-bold flex items-center justify-center text-github-gray mb-4">
             <div className="text-center">
               <img src="/rastion1.svg" alt="Rastion Logo" className="w-full max-w-[250px]" />
             </div>
@@ -40,7 +107,7 @@ const Landing = () => {
               Join us in building a more efficient future through open source collaboration.
             </p>
           </div>
-          
+
           <div className="flex gap-4 justify-center">
             <Button asChild>
               <Link to="/repositories">Browse Repositories</Link>
@@ -51,54 +118,38 @@ const Landing = () => {
           </div>
         </div>
 
+        {/* Get Started Section */}
         <div className="mb-16">
           <h2 className="text-2xl font-semibold text-github-gray mb-6">Get Started with Rastion</h2>
-          <div className="grid md:grid-cols-2 gap-8">
-            <div className="bg-gradient-to-br from-[#1A1F2C] to-[#221F26] p-6 rounded-lg shadow-xl transform hover:scale-[1.02] transition-all duration-300">
-              <h3 className="text-xl font-semibold mb-4 flex items-center gap-2 text-white">
-                <Code2 className="w-5 h-5" />
-                Using Optimizers and Problems
-              </h3>
-              <pre className="bg-[#1E1E1E] p-4 rounded text-sm overflow-x-auto font-code text-[#9b87f5] shadow-inner animate-fade-in">
-{`from rastion_hub.auto_optimizer import AutoOptimizer
-from rastion_hub.auto_problem import AutoProblem
-
-# Load a problem from the hub
-problem = AutoProblem.from_repo(
-    "Rastion/portfolio-optimization", 
-    revision="main"
-)
-
-# Load and run an optimizer
-solver = AutoOptimizer.from_repo(
-    "Rastion/particle-swarm", 
-    revision="main"
-)
-solution, value = solver.optimize(problem)`}
-              </pre>
+          <div className="bg-gradient-to-br from-[#1A1F2C] to-[#221F26] p-6 rounded-lg shadow-xl">
+            <div className="mb-4 text-white text-xl">
+              I want to optimize this&nbsp;
+              <select
+                value={selectedProblem}
+                onChange={(e) => setSelectedProblem(e.target.value)}
+                className="bg-gray-800 text-white px-2 py-1 rounded"
+              >
+                {problemOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+              &nbsp;using this&nbsp;
+              <select
+                value={selectedOptimizer}
+                onChange={(e) => setSelectedOptimizer(e.target.value)}
+                className="bg-gray-800 text-white px-2 py-1 rounded"
+              >
+                {optimizerOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
             </div>
 
-            <div className="bg-gradient-to-br from-[#1A1F2C] to-[#221F26] p-6 rounded-lg shadow-xl transform hover:scale-[1.02] transition-all duration-300">
-              <h3 className="text-xl font-semibold mb-4 flex items-center gap-2 text-white">
-                <Code2 className="w-5 h-5" />
-                Sharing Your Work
-              </h3>
-              <pre className="bg-[#1E1E1E] p-4 rounded text-sm overflow-x-auto font-code text-[#9b87f5] shadow-inner animate-fade-in">
-{`# Create a new solver repository
-rastion create_repo my-solver --org Rastion
-
-# Push your solver code and config
-rastion push_solver my-solver \\
-    --file my_solver.py \\
-    --config solver_config.json
-
-# Create and push a problem
-rastion create_repo my-problem --org Rastion
-rastion push_problem my-problem \\
-    --file my_problem.py \\
-    --config problem_config.json`}
-              </pre>
-            </div>
+            <ExecutableCodeBox codeSnippet={codeSnippet} />
           </div>
         </div>
       </div>
