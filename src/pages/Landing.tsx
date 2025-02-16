@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
-import CodeBlock from "@/components/CodeBlock";  // Import the CodeBlock component
+import CodeBlock from "@/components/CodeBlock"; // Import the CodeBlock component
 
 // Dummy dropdown options – you can expand these as needed.
 const problemOptions = [
@@ -18,52 +18,12 @@ const optimizerOptions = [
   // Add more optimizers here.
 ];
 
-const ExecutableCodeBox = ({ codeSnippet }) => {
-  const [output, setOutput] = useState("");
-  const [loading, setLoading] = useState(false);
-
-  const runCode = async () => {
-    setLoading(true);
-    setOutput(""); // Clear previous output
-
-    try {
-      const response = await fetch("/.netlify/functions/run-code", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code: codeSnippet }),
-      });
-
-      if (!response.body) {
-        throw new Error("ReadableStream not supported in this browser/environment.");
-      }
-
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-
-      // Read the stream chunk by chunk.
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        setOutput((prev) => prev + decoder.decode(value));
-      }
-    } catch (error: any) {
-      setOutput("Error: " + error.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
+// A simplified code display box that only shows the snippet
+const CodeDisplayBox = ({ codeSnippet }: { codeSnippet: string }) => {
   return (
     <div className="relative">
       {/* Render the code snippet with CodeBlock (non-executable display) */}
       <CodeBlock code={codeSnippet} language="python" />
-
-      <Button onClick={runCode} className="mt-2" disabled={loading}>
-        {loading ? "Running..." : "Run Code"}
-      </Button>
-      <div className="mt-4 bg-black text-green-400 p-4 rounded font-mono text-sm h-48 overflow-y-auto">
-        {output || "Terminal output..."}
-      </div>
     </div>
   );
 };
@@ -96,7 +56,7 @@ const Landing = () => {
   const codeSnippet = `from qubots.auto_problem import AutoProblem
 from qubots.auto_optimizer import AutoOptimizer
 
-# Load the max-cut problem from the repository.
+# Load the problem from the repository.
 problem = AutoProblem.from_repo("Rastion/${selectedProblem}")
 
 # Load the optimizer from the repository.
@@ -104,7 +64,6 @@ optimizer = AutoOptimizer.from_repo("Rastion/${selectedOptimizer}")
 
 best_solution, best_cost = optimizer.optimize(problem)
 print(180*"=")
-print("Solved maxcut using exhaustive search")
 print("Best Solution:", best_solution)
 print("Best Cost:", best_cost)
 print(180*"=")`;
@@ -122,9 +81,10 @@ print(180*"=")`;
           <p className="text-xl text-github-gray mb-8 text-center">
             An open source community for optimization.
             <br />
-            <span className="text-xl text-github-gray mb-8 text-center">Currently under development, see Documentation for more info.</span>
+            <span className="text-xl text-github-gray mb-8 text-center">
+              Currently under development, see Documentation for more info.
+            </span>
           </p>
-          
 
           <div className="flex gap-4 justify-center">
             <Button asChild>
@@ -137,12 +97,8 @@ print(180*"=")`;
         </div>
 
         <div className="max-w text-github-gray">
-          <p className="mb-4 text-2xl">
-              🚀 Use qubots on the fly!
-          </p>
+          <p className="mb-4 text-2xl">🚀 Use qubots on the fly!</p>
         </div>
-
-        
 
         {/* Get Started Section */}
         <div className="mb-16">
@@ -174,17 +130,12 @@ print(180*"=")`;
               </select>
             </div>
 
-            <ExecutableCodeBox codeSnippet={codeSnippet} />
+            {/* Display only the code snippet, no run button or output */}
+            <CodeDisplayBox codeSnippet={codeSnippet} />
           </div>
         </div>
-
       </div>
     </div>
-
-      
-
-
-
   );
 };
 

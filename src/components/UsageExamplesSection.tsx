@@ -125,7 +125,7 @@ from qubots.auto_optimizer import AutoOptimizer
 from qubots.optimizer_runner import run_optimizers_independently
 
 # Load a problem (using BinaryOneMax for demonstration)
-problem = AutoProblem.from_repo("Rastion/binary-onemax-problem", revision="main")
+problem = AutoProblem.from_repo("Rastion/binary-onemax-problem")
 
 # Load multiple optimizers
 optimizer1 = AutoOptimizer.from_repo("Rastion/simulated-annealing-optimizer"
