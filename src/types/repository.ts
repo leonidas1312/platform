@@ -22,4 +22,5 @@ export interface FormattedRepo {
   forks: number;
   updatedAt: string;
   docsUrl: string;
+  keywords: string[];
 }

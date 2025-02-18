@@ -1,21 +1,22 @@
-
 import { useState, useEffect } from "react";
 import { Github, Folder } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-
-interface ConfigParams {
-  [key: string]: any;
-}
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 interface Config {
-  entry_point: string;
-  default_params: ConfigParams;
-  type?: 'problem' | 'optimizer';
+  // entry_point: string;
+  // default_params: Record<string, any>;
+  // This field is set by our logic based on which file is loaded.
+  type?: "problem" | "optimizer";
+  // New fields from the updated configs:
+  problem_type?: string;
+  description?: string;
+  keywords?: string[];
+  data_format?: Record<string, any>;
+  decision_variables?: Record<string, any>;
+  objective?: Record<string, any>;
+  solution_representation?: string;
+  compatible_optimizers?: string[];
 }
 
 interface Repository {
@@ -40,21 +41,22 @@ export const RepositoryCard = ({ repo }: RepositoryCardProps) => {
       if (!config) {
         setIsLoading(true);
         try {
-          const configTypes = ['problem_config.json', 'solver_config.json'];
-          const branches = ['master', 'main'];
-          let configData = null;
-          let configType = '';
+          // These are the config file names we try to load.
+          const configTypes = ["problem_config.json", "solver_config.json"];
+          const branches = ["main"];
+          let configData: Config | null = null;
+          let configTypeUsed = "";
 
+          // Try fetching the config from each branch and each file.
           for (const branch of branches) {
             for (const type of configTypes) {
+              const url = `https://raw.githubusercontent.com/Rastion/${repo.name}/${branch}/${type}`;
+              console.log(`Attempting to fetch config from: ${url}`);
               try {
-                const url = `https://raw.githubusercontent.com/Rastion/${repo.name}/${branch}/${type}`;
-                console.log(`Attempting to fetch config from: ${url}`);
                 const response = await fetch(url);
-                
                 if (response.ok) {
                   configData = await response.json();
-                  configType = type;
+                  configTypeUsed = type;
                   console.log(`Successfully fetched ${type} from ${branch} branch`);
                   break;
                 }
@@ -69,10 +71,11 @@ export const RepositoryCard = ({ repo }: RepositoryCardProps) => {
           if (configData) {
             setConfig({
               ...configData,
-              type: configType === 'problem_config.json' ? 'problem' : 'optimizer'
+              // Mark as "problem" if loaded from problem_config.json; otherwise, "optimizer".
+              type: configTypeUsed === "problem_config.json" ? "problem" : "optimizer",
             });
           } else {
-            console.log(`No config file found for ${repo.name} in any branch`);
+            console.log(`No configuration file found for ${repo.name} in any branch`);
           }
         } catch (error) {
           console.error("Error fetching config:", error);
@@ -90,11 +93,11 @@ export const RepositoryCard = ({ repo }: RepositoryCardProps) => {
     fetchConfig();
   }, [repo.name, config]);
 
+  // Use the problem_type field if provided; otherwise, fallback based on our type flag.
   const getTypeLabel = () => {
-    if (!config?.type) return '';
-    return config.type === 'problem' ? 
-      '🎯 Problem' : 
-      '⚡ Optimizer';
+    if (config?.problem_type) return `🎯 ${config.problem_type}`;
+    if (!config?.type) return "";
+    return config.type === "problem" ? "🎯 Problem" : "⚡ Optimizer";
   };
 
   return (
@@ -105,8 +108,8 @@ export const RepositoryCard = ({ repo }: RepositoryCardProps) => {
             <div className="flex items-center gap-3">
               <Folder className="w-5 h-5 text-github-gray" />
               <div>
-                <h2 className="text-xl font-semibold text-github-blue">{repo.name}</h2>
-                {config?.type && (
+                
+                {config && (
                   <span className="text-sm font-medium text-github-gray">
                     {getTypeLabel()}
                   </span>
@@ -119,6 +122,13 @@ export const RepositoryCard = ({ repo }: RepositoryCardProps) => {
             <span>🍴 {repo.forks}</span>
             <span>Updated {new Date(repo.updatedAt).toLocaleDateString()}</span>
           </div>
+          {config?.description && (
+            <p className="mt-4 text-github-gray text-sm">
+              {config.description.length > 100
+                ? `${config.description.substring(0, 100)}...`
+                : config.description}
+            </p>
+          )}
         </div>
       </PopoverTrigger>
       <PopoverContent className="w-80">
@@ -127,17 +137,32 @@ export const RepositoryCard = ({ repo }: RepositoryCardProps) => {
         ) : config ? (
           <div className="space-y-4">
             <div>
-              <h3 className="font-semibold mb-2">Entry Point</h3>
-              <pre className="bg-github-hover p-3 rounded font-code text-sm overflow-x-auto">
-                {config.entry_point}
-              </pre>
+              
             </div>
             <div>
-              <h3 className="font-semibold mb-2">Default Parameters</h3>
-              <pre className="bg-github-hover p-3 rounded font-code text-sm overflow-x-auto">
-                {JSON.stringify(config.default_params, null, 2)}
-              </pre>
+              
             </div>
+            {config.description && (
+              <div>
+                <h3 className="font-semibold mb-2">Description</h3>
+                <p className="text-sm text-github-gray">{config.description}</p>
+              </div>
+            )}
+            {config.keywords && (
+              <div>
+                <h3 className="font-semibold mb-2">Keywords</h3>
+                <div className="flex flex-wrap gap-2">
+                  {config.keywords.map((keyword, index) => (
+                    <span
+                      key={index}
+                      className="bg-github-border rounded-full px-2 py-1 text-xs text-github-gray"
+                    >
+                      {keyword}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
             <div>
               <a
                 href={repo.docsUrl}

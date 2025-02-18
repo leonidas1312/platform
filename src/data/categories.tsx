@@ -1,13 +1,12 @@
-
 import { CategoryData } from "@/types/repository";
-import { TrendingUp, Star, GitFork, Clock, LayoutGrid } from "lucide-react";
+import { TrendingUp, Star, GitFork, Clock, LayoutGrid, MapPin, Calendar } from "lucide-react";
 
 export const categories: Record<string, CategoryData> = {
   "all": {
     label: "All Repos",
     description: "View all repositories",
     icon: <LayoutGrid className="w-4 h-4" />,
-    repos: []  // Empty array since this will show all repos
+    repos: []  // Will show all repos
   },
   "trending": {
     label: "Trending",
@@ -32,5 +31,18 @@ export const categories: Record<string, CategoryData> = {
     description: "Latest updates and improvements",
     icon: <Clock className="w-4 h-4" />,
     repos: ["newton-method", "simplex", "portfolio-optimization"]
+  },
+  // New domain filters based on keywords in config files:
+  "routing": {
+    label: "Routing",
+    description: "Repositories related to routing problems",
+    icon: <MapPin className="w-4 h-4" />,
+    repos: ["routing"] // Determined by filtering via keywords
+  },
+  "scheduling": {
+    label: "Scheduling",
+    description: "Repositories related to scheduling problems",
+    icon: <Calendar className="w-4 h-4" />,
+    repos: ["scheduling"] // Determined by filtering via keywords
   }
 };
