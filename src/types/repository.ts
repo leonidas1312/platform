@@ -6,6 +6,9 @@ export interface GitHubRepo {
   forks_count: number;
   updated_at: string;
   html_url: string;
+  creator: string;
+  keywords: string[]; // Replaces 'categories'
+  repoType: 'problem' | 'optimizer' | null; // Ensure correct type
 }
 
 export interface CategoryData {
@@ -23,4 +26,5 @@ export interface FormattedRepo {
   updatedAt: string;
   docsUrl: string;
   keywords: string[];
+  repoType: string;
 }

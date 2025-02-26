@@ -1,108 +1,195 @@
-import { useState, useEffect } from "react";
-import { RepositoryCard } from "@/components/RepositoryCard";
-import { RepositorySearch } from "@/components/RepositorySearch";
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { categories } from "@/data/categories";
-import { fetchRepos, filterRepos, formatRepoData } from "@/utils/repository";
+import { Search, ChevronDown, ChevronUp, Flag, Code2, Layers, CircuitBoard, Boxes, FlaskConical, Rocket } from "lucide-react"
+import { RepositoryCard } from "@/components/RepositoryCard";
+import { fetchRepos, formatRepoData } from "@/utils/repository";
 import { GitHubRepo } from "@/types/repository";
+import { bigCategories } from "@/data/bigCategories";
+import RepoStats from "@/components/RepoStats";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Input } from "@/components/ui/input";
 
-const Repositories = () => {
+export default function Repositories() {
   const [searchTerm, setSearchTerm] = useState("");
   const [currentCategory, setCurrentCategory] = useState("all");
+  const [openCategories, setOpenCategories] = useState<string[]>([]);
 
-  // Fetch repositories (which now include config keywords and repoType)
+  // Fetch your repos (assumes each has a “categories” array from your config keywords)
   const { data: repos, isLoading, error } = useQuery({
     queryKey: ["repos"],
     queryFn: fetchRepos,
   });
 
-  // Compute total counts for problem and optimizer repositories.
-  const problemCount = repos ? repos.filter((repo: GitHubRepo) => (repo as any).repoType === "problem").length : 0;
-  const optimizerCount = repos ? repos.filter((repo: GitHubRepo) => (repo as any).repoType === "optimizer").length : 0;
+  // Calculate problem and optimizer counts
+  const problemCount = repos?.filter(r => r.repoType === 'problem').length || 0;
+  const optimizerCount = repos?.filter(r => r.repoType === 'optimizer').length || 0;
 
-  // Filter repositories based on search term and current category.
-  const filteredRepos = repos ? filterRepos(repos, searchTerm, currentCategory) : [];
+  // Toggle category open/close
+  const toggleCategory = (title: string) => {
+    setOpenCategories(prev => 
+      prev.includes(title) 
+        ? prev.filter(cat => cat !== title)
+        : [...prev, title]
+    );
+  };
+
+  // Filter logic
+  let filteredRepos: GitHubRepo[] = [];
+  if (repos) {
+    // 1) Filter by search
+    filteredRepos = repos.filter((r) =>
+      r.name.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
+    // 2) Filter by category
+    if (currentCategory === "recently-updated") {
+      filteredRepos = filteredRepos.sort(
+        (a, b) =>
+          new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
+      );
+    } else if (currentCategory !== "all") {
+      filteredRepos = filteredRepos.filter((r) => 
+        r.keywords?.includes(currentCategory)
+      );
+    }
+  }
+
+  // Icon mapping for categories
+  const getCategoryIcon = (title: string) => {
+    switch (title) {
+      case "General":
+        return Flag;
+      case "Problem Types":
+        return Code2;
+      case "Optimization Methods":
+        return Layers;
+      case "Hardware Targets":
+        return CircuitBoard;
+      case "Resource Types":
+        return Boxes;
+      default:
+        return Boxes;
+    }
+  };
 
   return (
-    <div className="min-h-screen bg-white">
-      <div className="container py-12">
-        {/* Search Bar */}
-        <div className="mb-8">
-          <RepositorySearch 
-            searchTerm={searchTerm}
-            onSearchChange={setSearchTerm}
-          />
-        </div>
-        <div className="flex gap-8">
-          {/* Sidebar with Categories and Totals */}
-          <aside className="w-64">
-            <div className="sticky top-12">
-              <h2 className="text-xl font-bold mb-4">Categories</h2>
-              <ul className="space-y-2">
-                {Object.entries(categories).map(([key, category]) => (
-                  <li key={key}>
-                    <button
-                      className={`flex items-center gap-2 p-2 rounded transition-colors w-full text-left ${
-                        currentCategory === key
-                          ? "bg-github-blue text-white"
-                          : "hover:bg-github-hover text-github-gray"
-                      }`}
-                      onClick={() => setCurrentCategory(key)}
-                    >
-                      {category.icon}
-                      <span>{category.label}</span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-              <div className="mt-8 border-t pt-4">
-                <h3 className="text-lg font-semibold mb-2">Totals</h3>
-                <p className="text-sm text-github-gray">
-                  Problem Repos: <span className="font-bold">{problemCount}</span>
-                </p>
-                <p className="text-sm text-github-gray">
-                  Optimizer Repos: <span className="font-bold">{optimizerCount}</span>
-                </p>
-              </div>
-            </div>
-          </aside>
-          {/* Main Content Area */}
-          <main className="flex-1">
-            {isLoading ? (
-              <div className="text-center text-github-gray">Loading repositories...</div>
-            ) : error ? (
-              <div className="text-center text-red-500">
-                Unable to load repositories. Please check the organization name and try again.
-              </div>
-            ) : (
-              <div>
-                <div className="mb-4">
-                  <h2 className="text-2xl font-semibold text-github-gray flex items-center gap-2">
-                    {categories[currentCategory]?.icon}
-                    {categories[currentCategory]?.label}
-                  </h2>
-                  <p className="text-github-gray/80">
-                    {categories[currentCategory]?.description}
-                  </p>
+    <div className="min-h-screen bg-gray-50">
+      <div className="flex flex-col lg:flex-row gap-8 max-w-[1800px] mx-auto p-6">
+        {/* Sidebar */}
+        <div className="w-full lg:w-80 flex flex-col gap-4">
+          {/* Stats Card */}
+          <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
+            <h3 className="font-medium mb-3">Repository Stats</h3>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-lg">
+                <FlaskConical className="w-5 h-5 text-blue-600" />
+                <div>
+                  <div className="text-2xl font-bold">{problemCount}</div>
+                  <div className="text-sm text-gray-600">Problems</div>
                 </div>
-                {filteredRepos.length === 0 ? (
-                  <div className="text-center text-github-gray">
-                    No repositories found in this category.
-                  </div>
-                ) : (
-                  <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                    {filteredRepos.map((repo: GitHubRepo) => (
-                      <RepositoryCard key={repo.name} repo={formatRepoData(repo)} />
-                    ))}
-                  </div>
-                )}
               </div>
-            )}
-          </main>
+              <div className="flex items-center gap-3 p-3 bg-purple-50 rounded-lg">
+                <Rocket className="w-5 h-5 text-purple-600" />
+                <div>
+                  <div className="text-2xl font-bold">{optimizerCount}</div>
+                  <div className="text-sm text-gray-600">Optimizers</div>
+                </div>
+              </div>
+              
+            </div>
+          </div>
+
+          {/* Search and Categories */}
+          <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
+            <div className="relative mb-4">
+                <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                <Input
+                  placeholder="Search repositories..."
+                  className="pl-10"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+            </div>
+
+            <ScrollArea className="h-[calc(100vh-300px)]">
+              {bigCategories.map((bigCat) => {
+                const Icon = getCategoryIcon(bigCat.title);
+                const isOpen = openCategories.includes(bigCat.title);
+                
+                return (
+                  <div key={bigCat.title} className="mb-2">
+                    <button
+                      onClick={() => toggleCategory(bigCat.title)}
+                      className="w-full flex items-center justify-between p-3 hover:bg-gray-100 rounded-lg"
+                    >
+                      <div className="flex items-center gap-3">
+                        <Icon className="w-5 h-5 text-primary" />
+                        <span className="font-medium">{bigCat.title}</span>
+                      </div>
+                      {isOpen ? (
+                        <ChevronUp className="w-4 h-4" />
+                      ) : (
+                        <ChevronDown className="w-4 h-4" />
+                      )}
+                    </button>
+
+                    {isOpen && (
+                      <div className="ml-8 pl-3 border-l-2 border-gray-100">
+                        {bigCat.subCategories.map((subCat) => (
+                          <button
+                            key={subCat.key}
+                            onClick={() => setCurrentCategory(subCat.key)}
+                            className={`w-full flex items-center justify-between p-2 text-sm hover:bg-gray-50 rounded-lg transition-colors ${
+                              currentCategory === subCat.key ? "bg-blue-50 text-primary" : ""
+                            }`}
+                          >
+                            <span>{subCat.label}</span>
+                            
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </ScrollArea>
+          </div>
+        </div>
+
+        {/* Main Content Area */}
+        <div className="flex-1 bg-white rounded-xl shadow-sm border border-gray-200 p-6 lg:p-8">
+          <div className="mb-6">
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">
+              {currentCategory === "all"
+                ? "All Repositories"
+                : currentCategory === "recently-updated"
+                ? "Recently Updated"
+                : `Category: ${currentCategory}`}
+            </h1>
+            <p className="text-gray-600">
+              {filteredRepos.length} repositories found
+            </p>
+          </div>
+
+          {isLoading ? (
+            <div className="text-center text-gray-500">Loading repositories...</div>
+          ) : error ? (
+            <div className="text-center text-red-500">
+              Unable to load repositories. Please try again.
+            </div>
+          ) : filteredRepos.length === 0 ? (
+            <div className="text-center text-gray-500">
+              No repositories found matching your criteria.
+            </div>
+          ) : (
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {filteredRepos.map((repo) => (
+                <RepositoryCard key={repo.name} repo={formatRepoData(repo)} />
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>
   );
-};
-
-export default Repositories;
+}

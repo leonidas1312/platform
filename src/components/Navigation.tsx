@@ -44,6 +44,7 @@ const Navigation = () => {
     { href: "/", label: "Home" },
     { href: "/repositories", label: "Repositories" },
     { href: "/docs", label: "Documentation" },
+    { href: "/leaderboard", label: "Leaderboard" },
   ];
 
   return (

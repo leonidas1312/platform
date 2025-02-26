@@ -1,9 +1,9 @@
-import { Code2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import CodeBlock from "@/components/CodeBlock"; // Import the CodeBlock component
+import { Code2, Workflow, Layers, Network, Trophy, BookOpenText } from "lucide-react";
 
 // Dummy dropdown options – you can expand these as needed.
 const problemOptions = [
@@ -68,75 +68,75 @@ print("Best Solution:", best_solution)
 print("Best Cost:", best_cost)
 print(180*"=")`;
 
-  return (
-    <div className="min-h-screen bg-white">
-      <div className="container py-12">
-        <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold flex items-center justify-center text-github-gray mb-4">
-            <div className="text-center">
-              <img src="/rastion1.svg" alt="Rastion Logo" className="w-full max-w-[250px]" />
-            </div>
-          </h1>
-
-          <p className="text-xl text-github-gray mb-8 text-center">
-            An open source community for optimization.
-            <br />
-            <span className="text-xl text-github-gray mb-8 text-center">
-              Currently under development, see Documentation for more info.
-            </span>
-          </p>
-
-          <div className="flex gap-4 justify-center">
-            <Button asChild>
-              <Link to="/repositories">Browse Repositories</Link>
-            </Button>
-            <Button asChild variant="outline">
-              <Link to="/docs">Read Documentation</Link>
-            </Button>
-          </div>
+return (
+  <div className="min-h-screen bg-white">
+    <div className="container py-12 px-4 sm:px-6 lg:px-8">
+      {/* Hero Section */}
+      <div className="text-center mb-16 space-y-6">
+        <div className="flex justify-center">
+          <img 
+            src="/rastion1.svg" 
+            alt="Rastion Logo" 
+            className="h-48 w-auto mb-8"
+          />
         </div>
-
-        <div className="max-w text-github-gray">
-          <p className="mb-4 text-2xl">🚀 Use qubots on the fly!</p>
-        </div>
-
-        {/* Get Started Section */}
-        <div className="mb-16">
-          <div className="bg-gradient-to-br from-[#1A1F2C] to-[#221F26] p-6 rounded-lg shadow-xl">
-            <div className="mb-4 text-white text-xl">
-              I want to solve this problem&nbsp;
-              <select
-                value={selectedProblem}
-                onChange={(e) => setSelectedProblem(e.target.value)}
-                className="bg-gray-800 text-white px-2 py-1 rounded"
-              >
-                {problemOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-              &nbsp;using this optimizer&nbsp;
-              <select
-                value={selectedOptimizer}
-                onChange={(e) => setSelectedOptimizer(e.target.value)}
-                className="bg-gray-800 text-white px-2 py-1 rounded"
-              >
-                {optimizerOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Display only the code snippet, no run button or output */}
-            <CodeDisplayBox codeSnippet={codeSnippet} />
-          </div>
+        <h1 className="text-5xl font-bold text-gray-900 mb-4">
+          The GitHub for decision making
+        </h1>
+        <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+          Collaborative platform for building and optimizing decision-making workflows. 
+          Version controlled & community driven.
+        </p>
+        
+        <div className="flex gap-4 justify-center mt-8">
+          <Button asChild className="h-11 px-8">
+            <Link to="/repositories">Get Started</Link>
+          </Button>
+          <Button asChild variant="outline" className="h-11 px-8">
+            <Link to="/docs">Documentation</Link>
+          </Button>
         </div>
       </div>
+
+      {/* Value Props */}
+      <div className="grid md:grid-cols-3 gap-8 text-center mb-24">
+        <div className="p-6">
+          <Code2 className="h-10 w-10 mx-auto mb-4 text-blue-600" />
+          <h3 className="text-xl font-semibold mb-2">Open Source</h3>
+          <p className="text-gray-600">Share and collaborate on optimization problems and algorithms</p>
+        </div>
+        <div className="p-6">
+          <Network className="h-10 w-10 mx-auto mb-4 text-blue-600" />
+          <h3 className="text-xl font-semibold mb-2">Standardized Interfaces</h3>
+          <p className="text-gray-600">Define universal interfaces for problems and optimizers</p>
+        </div>
+        <div className="p-6">
+          <Layers className="h-10 w-10 mx-auto mb-4 text-blue-600" />
+          <h3 className="text-xl font-semibold mb-2">Metadata & Compatibility</h3>
+          <p className="text-gray-600">Tag problems and optimizers for sharing, discovering, and better collaboration</p>
+        </div>
+        <div className="p-6">
+          <Workflow className="h-10 w-10 mx-auto mb-4 text-blue-600" />
+          <h3 className="text-xl font-semibold mb-2">Pipelines</h3>
+          <p className="text-gray-600">Compose multi-step workflows by "chaining" together optimizers</p>
+        </div>
+        <div className="p-6">
+          <Trophy className="h-10 w-10 mx-auto mb-4 text-blue-600" />
+          <h3 className="text-xl font-semibold mb-2">Benchmarking & Leaderboards</h3>
+          <p className="text-gray-600">Compare optimizer performance on standardized problems</p>
+        </div>
+        <div className="p-6">
+          <BookOpenText className="h-10 w-10 mx-auto mb-4 text-blue-600" />
+          <h3 className="text-xl font-semibold mb-2">Documentation</h3>
+          <p className="text-gray-600">Interactive examples to help you get started</p>
+        </div>
+      </div>
+
+
     </div>
-  );
+  </div>
+);
+
 };
 
 export default Landing;

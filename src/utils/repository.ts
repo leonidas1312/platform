@@ -1,3 +1,4 @@
+// utils/repository.tsx
 import { categories } from "@/data/categories";
 import { GitHubRepo, FormattedRepo } from "@/types/repository";
 import { toast } from "@/components/ui/use-toast";
@@ -10,6 +11,30 @@ export const getCategoryForRepo = (repoName: string): string[] => {
     }
   });
   return matchingCategories;
+};
+
+export const fetchInstanceFiles = async () => {
+  try {
+    const response = await fetch(
+      "https://api.github.com/repos/Rastion/traveling_salesman_problem/contents/instances"
+    );
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || "Failed to fetch instance files");
+    }
+
+    const files = await response.json();
+    return files.filter((file: any) => file.type === 'file');
+  } catch (error) {
+    console.error("Error fetching instance files:", error);
+    toast({
+      title: "Error",
+      description: "Unable to fetch TSP instances. Please try again later.",
+      variant: "destructive",
+    });
+    throw error;
+  }
 };
 
 export const fetchRepos = async () => {
@@ -28,7 +53,6 @@ export const fetchRepos = async () => {
     // For each repo, try to fetch its config file to extract keywords and repo type.
     const reposWithConfig = await Promise.all(
       repos.map(async (repo) => {
-        // Try both config files.
         const configFilenames = ["problem_config.json", "solver_config.json"];
         const branches = ["master", "main"];
         let configKeywords: string[] = [];
@@ -41,15 +65,12 @@ export const fetchRepos = async () => {
               const res = await fetch(url);
               if (res.ok) {
                 const config = await res.json();
-                // Extract keywords if available.
                 if (Array.isArray(config.keywords)) {
                   configKeywords = config.keywords.map((kw: string) =>
                     kw.toLowerCase()
                   );
                 }
-                // Set repoType based on which config file was found.
                 repoType = filename === "problem_config.json" ? "problem" : "optimizer";
-                // Once a valid config is found, exit both loops.
                 break;
               }
             } catch (err) {
@@ -69,8 +90,7 @@ export const fetchRepos = async () => {
     console.error("Error fetching repos:", error);
     toast({
       title: "Error",
-      description:
-        "Unable to fetch repositories. Please check the organization name and try again.",
+      description: "Unable to fetch repositories. Please check the organization name and try again.",
       variant: "destructive",
     });
     throw error;
@@ -84,7 +104,6 @@ export const filterRepos = (
 ): GitHubRepo[] => {
   if (!repos) return [];
 
-  // First filter by search term on the repo name.
   let filteredRepos = repos.filter((repo: GitHubRepo) =>
     repo.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -116,24 +135,40 @@ export const filterRepos = (
           new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
       );
 
-    default:
-      // For domain-specific filters such as "routing" or "scheduling":
+    case "problems":
+      return filteredRepos.filter(
+        (repo) => (repo as any).repoType === "problem"
+      );
+
+    case "optimizers":
+      return filteredRepos.filter(
+        (repo) => (repo as any).repoType === "optimizer"
+      );
+
+    default: {
+      // For other categories, use the keywords from the category definition.
+      const categoryKeywords = (
+        categories[currentCategory]?.repos || []
+      ).map((kw) => kw.toLowerCase());
+
       return filteredRepos.filter((repo) => {
-        // Check if repo is assigned to the category via manual mapping.
+        // (Optional) Check if any manual mapping returns this category.
         const fixedCategories = getCategoryForRepo(repo.name);
         if (fixedCategories.includes(currentCategory)) return true;
 
-        // Check if the repository's config keywords (if available) include the category.
+        // Then compare repository config keywords against the category keywords.
         const repoKeywords = (repo as any).keywords;
         if (repoKeywords && Array.isArray(repoKeywords)) {
-          return repoKeywords
-            .map((kw: string) => kw.toLowerCase())
-            .includes(currentCategory.toLowerCase());
+          return repoKeywords.some((kw: string) =>
+            categoryKeywords.includes(kw.toLowerCase())
+          );
         }
         return false;
       });
+    }
   }
 };
+
 
 export const formatRepoData = (repo: GitHubRepo): FormattedRepo => ({
   name: repo.name,
@@ -142,7 +177,6 @@ export const formatRepoData = (repo: GitHubRepo): FormattedRepo => ({
   forks: repo.forks_count,
   updatedAt: repo.updated_at,
   docsUrl: repo.html_url,
-  // Include keywords and repoType if available.
   keywords: (repo as any).keywords || [],
   repoType: (repo as any).repoType || null,
 });

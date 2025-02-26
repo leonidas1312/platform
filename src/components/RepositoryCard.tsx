@@ -1,22 +1,24 @@
 import { useState, useEffect } from "react";
 import { Github, Folder } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import CodeBlock from "@/components/CodeBlock";
 
 interface Config {
-  // entry_point: string;
-  // default_params: Record<string, any>;
-  // This field is set by our logic based on which file is loaded.
   type?: "problem" | "optimizer";
-  // New fields from the updated configs:
   problem_type?: string;
+  optimizer_type?: string;
   description?: string;
   keywords?: string[];
+  compatible_problems?: string[];
+  compatible_optimizers?: string[];
   data_format?: Record<string, any>;
   decision_variables?: Record<string, any>;
   objective?: Record<string, any>;
   solution_representation?: string;
-  compatible_optimizers?: string[];
+  link_to_dataset?: string;
+  example_code?: string;
+  example_code_1?: string;
+  example_code_2?: string;
 }
 
 interface Repository {
@@ -26,28 +28,51 @@ interface Repository {
   forks: number;
   updatedAt: string;
   docsUrl: string;
+  creator: string;
 }
 
 interface RepositoryCardProps {
   repo: Repository;
 }
 
+// RadiantTag component for displaying a vibrant tag
+const RadiantTag = ({
+  type,
+  label,
+}: {
+  type: "problem" | "optimizer";
+  label: string;
+}) => {
+  return (
+    <div className="flex flex-col items-end">
+      <span
+        className={`inline-block text-sm font-medium px-3 py-1 rounded-full bg-gradient-to-r ${
+          type === "problem"
+            ? "from-orange-500 to-pink-500"
+            : "from-blue-500 to-purple-500"
+        } text-white shadow-lg`}
+      >
+        {label}
+      </span>
+    </div>
+  );
+};
+
 export const RepositoryCard = ({ repo }: RepositoryCardProps) => {
   const [config, setConfig] = useState<Config | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [exampleModalOpen, setExampleModalOpen] = useState(false);
 
   useEffect(() => {
     const fetchConfig = async () => {
       if (!config) {
         setIsLoading(true);
         try {
-          // These are the config file names we try to load.
           const configTypes = ["problem_config.json", "solver_config.json"];
           const branches = ["main"];
           let configData: Config | null = null;
           let configTypeUsed = "";
 
-          // Try fetching the config from each branch and each file.
           for (const branch of branches) {
             for (const type of configTypes) {
               const url = `https://raw.githubusercontent.com/Rastion/${repo.name}/${branch}/${type}`;
@@ -71,7 +96,7 @@ export const RepositoryCard = ({ repo }: RepositoryCardProps) => {
           if (configData) {
             setConfig({
               ...configData,
-              // Mark as "problem" if loaded from problem_config.json; otherwise, "optimizer".
+              // Set as "problem" if loaded from problem_config.json; otherwise, "optimizer".
               type: configTypeUsed === "problem_config.json" ? "problem" : "optimizer",
             });
           } else {
@@ -93,94 +118,129 @@ export const RepositoryCard = ({ repo }: RepositoryCardProps) => {
     fetchConfig();
   }, [repo.name, config]);
 
-  // Use the problem_type field if provided; otherwise, fallback based on our type flag.
-  const getTypeLabel = () => {
-    if (config?.problem_type) return `🎯 ${config.problem_type}`;
-    if (!config?.type) return "";
-    return config.type === "problem" ? "🎯 Problem" : "⚡ Optimizer";
-  };
-
   return (
-    <Popover>
-      <PopoverTrigger asChild>
-        <div className="border border-github-border rounded-lg p-6 cursor-pointer transition-all duration-200 hover:border-github-blue bg-white">
-          <div className="flex items-start justify-between">
-            <div className="flex items-center gap-3">
-              <Folder className="w-5 h-5 text-github-gray" />
-              <div>
-                
-                {config && (
-                  <span className="text-sm font-medium text-github-gray">
-                    {getTypeLabel()}
-                  </span>
-                )}
-              </div>
-            </div>
+    <div className="border border-github-border rounded-lg p-6 bg-white transition-all duration-200 hover:border-github-blue">
+      <div className="flex items-center justify-between">
+        <div className="flex flex-col">
+          <div className="flex items-center gap-3">
+            <Folder className="w-5 h-5 text-github-gray" />
+            <h2 className="text-base font-semibold text-github-gray">
+              {config?.problem_type || config?.optimizer_type || repo.name}
+            </h2>
           </div>
-          <div className="mt-4 flex items-center gap-4 text-sm text-github-gray">
-            <span>⭐ {repo.stars}</span>
-            <span>🍴 {repo.forks}</span>
-            <span>Updated {new Date(repo.updatedAt).toLocaleDateString()}</span>
-          </div>
-          {config?.description && (
-            <p className="mt-4 text-github-gray text-sm">
-              {config.description.length > 100
-                ? `${config.description.substring(0, 100)}...`
-                : config.description}
-            </p>
+          <p className="text-xs text-github-gray">Created by: {repo.creator}</p>
+        </div>
+        {config && (
+          <RadiantTag
+            type={config.type!}
+            label={config.type === "problem" ? "Problem" : "Optimizer"}
+          />
+        )}
+      </div>
+      <div className="mt-4 flex items-center gap-4 text-sm text-github-gray">
+        <span>⭐ {repo.stars}</span>
+        <span>🍴 {repo.forks}</span>
+        <span>Updated {new Date(repo.updatedAt).toLocaleDateString()}</span>
+      </div>
+      <div className="mt-4">
+        {config?.description ? (
+          <p className="text-sm text-github-gray">{config.description}</p>
+        ) : (
+          <p className="text-sm text-github-gray">{repo.description}</p>
+        )}
+      </div>
+      <div className="mt-4 space-y-4">
+        <div className="flex flex-wrap gap-2">
+          {config?.keywords &&
+            config.keywords.length > 0 &&
+            config.keywords.map((keyword, index) => (
+              <span
+                key={index}
+                className="bg-github-border rounded-full px-2 py-1 text-xs text-github-gray"
+              >
+                {keyword}
+              </span>
+            ))}
+        </div>
+        <div className="flex flex-wrap items-center gap-4">
+          <a
+            href={repo.docsUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-github-blue hover:underline inline-flex items-center gap-2"
+          >
+            <Github className="w-4 h-4" />
+            View Repository
+          </a>
+          {config?.type === "problem" && config.link_to_dataset && (
+            <a
+              href={config.link_to_dataset}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-github-blue hover:underline inline-flex items-center gap-2"
+            >
+              <span role="img" aria-label="dataset">📊</span>
+              Dataset
+            </a>
+          )}
+          {(config?.type === "problem" || config?.type === "optimizer") && (
+            <button
+              onClick={() => setExampleModalOpen(true)}
+              className="text-github-blue hover:underline inline-flex items-center gap-2"
+            >
+              <span role="img" aria-label="example">💻</span>
+              View Example
+            </button>
           )}
         </div>
-      </PopoverTrigger>
-      <PopoverContent className="w-80">
-        {isLoading ? (
-          <div className="text-center text-github-gray">Loading configuration...</div>
-        ) : config ? (
-          <div className="space-y-4">
-            <div>
-              
-            </div>
-            <div>
-              
-            </div>
-            {config.description && (
-              <div>
-                <h3 className="font-semibold mb-2">Description</h3>
-                <p className="text-sm text-github-gray">{config.description}</p>
-              </div>
-            )}
-            {config.keywords && (
-              <div>
-                <h3 className="font-semibold mb-2">Keywords</h3>
-                <div className="flex flex-wrap gap-2">
-                  {config.keywords.map((keyword, index) => (
-                    <span
-                      key={index}
-                      className="bg-github-border rounded-full px-2 py-1 text-xs text-github-gray"
-                    >
-                      {keyword}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
-            <div>
-              <a
-                href={repo.docsUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-github-blue hover:underline inline-flex items-center gap-2"
-              >
-                <Github className="w-4 h-4" />
-                View Repository
-              </a>
-            </div>
-          </div>
-        ) : (
-          <div className="text-center text-github-gray">
-            No configuration file found for this repository.
-          </div>
-        )}
-      </PopoverContent>
-    </Popover>
+      </div>
+
+      {/* View Example Modal */}
+{exampleModalOpen && config && (
+  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+    <div className="bg-white p-6 rounded-lg w-96">
+      <h3 className="text-xl font-semibold mb-4">Example Code</h3>
+      <div className="mb-4">
+        <CodeBlock
+          code={
+            config.type === "problem"
+              ? `from qubots.auto_problem import AutoProblem
+# Load the problem from the repository.
+problem = AutoProblem.from_repo("Rastion/${repo.name}")
+print("Problem loaded successfully!")`
+              : `from qubots.auto_optimizer import AutoOptimizer
+# Load the optimizer from the repository.
+optimizer = AutoOptimizer.from_repo("Rastion/${repo.name}")
+# Ensure you have a problem instance loaded.
+solution, cost = optimizer.optimize(problem)
+print("Best Solution:", solution)
+print("Best Cost:", cost)`
+          }
+        />
+      </div>
+      <div className="text-right">
+        <button
+          onClick={() => setExampleModalOpen(false)}
+          className="px-4 py-2 bg-gray-200 rounded"
+        >
+          Close
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+
+
+      {isLoading && (
+        <div className="text-center text-github-gray text-sm">
+          Loading configuration...
+        </div>
+      )}
+      {!isLoading && !config && (
+        <div className="text-center text-github-gray text-sm">
+          No configuration file found for this repository.
+        </div>
+      )}
+    </div>
   );
 };
