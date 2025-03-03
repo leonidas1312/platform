@@ -2,13 +2,19 @@ import { useState, useEffect } from "react";
 import { Github, Folder } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
 import CodeBlock from "@/components/CodeBlock";
+// Add these new imports at the top
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface Config {
   type?: "problem" | "optimizer";
-  problem_type?: string;
-  optimizer_type?: string;
+  problem_name?: string;
+  optimizer_name?: string;
   description?: string;
   keywords?: string[];
+  parameters?: Record<string, any>;
+  requirements?: string[];
   compatible_problems?: string[];
   compatible_optimizers?: string[];
   data_format?: Record<string, any>;
@@ -16,6 +22,8 @@ interface Config {
   objective?: Record<string, any>;
   solution_representation?: string;
   link_to_dataset?: string;
+  creator?: string;
+  formulations?: string[];
   example_code?: string;
   example_code_1?: string;
   example_code_2?: string;
@@ -62,6 +70,9 @@ export const RepositoryCard = ({ repo }: RepositoryCardProps) => {
   const [config, setConfig] = useState<Config | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [exampleModalOpen, setExampleModalOpen] = useState(false);
+
+  const [configModalOpen, setConfigModalOpen] = useState(false);
+
 
   useEffect(() => {
     const fetchConfig = async () => {
@@ -125,10 +136,10 @@ export const RepositoryCard = ({ repo }: RepositoryCardProps) => {
           <div className="flex items-center gap-3">
             <Folder className="w-5 h-5 text-github-gray" />
             <h2 className="text-base font-semibold text-github-gray">
-              {config?.problem_type || config?.optimizer_type || repo.name}
+              {config?.problem_name || config?.optimizer_name || repo.name}
             </h2>
           </div>
-          <p className="text-xs text-github-gray">Created by: {repo.creator}</p>
+          <p className="text-xs text-github-gray">Created by: {config?.creator}</p>
         </div>
         {config && (
           <RadiantTag
@@ -162,7 +173,175 @@ export const RepositoryCard = ({ repo }: RepositoryCardProps) => {
               </span>
             ))}
         </div>
-        <div className="flex flex-wrap items-center gap-4">
+        
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setConfigModalOpen(true)}
+          className="text-github-blue hover:text-blue-600"
+        >
+          View qubot card
+      </Button>
+      </div>
+        
+      
+      {configModalOpen && (
+  <Dialog open={configModalOpen} onOpenChange={setConfigModalOpen}>
+    <DialogContent className="max-w-3xl max-h-[90vh] p-0 border border-github-border rounded-lg bg-white">
+      <div className="p-6">
+        <ScrollArea className="h-[60vh] pr-4 mt-4">
+          <div className="space-y-6">
+
+            {config?.type === "optimizer" && (
+                <>
+                  {/* Compatible Problems */}
+                  {config.compatible_problems && (
+                    <div className="bg-gray-50 p-4 rounded-md">
+                      <h3 className="font-semibold mb-3 text-github-gray">Compatible Problems</h3>
+                      <ul className="list-disc pl-5">
+                        {config.compatible_problems.map((problem, index) => (
+                          <li key={index} className="text-sm text-github-gray mt-1">
+                            {problem}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* Parameters */}
+                  {config.parameters && (
+                    <div className="bg-gray-50 p-4 rounded-md">
+                      <h3 className="font-semibold mb-3 text-github-gray">Parameters</h3>
+                      {Object.entries(config.parameters).map(([key, value]) => (
+                        <div key={key} className="text-sm mt-2">
+                          <span className="font-mono font-medium">{key}:</span>
+                          <p className="text-github-gray mt-1 pl-2">{value.description}</p>
+                          <span className="text-xs text-gray-500 block mt-1">
+                            Type: {value.type}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Requirements */}
+                  {config.requirements && (
+                    <div className="bg-gray-50 p-4 rounded-md">
+                      <h3 className="font-semibold mb-3 text-github-gray">Requirements</h3>
+                      <ul className="list-disc pl-5">
+                        {config.requirements.map((req, index) => (
+                          <li key={index} className="text-sm text-github-gray mt-1">
+                            {req}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </>
+              )}
+
+
+
+
+
+
+            {/* Data Format Section */}
+            {config?.data_format && (
+              <div className="bg-gray-50 p-4 rounded-md">
+                <h3 className="font-semibold mb-3 text-github-gray">Data Format</h3>
+                {Object.entries(config.data_format).map(([key, value]) => (
+                  <div key={key} className="text-sm mt-2">
+                    <span className="font-mono font-medium">{key}:</span>
+                    <p className="text-github-gray mt-1 pl-2">{value.format}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Decision Variables */}
+            {config?.decision_variables && (
+              <div className="bg-gray-50 p-4 rounded-md">
+                <h3 className="font-semibold mb-3 text-github-gray">Decision Variables</h3>
+                {Object.entries(config.decision_variables).map(([key, value]) => (
+                  <div key={key} className="text-sm mt-2">
+                    <span className="font-mono font-medium">{key}:</span>
+                    <p className="text-github-gray mt-1 pl-2">{value.description}</p>
+                    <span className="text-xs text-gray-500 block mt-1">
+                      Type: {value.type}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Objective */}
+            {config?.objective && (
+              <div className="bg-gray-50 p-4 rounded-md">
+                <h3 className="font-semibold mb-3 text-github-gray">Objective</h3>
+                <div className="text-sm">
+                  <p className="text-github-gray">{config.objective.description}</p>
+                  <div className="mt-2">
+                    <span className="font-medium">Type:</span>
+                    <span className="ml-2 text-github-gray">
+                      {config.objective.type}
+                    </span>
+                  </div>
+                  {config.objective.function && (
+                    <div className="mt-2">
+                      <span className="font-medium">Function:</span>
+                      <pre className="ml-2 font-mono text-sm text-github-gray">
+                        {config.objective.function}
+                      </pre>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Solution Representation */}
+            {config?.solution_representation && (
+              <div className="bg-gray-50 p-4 rounded-md">
+                <h3 className="font-semibold mb-3 text-github-gray">
+                  Solution Representation
+                </h3>
+                <pre className="font-mono text-sm text-github-gray whitespace-pre-wrap">
+                  {config.solution_representation}
+                </pre>
+              </div>
+            )}
+
+            {/* Formulations */}
+            {config?.formulations && config.formulations.length > 0 && (
+              <div className="bg-gray-50 p-4 rounded-md">
+                <h3 className="font-semibold mb-3 text-github-gray">
+                  Available Formulations
+                </h3>
+                <ul className="list-disc pl-5">
+                  {config.formulations.map((formulation, index) => (
+                    <li key={index} className="text-sm text-github-gray mt-1">
+                      {formulation}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* Example Code Section */}
+            <div className="bg-gray-50 p-4 rounded-md">
+              <h3 className="font-semibold mb-3 text-github-gray">Example Usage</h3>
+              <CodeBlock
+                code={
+                  config?.type === "problem"
+                    ? `from qubots.auto_problem import AutoProblem\n\nproblem = AutoProblem.from_repo("Rastion/${repo.name}")`
+                    : `from qubots.auto_optimizer import AutoOptimizer\n\noptimizer = AutoOptimizer.from_repo("Rastion/${repo.name}")`
+                }
+              />
+            </div>
+          </div>
+        </ScrollArea>
+
+        {/* Action Links */}
+        <div className="flex flex-wrap gap-4 mt-6 border-t pt-4">
           <a
             href={repo.docsUrl}
             target="_blank"
@@ -183,17 +362,12 @@ export const RepositoryCard = ({ repo }: RepositoryCardProps) => {
               Dataset
             </a>
           )}
-          {(config?.type === "problem" || config?.type === "optimizer") && (
-            <button
-              onClick={() => setExampleModalOpen(true)}
-              className="text-github-blue hover:underline inline-flex items-center gap-2"
-            >
-              <span role="img" aria-label="example">💻</span>
-              View Example
-            </button>
-          )}
         </div>
       </div>
+    </DialogContent>
+  </Dialog>
+)}
+      
 
       {/* View Example Modal */}
 {exampleModalOpen && config && (
@@ -229,6 +403,8 @@ print("Best Cost:", cost)`
     </div>
   </div>
 )}
+
+
 
 
       {isLoading && (

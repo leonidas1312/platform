@@ -2,13 +2,6 @@
 
 export const bigCategories = [
     {
-      title: "General",
-      subCategories: [
-        { key: "all", label: "All" },
-        { key: "recently-updated", label: "Recently updated" },
-      ],
-    },
-    {
       title: "Problem Types",
       subCategories: [
         { key: "route-optimization", label: "Vehicle routing" },
@@ -24,10 +17,10 @@ export const bigCategories = [
     {
       title: "Optimizer Approaches",
       subCategories: [
-        { key: "exact-optimizers", label: "Exact optimizers" },
-        { key: "heuristic-approaches", label: "Heuristic approaches" },
+        { key: "exact", label: "Exact optimizers" },
+        { key: "heuristic", label: "Heuristic approaches" },
         { key: "gradient-based", label: "Gradient-based" },
-        { key: "quantum-optimizers", label: "Quantum optimizers" },
+        { key: "quantum optimizers", label: "Quantum optimizers" },
       ],
     },
   ];

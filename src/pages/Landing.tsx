@@ -81,7 +81,7 @@ return (
           />
         </div>
         <h1 className="text-5xl font-bold text-gray-900 mb-4">
-          The GitHub for decision making
+          Open source community for decision making
         </h1>
         <p className="text-xl text-gray-600 max-w-3xl mx-auto">
           Collaborative platform for building and optimizing decision-making workflows. 
@@ -90,7 +90,7 @@ return (
         
         <div className="flex gap-4 justify-center mt-8">
           <Button asChild className="h-11 px-8">
-            <Link to="/repositories">Get Started</Link>
+            <Link to="/repositories">Get started</Link>
           </Button>
           <Button asChild variant="outline" className="h-11 px-8">
             <Link to="/docs">Documentation</Link>
@@ -102,12 +102,12 @@ return (
       <div className="grid md:grid-cols-3 gap-8 text-center mb-24">
         <div className="p-6">
           <Code2 className="h-10 w-10 mx-auto mb-4 text-blue-600" />
-          <h3 className="text-xl font-semibold mb-2">Open Source</h3>
+          <h3 className="text-xl font-semibold mb-2">Open source</h3>
           <p className="text-gray-600">Share and collaborate on optimization problems and algorithms</p>
         </div>
         <div className="p-6">
           <Network className="h-10 w-10 mx-auto mb-4 text-blue-600" />
-          <h3 className="text-xl font-semibold mb-2">Standardized Interfaces</h3>
+          <h3 className="text-xl font-semibold mb-2">Standardized interfaces</h3>
           <p className="text-gray-600">Define universal interfaces for problems and optimizers</p>
         </div>
         <div className="p-6">

@@ -1,6 +1,17 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Search, ChevronDown, ChevronUp, Flag, Code2, Layers, CircuitBoard, Boxes, FlaskConical, Rocket } from "lucide-react"
+import {
+  Search,
+  ChevronDown,
+  ChevronUp,
+  Flag,
+  Code2,
+  Layers,
+  CircuitBoard,
+  Boxes,
+  FlaskConical,
+  Rocket
+} from "lucide-react";
 import { RepositoryCard } from "@/components/RepositoryCard";
 import { fetchRepos, formatRepoData } from "@/utils/repository";
 import { GitHubRepo } from "@/types/repository";
@@ -12,7 +23,11 @@ import { Input } from "@/components/ui/input";
 export default function Repositories() {
   const [searchTerm, setSearchTerm] = useState("");
   const [currentCategory, setCurrentCategory] = useState("all");
-  const [openCategories, setOpenCategories] = useState<string[]>([]);
+
+  // 1) Initialize with all categories open
+  const [openCategories, setOpenCategories] = useState<string[]>(
+    bigCategories.map((cat) => cat.title)
+  );
 
   // Fetch your repos (assumes each has a “categories” array from your config keywords)
   const { data: repos, isLoading, error } = useQuery({
@@ -21,26 +36,23 @@ export default function Repositories() {
   });
 
   // Calculate problem and optimizer counts
-  const problemCount = repos?.filter(r => r.repoType === 'problem').length || 0;
-  const optimizerCount = repos?.filter(r => r.repoType === 'optimizer').length || 0;
+  const problemCount = repos?.filter((r) => r.repoType === "problem").length || 0;
+  const optimizerCount = repos?.filter((r) => r.repoType === "optimizer").length || 0;
 
-  // Toggle category open/close
+  // 2) Toggling logic
   const toggleCategory = (title: string) => {
-    setOpenCategories(prev => 
-      prev.includes(title) 
-        ? prev.filter(cat => cat !== title)
-        : [...prev, title]
+    setOpenCategories((prev) =>
+      prev.includes(title) ? prev.filter((cat) => cat !== title) : [...prev, title]
     );
   };
 
   // Filter logic
   let filteredRepos: GitHubRepo[] = [];
   if (repos) {
-    // 1) Filter by search
+    // 1) Filter by search term
     filteredRepos = repos.filter((r) =>
       r.name.toLowerCase().includes(searchTerm.toLowerCase())
     );
-
     // 2) Filter by category
     if (currentCategory === "recently-updated") {
       filteredRepos = filteredRepos.sort(
@@ -48,7 +60,7 @@ export default function Repositories() {
           new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
       );
     } else if (currentCategory !== "all") {
-      filteredRepos = filteredRepos.filter((r) => 
+      filteredRepos = filteredRepos.filter((r) =>
         r.keywords?.includes(currentCategory)
       );
     }
@@ -95,27 +107,26 @@ export default function Repositories() {
                   <div className="text-sm text-gray-600">Optimizers</div>
                 </div>
               </div>
-              
             </div>
           </div>
 
           {/* Search and Categories */}
           <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
             <div className="relative mb-4">
-                <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                <Input
-                  placeholder="Search repositories..."
-                  className="pl-10"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
+              <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+              <Input
+                placeholder="Search repositories..."
+                className="pl-10"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
             </div>
 
             <ScrollArea className="h-[calc(100vh-300px)]">
               {bigCategories.map((bigCat) => {
                 const Icon = getCategoryIcon(bigCat.title);
                 const isOpen = openCategories.includes(bigCat.title);
-                
+
                 return (
                   <div key={bigCat.title} className="mb-2">
                     <button
@@ -133,6 +144,7 @@ export default function Repositories() {
                       )}
                     </button>
 
+                    {/* Show sub-categories if open */}
                     {isOpen && (
                       <div className="ml-8 pl-3 border-l-2 border-gray-100">
                         {bigCat.subCategories.map((subCat) => (
@@ -140,11 +152,12 @@ export default function Repositories() {
                             key={subCat.key}
                             onClick={() => setCurrentCategory(subCat.key)}
                             className={`w-full flex items-center justify-between p-2 text-sm hover:bg-gray-50 rounded-lg transition-colors ${
-                              currentCategory === subCat.key ? "bg-blue-50 text-primary" : ""
+                              currentCategory === subCat.key
+                                ? "bg-blue-50 text-primary"
+                                : ""
                             }`}
                           >
                             <span>{subCat.label}</span>
-                            
                           </button>
                         ))}
                       </div>

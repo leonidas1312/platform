@@ -13,30 +13,6 @@ export const getCategoryForRepo = (repoName: string): string[] => {
   return matchingCategories;
 };
 
-export const fetchInstanceFiles = async () => {
-  try {
-    const response = await fetch(
-      "https://api.github.com/repos/Rastion/traveling_salesman_problem/contents/instances"
-    );
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.message || "Failed to fetch instance files");
-    }
-
-    const files = await response.json();
-    return files.filter((file: any) => file.type === 'file');
-  } catch (error) {
-    console.error("Error fetching instance files:", error);
-    toast({
-      title: "Error",
-      description: "Unable to fetch TSP instances. Please try again later.",
-      variant: "destructive",
-    });
-    throw error;
-  }
-};
-
 export const fetchRepos = async () => {
   try {
     const response = await fetch(

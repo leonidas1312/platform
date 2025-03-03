@@ -1,18 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
 import { Trophy, Code2, Cpu, Info } from "lucide-react";
-import { benchmarks } from "@/data/benchmarks";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useState } from "react";
-import CodeBlock from "@/components/CodeBlock";
-import { fetchInstanceFiles } from "@/utils/repository";
-import { toast } from "@/components/ui/use-toast";
 import { HelpCircle } from "lucide-react";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import results from "@/data/tsp_benchmark.json";
 
 export default function Leaderboard() {
-  const currentBenchmark = benchmarks[0];
   // State to select which dataset benchmark (JSON) to display
   const [selectedDataset, setSelectedDataset] = useState("small");
 
@@ -40,12 +35,7 @@ export default function Leaderboard() {
         <div className="w-full lg:w-80 flex flex-col gap-4">
           <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200">
             <h3 className="font-medium mb-4">Benchmark Problems</h3>
-            <div className="mb-4 p-3 bg-yellow-50 rounded-lg flex items-start gap-2">
-              <Info className="w-4 h-4 text-yellow-600 mt-0.5" />
-              <span className="text-sm">
-                All tests run locally on i7-12700K/32GB DDR5
-              </span>
-            </div>
+            
             {/* Benchmark list would go here */}
           </div>
         </div>
@@ -76,13 +66,10 @@ export default function Leaderboard() {
             <div className="flex gap-2 mb-4 flex-wrap">
               <Badge variant="outline" className="flex items-center gap-2">
                 <Cpu className="w-4 h-4" />
-                {currentBenchmark.testEnvironment.cpu}
+                {"Intel core i7"}
               </Badge>
-              <Badge variant="outline">{currentBenchmark.testEnvironment.ram}</Badge>
-              <Badge variant="outline">{currentBenchmark.testEnvironment.os}</Badge>
-              <Badge variant="outline">
-                {currentBenchmark.testEnvironment.timestamp}
-              </Badge>
+              <Badge variant="outline">{"8GB"}</Badge>
+              <Badge variant="outline">{"Windows10"}</Badge>
             </div>
 
             {/* Dataset Benchmark Selection & Info */}
@@ -91,7 +78,7 @@ export default function Leaderboard() {
                 <p className="text-sm text-gray-700">
                   Below we present 3 TSP benchmarks. The <strong>small</strong> dataset contains 10 TSP problems ranging from 14 to 48 cities. The <strong>medium</strong> dataset contains 5 TSP problems ranging from 52 to 99 cities. The <strong>large</strong> dataset contains 9 TSP problems ranging from 127 to 493 cities.
                   Each optimizer solved each problem in the dataset 10 times and we present the average runtime and average gap between the best known solution (all problems in the datasets are from <strong>TSPlib</strong>).
-                  In this benchmark we have included a QUBO optimizer which solves the TSP QUBO formulation.
+                  In this benchmark we have included a QUBO optimizer which solves the TSP QUBO formulation. We use Google/OR-tools to demonstrate how a repo from a team would look like. 
                 </p>
               </div>
             </div>

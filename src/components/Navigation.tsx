@@ -112,7 +112,7 @@ const Navigation = () => {
                     : "text-github-gray/60"
                 )}
               >
-                Sign In
+                Sign in
               </Link>
             )}
           </div>

@@ -20,7 +20,7 @@ const SignIn = () => {
   return (
     <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center bg-white">
       <div className="w-full max-w-md p-8">
-        <h1 className="text-2xl font-bold text-center mb-8 text-github-gray">Sign In to Rastion</h1>
+        <h1 className="text-2xl font-bold text-center mb-8 text-github-gray">Sign in to Rastion</h1>
         <GithubAuth />
       </div>
     </div>
