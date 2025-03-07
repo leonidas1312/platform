@@ -8,10 +8,9 @@ export interface EmailData {
 }
 
 // EmailJS service configuration
-// Note: These values would normally be in environment variables
-const SERVICE_ID = 'service_githxqz'; // Replace with your actual EmailJS Gmail service ID
-const TEMPLATE_ID = 'template_8k4oy4k'; // Replace with your actual EmailJS template ID
-const USER_ID = 'lmEPpNp8SVB0VZFZk'; // Replace with your actual EmailJS public key
+const SERVICE_ID = import.meta.env.VITE_SERVICE_ID;
+const TEMPLATE_ID = import.meta.env.VITE_TEMPLATE_ID; 
+const USER_ID = import.meta.env.VITE_USER_ID; 
 
 export const sendEmail = async (data: EmailData): Promise<{ success: boolean; message: string }> => {
   
