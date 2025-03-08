@@ -1,6 +1,6 @@
 # Rastion Hub
 
-Welcome to the Rastion repository, a collaborative platform for creating and sharing problems and optimizers (collectively known as "qubots"). This repo contains both the frontend application (built with Vite + React + Tailwind) and a Netlify Function for code execution. Below you’ll find:
+Rastion repository, a collaborative platform for creating and sharing problems and optimizers (collectively known as "qubots"). This repo contains both the frontend application (built with Vite + React + Tailwind) and a Netlify Function for code execution. Below you’ll find:
 
 - **Project structure** – How the code is organized.
 - **Installation & local development** – Getting it running on your machine.
