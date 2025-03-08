@@ -110,6 +110,15 @@ npm install
 
 ## Local Development
 
+### Using Docker
+
+Install docker and docker compose
+
+Build and run the container:
+```bash
+docker-compose up
+```
+
 ### Using NPM Scripts
 
 - **Development server**:
