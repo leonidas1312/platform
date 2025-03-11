@@ -18,6 +18,10 @@ import UploadingQubots from "./pages/docs/UploadingQubots";
 import QubotCards from "./pages/docs/QubotCards";
 import LocalUsage from "./pages/docs/LocalUsage";
 import BenchmarkGuide from "./pages/docs/BenchmarkGuide";
+import CreateQubotOptimizer from "./pages/CreateQubotOptimizer";
+import CreateQubotProblem from "./pages/CreateQubotProblem";
+import OptimizerRepo from "./pages/OptimizerRepo";
+
 
 const queryClient = new QueryClient();
 
@@ -42,8 +46,9 @@ const App = () => (
 
 
           </Route>
-
-
+          <Route path="/optimizer/:repoName" element={<OptimizerRepo />} />
+          <Route path="/create-qubot-optimizer" element={<CreateQubotOptimizer />} />
+          <Route path="/create-qubot-problem" element={<CreateQubotProblem />} />
           <Route path="/repositories" element={<Repositories />} />
           <Route path="/leaderboard" element={<Leaderboard />} /> 
           <Route path="/profile" element={<Profile />} />

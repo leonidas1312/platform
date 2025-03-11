@@ -4,16 +4,36 @@ import { toast } from "@/components/ui/use-toast";
 import { supabase } from "@/lib/supabase";
 import { useEffect } from "react";
 
+async function fetchGitHubUsername(token) {
+  const res = await fetch("https://api.github.com/user", {
+    headers: { Authorization: `token ${token}` },
+  });
+  const data = await res.json();
+  return data.login;
+}
+
 const GithubAuth = () => {
-  // When this component mounts, check the current session and log the GitHub OAuth token (if available)
   useEffect(() => {
-    const getSession = async () => {
+    const getSessionAndUpdateUser = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session && session.provider_token) {
-        console.log("GitHub user token:", session.provider_token);
+        console.log("GitHub user token1:", session.provider_token);
+        try {
+          const githubUsername = await fetchGitHubUsername(session.provider_token);
+          console.log("GitHub username:", githubUsername);
+          // Update the user's metadata to store the GitHub username.
+          const { error } = await supabase.auth.updateUser({
+            data: { username: githubUsername },
+          });
+          if (error) {
+            console.error("Error updating user metadata:", error);
+          }
+        } catch (err) {
+          console.error("Error fetching GitHub username:", err);
+        }
       }
     };
-    getSession();
+    getSessionAndUpdateUser();
   }, []);
 
   const handleGithubLogin = async () => {
@@ -21,7 +41,7 @@ const GithubAuth = () => {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "github",
         options: {
-          scopes: "read:user repo", // Make sure to request needed scopes (e.g. read:org if required)
+          scopes: "read:user repo", // Request needed scopes
           redirectTo: `${window.location.origin}/profile`,
         },
       });
