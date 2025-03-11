@@ -113,8 +113,6 @@ npm install
 ### Create a .env.local file
 
 Create a .env.local file with the following contents:
-# Public variables (exposed to client-side code)
-
 VITE_SUPABASE_URL=https://qpqtbkionqkpkoznkhtv.supabase.co
 VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFwcXRia2lvbnFrcGtvem5raHR2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzkzNjEwNjUsImV4cCI6MjA1NDkzNzA2NX0.CHpb8p5F0qM3r2YOOiHBkiGMpHZOygFReN92_4TKxqg
 VITE_SERVICE_ID=service_githxqz
