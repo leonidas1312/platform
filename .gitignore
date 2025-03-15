@@ -1,6 +1,8 @@
 backend/gitea
 backend/mysql
 
+.vscode
+
 # dotenv environment variable files
 .env
 .env.development.local
