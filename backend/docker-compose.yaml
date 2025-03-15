@@ -59,5 +59,21 @@ services:
     volumes:
       - ./mysql:/var/lib/mysql
 
-
+  backend:
+    build:
+      context: ./backend-server
+      dockerfile: Dockerfile
+    container_name: backend-server
+    working_dir: /app
+    volumes:
+      - ./backend-server:/app
+      - /app/node_modules   # Avoid overwriting node_modules
+    ports:
+      - "4000:4000"
+    networks:
+      - gitea-network
+    restart: always
+    environment:
+      - NODE_ENV=production  # Example environment variable (optional)
+    command: node server.js  # Command to run your Node.js app
       

@@ -1,4 +1,4 @@
-// Update with your config settings.
+require('dotenv').config();
 
 /**
  * @type { Object.<string, import("knex").Knex.Config> }
@@ -9,8 +9,8 @@ module.exports = {
     client: 'pg',
     connection: {
       database: 'rastion',
-      user:     'rastion_admin_leo',
-      password: 'nitrikoo3y123'
+      user:     process.env.KNEX_USER,
+      password: process.env.KNEX_PW
     },
     pool: {
       min: 2,
@@ -26,8 +26,8 @@ module.exports = {
     client: 'pg',
     connection: {
       database: 'rastion',
-      user:     'rastion_admin_leo',
-      password: 'nitrikoo3y123'
+      user:     process.env.KNEX_USER,
+      password: process.env.KNEX_PW
     },
     pool: {
       min: 2,
@@ -43,8 +43,8 @@ module.exports = {
     client: 'pg',
     connection: {
       database: 'rastion',
-      user:     'rastion_admin_leo',
-      password: 'nitrikoo3y123'
+      user:     process.env.KNEX_USER,
+      password: process.env.KNEX_PW
     },
     pool: {
       min: 2,
