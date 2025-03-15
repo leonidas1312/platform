@@ -1,4 +1,5 @@
-bavkend/gitea
+backend/gitea
+backend/mysql
 
 # dotenv environment variable files
 .env
