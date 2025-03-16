@@ -1,3 +1,4 @@
+const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
 const express = require('express');
 const cors = require('cors');
 const crypto = require('crypto');
@@ -8,7 +9,7 @@ const app = express();
 app.use(express.json());
 app.use(cors());
 
-const GITEA_URL = 'http://localhost:3000';
+const GITEA_URL = 'http://15.15.15.100:3000';
 const ADMIN_TOKEN = 'e09b6b98c38630089e094fd70e3b91074832bc04';
 
 

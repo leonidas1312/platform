@@ -2,6 +2,10 @@
 networks:
   gitea-network:
     external: false
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 15.15.15.0/24  # Define a custom subnet
 
 services:
   server:
@@ -35,7 +39,8 @@ services:
       - GITEA__RUN_USER=papaflesas
     restart: always
     networks:
-      - gitea-network
+      gitea-network:
+        ipv4_address: 15.15.15.100
     volumes:
       - ./gitea:/data
       - /etc/timezone:/etc/timezone:ro
@@ -55,7 +60,8 @@ services:
       - MYSQL_PASSWORD=gitea
       - MYSQL_DATABASE=gitea
     networks:
-      - gitea-network
+      gitea-network:
+        ipv4_address: 15.15.15.101
     volumes:
       - ./mysql:/var/lib/mysql
 
@@ -71,9 +77,10 @@ services:
     ports:
       - "4000:4000"
     networks:
-      - gitea-network
+      gitea-network:
+        ipv4_address: 15.15.15.102
     restart: always
-    environment:
-      - NODE_ENV=production  # Example environment variable (optional)
+    depends_on:
+      - server
     command: node server.js  # Command to run your Node.js app
       
