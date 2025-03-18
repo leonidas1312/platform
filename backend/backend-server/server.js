@@ -222,6 +222,77 @@ app.get('/api/profile', async (req, res) => {
   }
 });
 
+// PATCH /api/profile
+app.patch('/api/profile', async (req, res) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader) {
+    return res.status(401).json({ message: 'Missing authorization header' });
+  }
+
+  const userToken = authHeader.replace(/^token\s+/, '');
+  // Extract only the fields that the user wants to update.
+  // The frontend may send only the changed fields.
+  const { full_name, location, website, description } = req.body;
+  
+  // Merge with the existing user settings.
+  // Ideally, you would have the full current settings available.
+  // For demonstration, we assume default values if not available.
+  const currentSettings = {
+    diff_view_style: req.body.diff_view_style || 'unified', // default or current value
+    hide_activity: req.body.hide_activity !== undefined ? req.body.hide_activity : false,
+    hide_email: req.body.hide_email !== undefined ? req.body.hide_email : false,
+    language: req.body.language || 'en-US',
+    theme: req.body.theme || 'default',
+    // The following come from the update or current values
+    full_name: full_name || '',
+    location: location || '',
+    website: website || '',
+    description: description || ''
+  };
+  
+  // Build the full payload
+  const payload = {
+    description: currentSettings.description,
+    diff_view_style: currentSettings.diff_view_style,
+    full_name: currentSettings.full_name,
+    hide_activity: currentSettings.hide_activity,
+    hide_email: currentSettings.hide_email,
+    language: currentSettings.language,
+    location: currentSettings.location,
+    theme: currentSettings.theme,
+    website: currentSettings.website
+  };
+
+  try {
+    const giteaResponse = await fetch(`${GITEA_URL}/api/v1/user/settings`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `token ${userToken}`,
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!giteaResponse.ok) {
+      const errText = await giteaResponse.text();
+      return res.status(giteaResponse.status).json({ message: errText || 'Failed to update user settings' });
+    }
+
+    // Some endpoints might return a 204 No Content response.
+    if (giteaResponse.status === 204) {
+      return res.json({ message: 'Profile updated successfully.' });
+    }
+
+    const responseText = await giteaResponse.text();
+    const updatedUserData = responseText ? JSON.parse(responseText) : { message: 'Profile updated successfully.' };
+
+    res.json(updatedUserData);
+  } catch (error) {
+    console.error('Profile update error:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
 // This route returns a user's repos in Gitea
 app.get('/api/user-repos', async (req, res) => {
   try {
@@ -483,17 +554,27 @@ app.get('/api/repos/:owner/:repoName', async (req, res) => {
   }
 });
   
-// PUT /api/repos/:owner/:repoName/contents/:filePath
-// Creates or updates a file (like GitHub) using the Gitea API:
-//  PUT /repos/{owner}/{repo}/contents/{filepath}
-app.put('/api/repos/:owner/:repoName/contents/:filePath', async (req, res) => {
-  const { owner, repoName, filePath } = req.params;
-  const { content, message, branch } = req.body; 
-  // 'content' = raw text content (string)
-  // 'message' = commit message
-  // 'branch'  = branch name (optional, defaults to 'main')
+// ---------------------------------------------
+// 1. Create a file in a repository (POST)
+// ---------------------------------------------
+app.post('/api/repos/:owner/:repo/contents/:filepath', async (req, res) => {
+  const { owner, repo, filepath } = req.params; // note: 'repo' here is the repository name
+  const {
+    author,
+    branch,
+    committer,
+    content,
+    dates,
+    message,
+    new_branch,
+    signoff
+  } = req.body;
 
-  // We expect the user's token in the Authorization header: "token <myToken>"
+  // Validate required fields
+  if (!content) {
+    return res.status(400).json({ message: 'Content is required' });
+  }
+
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('token ')) {
     return res.status(401).json({ message: 'Missing or invalid token' });
@@ -501,37 +582,183 @@ app.put('/api/repos/:owner/:repoName/contents/:filePath', async (req, res) => {
   const userToken = authHeader.replace(/^token\s+/, '');
 
   try {
-    // 1) We must base64-encode the file content
+    // Base64-encode the file content
     const base64Content = Buffer.from(content, 'utf-8').toString('base64');
 
-    // 2) Call the Gitea API
-    //    PUT /api/v1/repos/{owner}/{repo}/contents/{filepath}
-    //    Docs: https://gitea.com/api/swagger#/repository/repoCreateFileOrUpdateFile
-    const giteaUrl = `${GITEA_URL}/api/v1/repos/${owner}/${repoName}/contents/${filePath}`;
+    const payload = {
+      author,
+      branch: branch || undefined,
+      committer,
+      content: base64Content,
+      dates,
+      message: message || `Create ${filepath}`,
+      new_branch: new_branch || undefined,
+      signoff: signoff || false
+    };
+
+    const giteaUrl = `${GITEA_URL}/api/v1/repos/${owner}/${repo}/contents/${filepath}`;
+    const giteaRes = await fetch(giteaUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `token ${userToken}`
+      },
+      body: JSON.stringify(payload)
+    });
+
+    if (giteaRes.status === 201) {
+      const result = await giteaRes.json();
+      return res.status(201).json({ message: 'File created successfully', result });
+    } else {
+      const errData = await giteaRes.json();
+      return res.status(giteaRes.status).json({ message: errData.message || 'Failed to create file' });
+    }
+  } catch (err) {
+    console.error('Error creating file:', err);
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+// ---------------------------------------------
+// 2. Update a file in a repository (PUT)
+// ---------------------------------------------
+app.put('/api/repos/:owner/:repo/contents/:filepath', async (req, res) => {
+  const { owner, repo, filepath } = req.params;
+  const {
+    author,
+    branch,
+    committer,
+    content,
+    dates,
+    from_path,
+    message,
+    new_branch,
+    sha,          // Required when updating
+    signoff
+  } = req.body;
+
+  // Validate required fields
+  if (!content) {
+    return res.status(400).json({ message: 'Content is required' });
+  }
+  if (!sha) {
+    return res.status(400).json({ message: 'SHA is required for update' });
+  }
+
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('token ')) {
+    return res.status(401).json({ message: 'Missing or invalid token' });
+  }
+  const userToken = authHeader.replace(/^token\s+/, '');
+
+  try {
+    const base64Content = Buffer.from(content, 'utf-8').toString('base64');
+
+    const payload = {
+      author,
+      branch: branch || undefined,
+      committer,
+      content: base64Content,
+      dates,
+      from_path: from_path || undefined,
+      message: message || `Update ${filepath}`,
+      new_branch: new_branch || undefined,
+      sha,
+      signoff: signoff || false
+    };
+
+    const giteaUrl = `${GITEA_URL}/api/v1/repos/${owner}/${repo}/contents/${filepath}`;
     const giteaRes = await fetch(giteaUrl, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `token ${userToken}`,
+        Authorization: `token ${userToken}`
       },
-      body: JSON.stringify({
-        content: base64Content,
-        message: message || `Update ${filePath}`,
-        branch: branch || 'main',
-      }),
+      body: JSON.stringify(payload)
     });
 
-    if (!giteaRes.ok) {
+    if (giteaRes.ok) {
+      const result = await giteaRes.json();
+      return res.json({ message: 'File updated successfully', result });
+    } else {
       const errData = await giteaRes.json();
-      return res
-        .status(giteaRes.status)
-        .json({ message: errData.message || 'Failed to create/update file' });
+      return res.status(giteaRes.status).json({ message: errData.message || 'Failed to update file' });
     }
-
-    const result = await giteaRes.json(); // The new commit info from Gitea
-    return res.json({ message: 'File updated successfully', result });
   } catch (err) {
     console.error('Error updating file:', err);
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+// ---------------------------------------------
+// 3. Modify multiple files in a repository (POST)
+// ---------------------------------------------
+app.post('/api/repos/:owner/:repo/contents', async (req, res) => {
+  const { owner, repo } = req.params;
+  const {
+    author,
+    branch,
+    committer,
+    dates,
+    files,       // Array of file change operations
+    message,
+    new_branch,
+    signoff
+  } = req.body;
+
+  // Validate required field files array
+  if (!files || !Array.isArray(files) || files.length === 0) {
+    return res.status(400).json({ message: 'Files array is required' });
+  }
+
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('token ')) {
+    return res.status(401).json({ message: 'Missing or invalid token' });
+  }
+  const userToken = authHeader.replace(/^token\s+/, '');
+
+  try {
+    // For each file, if content is provided as raw text, encode it.
+    const formattedFiles = files.map((file) => {
+      const encoded = file.content
+        ? Buffer.from(file.content, 'utf-8').toString('base64')
+        : undefined;
+      return {
+        ...file,
+        content: encoded
+      };
+    });
+
+    const payload = {
+      author,
+      branch: branch || undefined,
+      committer,
+      dates,
+      files: formattedFiles,
+      message: message || "Update multiple files",
+      new_branch: new_branch || undefined,
+      signoff: signoff || false
+    };
+
+    const giteaUrl = `${GITEA_URL}/api/v1/repos/${owner}/${repo}/contents`;
+    const giteaRes = await fetch(giteaUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `token ${userToken}`
+      },
+      body: JSON.stringify(payload)
+    });
+
+    if (giteaRes.status === 201) {
+      const result = await giteaRes.json();
+      return res.status(201).json({ message: 'Files updated successfully', result });
+    } else {
+      const errData = await giteaRes.json();
+      return res.status(giteaRes.status).json({ message: errData.message || 'Failed to update files' });
+    }
+  } catch (err) {
+    console.error('Error modifying files:', err);
     return res.status(500).json({ message: 'Internal server error' });
   }
 });

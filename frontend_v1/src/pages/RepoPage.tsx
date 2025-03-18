@@ -4,6 +4,7 @@ import Layout from "../components/Layout";
 import ReactMarkdown from "react-markdown";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Loader2 } from "lucide-react";
 
 // For demo purposes, we retrieve the user token from localStorage.
 const getUserToken = () => localStorage.getItem("gitea_token") || "";
@@ -32,8 +33,6 @@ interface RepoResponse {
 
 export default function RepoPage() {
   const { owner, repoName } = useParams<{ owner: string; repoName: string }>();
-
-  // State for repo data
   const [repo, setRepo] = useState<GiteaRepo | null>(null);
   const [readme, setReadme] = useState("");
   const [config, setConfig] = useState<any>(null);
@@ -41,14 +40,16 @@ export default function RepoPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  // State for Qubot Card creation
+  // Qubot Card state
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [qubotCardContent, setQubotCardContent] = useState<string>("");
 
-  // State for Code Editor
+  // Code editor state
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
+  const [selectedFileSha, setSelectedFileSha] = useState<string | null>(null);
   const [fileContent, setFileContent] = useState<string>("");
   const [editorLoading, setEditorLoading] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
 
   useEffect(() => {
     if (!owner || !repoName) {
@@ -88,7 +89,7 @@ export default function RepoPage() {
     setFiles(data.files);
   };
 
-  // Qubot Card handlers
+  // Qubot Card Handlers (unchanged)
   const handleCreateQubotCardClick = () => {
     const defaultJson = JSON.stringify(
       {
@@ -147,13 +148,14 @@ export default function RepoPage() {
     }
   };
 
-  // Code tab handlers
+  // File selection handler: Fetch file content and store its SHA for updates.
   const handleFileClick = async (file: any) => {
     if (file.type === "dir") {
-      // Optionally implement folder navigation here
+      // Implement folder navigation if needed.
       return;
     }
     setSelectedFile(file.path);
+    setIsEditing(false); // start in view mode
     setEditorLoading(true);
     try {
       const branch = repo?.default_branch || "main";
@@ -170,25 +172,32 @@ export default function RepoPage() {
         if (fileJson.content) {
           const decoded = atob(fileJson.content);
           setFileContent(decoded);
+          setSelectedFileSha(fileJson.sha);
         } else {
           setFileContent("");
+          setSelectedFileSha(null);
         }
       } else {
         setFileContent(`Could not fetch file content (status: ${fileRes.status})`);
+        setSelectedFileSha(null);
       }
     } catch (err) {
       console.error("Error fetching file content:", err);
       setFileContent("Error fetching file content.");
+      setSelectedFileSha(null);
     } finally {
       setEditorLoading(false);
     }
   };
 
+  // Save file updates by sending a PUT request with the file's SHA.
   const handleSaveFile = async () => {
-    if (!selectedFile || !owner || !repoName || !repo) return;
+    if (!selectedFile || !owner || !repoName || !repo || !selectedFileSha) return;
     try {
       setEditorLoading(true);
       const token = getUserToken();
+      // Encode fileContent using btoa
+      const encodedContent = btoa(fileContent);
       const response = await fetch(
         `http://localhost:4000/api/repos/${owner}/${repoName}/contents/${selectedFile}`,
         {
@@ -198,9 +207,10 @@ export default function RepoPage() {
             Authorization: `token ${token}`,
           },
           body: JSON.stringify({
-            content: fileContent,
+            content: encodedContent,
             message: `Update ${selectedFile}`,
             branch: repo.default_branch || "main",
+            sha: selectedFileSha,
           }),
         }
       );
@@ -209,6 +219,7 @@ export default function RepoPage() {
         throw new Error(errData.message || "Failed to update file");
       }
       await reloadRepoData();
+      setIsEditing(false);
       alert("File saved!");
     } catch (err: any) {
       console.error(err);
@@ -221,7 +232,10 @@ export default function RepoPage() {
   if (loading) {
     return (
       <Layout>
-        <div className="p-8 text-center">Loading repository...</div>
+        <div className="p-8 text-center">
+          <Loader2 className="animate-spin w-8 h-8 mx-auto text-gray-600" />
+          <p className="mt-4 text-gray-600">Loading repository...</p>
+        </div>
       </Layout>
     );
   }
@@ -244,14 +258,39 @@ export default function RepoPage() {
 
   return (
     <Layout>
-      {/* Ensure content is pushed below the fixed Navbar */}
       <div className="container mx-auto px-4 py-8 mt-32">
-        {/* Header Section for Repo Title */}
-        <header className="mb-8">
+        {/* Repository Header */}
+        <header className="mb-10">
           <h1 className="text-4xl font-bold text-gray-800">{repo.full_name}</h1>
           {repo.description && (
-            <p className="mt-2 text-lg text-gray-600">{repo.description}</p>
+            <p className="mt-2 text-xl text-gray-600">{repo.description}</p>
           )}
+          <div className="mt-4 flex flex-wrap gap-6">
+            <div className="flex items-center space-x-2">
+              <span className="text-sm text-gray-500">⭐</span>
+              <span className="text-base font-semibold text-gray-800">{repo.stars_count}</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <span className="text-sm text-gray-500">🍴</span>
+              <span className="text-base font-semibold text-gray-800">{repo.forks_count}</span>
+            </div>
+            {repo.watchers_count !== undefined && (
+              <div className="flex items-center space-x-2">
+                <span className="text-sm text-gray-500">👀</span>
+                <span className="text-base font-semibold text-gray-800">{repo.watchers_count}</span>
+              </div>
+            )}
+            <div className="flex items-center space-x-2">
+              <span className="text-sm text-gray-500">Branch:</span>
+              <span className="text-base font-semibold text-gray-800">{repo.default_branch || "main"}</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <span className="text-sm text-gray-500">Updated:</span>
+              <span className="text-base font-semibold text-gray-800">
+                {new Date(repo.updated_at).toLocaleDateString()}
+              </span>
+            </div>
+          </div>
         </header>
 
         {/* Tabs */}
@@ -266,7 +305,7 @@ export default function RepoPage() {
                 <p className="text-sm text-gray-600">
                   Below is the <strong>config.json</strong> file:
                 </p>
-                <pre className="bg-gray-100 p-4 rounded text-sm">
+                <pre className="bg-gray-100 p-4 rounded text-sm font-mono overflow-auto">
                   {JSON.stringify(config, null, 2)}
                 </pre>
               </div>
@@ -300,7 +339,7 @@ export default function RepoPage() {
           </TabsContent>
           <TabsContent value="code">
             <div className="flex flex-col md:flex-row gap-8">
-              {/* File List */}
+              {/* File Explorer & README */}
               <div className="md:w-1/3">
                 <div className="border rounded-md overflow-hidden mb-4">
                   <div className="bg-gray-50 px-4 py-2 border-b">
@@ -336,25 +375,43 @@ export default function RepoPage() {
                   </div>
                 </div>
               </div>
-              {/* Editor */}
+              {/* Code Editor */}
               <div className="md:w-2/3">
                 {selectedFile ? (
                   <div className="border rounded-md">
-                    <div className="bg-gray-50 px-4 py-2 border-b flex justify-between">
+                    <div className="bg-gray-50 px-4 py-2 border-b flex justify-between items-center">
                       <strong>{selectedFile}</strong>
-                      <Button onClick={handleSaveFile} disabled={editorLoading} className="text-sm">
-                        {editorLoading ? "Saving..." : "Save"}
-                      </Button>
+                      { !isEditing && (
+                        <Button onClick={() => setIsEditing(true)} className="text-sm">
+                          Edit
+                        </Button>
+                      )}
+                      { isEditing && (
+                        <div className="flex gap-2">
+                          <Button onClick={handleSaveFile} disabled={editorLoading} className="text-sm">
+                            {editorLoading ? "Saving..." : "Save"}
+                          </Button>
+                          <Button onClick={() => setIsEditing(false)} variant="secondary" className="text-sm">
+                            Cancel
+                          </Button>
+                        </div>
+                      )}
                     </div>
                     <div className="p-4">
                       {editorLoading ? (
                         <div className="text-gray-500 text-sm">Loading...</div>
                       ) : (
-                        <textarea
-                          className="w-full h-96 border rounded p-2 text-sm font-mono"
-                          value={fileContent}
-                          onChange={(e) => setFileContent(e.target.value)}
-                        />
+                        isEditing ? (
+                          <textarea
+                            className="w-full h-96 border rounded p-2 text-sm font-mono"
+                            value={fileContent}
+                            onChange={(e) => setFileContent(e.target.value)}
+                          />
+                        ) : (
+                          <pre className="w-full h-96 overflow-auto p-2 text-sm font-mono bg-gray-100 rounded">
+                            {fileContent}
+                          </pre>
+                        )
                       )}
                     </div>
                   </div>
