@@ -10,7 +10,7 @@ app.use(express.json());
 app.use(cors());
 
 const GITEA_URL = 'http://15.15.15.100:3000';
-const ADMIN_TOKEN = 'e09b6b98c38630089e094fd70e3b91074832bc04';
+const ADMIN_TOKEN = '382dc876bf459026bc9b2e778fe06125f966ce08';
 
 
 

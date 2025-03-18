@@ -51,6 +51,21 @@ services:
     depends_on:
       - db      
 
+  postgres:
+    image: postgres:13
+    restart: always
+    environment:
+      POSTGRES_DB: rastion
+      POSTGRES_USER: rastion_admin_leo
+      POSTGRES_PASSWORD: nitrikoo3y123
+    ports:
+      - "5432:5432"
+    networks:
+      gitea-network:
+        ipv4_address: 15.15.15.103
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
   db:
     image: docker.io/library/mysql:8
     restart: always
@@ -71,6 +86,11 @@ services:
       dockerfile: Dockerfile
     container_name: backend-server
     working_dir: /app
+    environment:
+      KNEX_HOST: postgres
+      KNEX_USER: rastion_admin_leo
+      KNEX_PW: nitrikoo3y123
+      KNEX_DB: rastion
     volumes:
       - ./backend-server:/app
       - /app/node_modules   # Avoid overwriting node_modules
@@ -82,5 +102,10 @@ services:
     restart: always
     depends_on:
       - server
+      - postgres
     command: node server.js  # Command to run your Node.js app
+
+
+volumes:
+  pgdata:
       

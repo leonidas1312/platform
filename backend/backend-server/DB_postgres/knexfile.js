@@ -1,4 +1,5 @@
-require('dotenv').config();
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '../../.env') });
 
 /**
  * @type { Object.<string, import("knex").Knex.Config> }
@@ -9,6 +10,7 @@ module.exports = {
     client: 'pg',
     connection: {
       database: 'rastion',
+      host: process.env.KNEX_HOST,
       user:     process.env.KNEX_USER,
       password: process.env.KNEX_PW
     },
@@ -26,6 +28,7 @@ module.exports = {
     client: 'pg',
     connection: {
       database: 'rastion',
+      host: process.env.KNEX_HOST,
       user:     process.env.KNEX_USER,
       password: process.env.KNEX_PW
     },
@@ -43,6 +46,7 @@ module.exports = {
     client: 'pg',
     connection: {
       database: 'rastion',
+      host: process.env.KNEX_HOST,
       user:     process.env.KNEX_USER,
       password: process.env.KNEX_PW
     },
