@@ -4,15 +4,29 @@ const cors = require('cors');
 const crypto = require('crypto');
 const knex = require('knex')(require('./DB_postgres/knexfile').production);
 const nodemailer = require('nodemailer');
+require('dotenv').config();
 
 const app = express();
 app.use(express.json());
 app.use(cors());
 
-const GITEA_URL = 'http://15.15.15.100:3000';
-const ADMIN_TOKEN = '382dc876bf459026bc9b2e778fe06125f966ce08';
+const GITEA_URL = process.env.GITEA_URL;
+ADMIN_TOKEN = 'not_set';
 
+app.post('/set-admin-token', (req, res) => {
+  const { SECRET_TOKEN, value } = req.body;
 
+  if (!SECRET_TOKEN || SECRET_TOKEN !== process.env.SECRET_TOKEN) {
+    return res.status(403).json({ error: 'Unauthorized' });
+  }
+
+  if (!value) {
+    return res.status(400).json({ error: 'Could not parse value' });
+  }
+
+  ADMIN_TOKEN = value;
+  res.send(`Admin token successfully updated!`);
+});
 
 const transporter = nodemailer.createTransport({
   service: 'Gmail',
