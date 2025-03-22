@@ -7,20 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
-import {
-  Book,
-  Code,
-  Copy,
-  FileText,
-  GitBranch,
-  Loader2,
-  Star,
-  MoreVertical,
-  FolderOpen,
-  GitFork,
-  Edit,
-  FileCode,
-} from "lucide-react"
+import { Book, Code, Copy, FileText, GitBranch, Loader2, Star, MoreVertical, GitFork, Edit } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import {
@@ -35,7 +22,6 @@ import { Input } from "@/components/ui/input"
 
 import QubotCardForm from "@/components/CreateQubotCard"
 import QubotCardDisplay from "@/components/QubotCardDisplay"
-import TechnicalDetails from "@/components/QubotTechDetails"
 import FileExplorer from "@/components/FileExplorer"
 import CodeViewer from "@/components/CodeViewerRepoPage"
 import FileUploadDialog from "@/components/FileUploadDialog"
@@ -249,28 +235,7 @@ export default function RepoPage() {
   }
 
   // Load directory contents when path changes
-  useEffect(() => {
-    if (!owner || !repoName || !currentBranch) return
 
-    if (currentPath) {
-      console.log("Loading directory contents for path:", currentPath)
-      // Load directory contents for the current path
-      fetch(`http://localhost:4000/api/repos/${owner}/${repoName}/contents/${currentPath}?ref=${currentBranch}`)
-        .then((res) => {
-          if (!res.ok) {
-            throw new Error("Failed to fetch directory contents")
-          }
-          return res.json()
-        })
-        .then((data) => {
-          console.log("Directory contents loaded:", data.length, "files")
-          setFiles(enhanceFilesWithCommitData(data))
-        })
-        .catch((err) => {
-          console.error("Error loading directory:", err)
-        })
-    }
-  }, [owner, repoName, currentBranch, currentPath])
 
   // Add this useEffect hook after the other useEffect hooks to handle hash navigation
   useEffect(() => {
@@ -405,7 +370,38 @@ export default function RepoPage() {
       // Navigate to directory
       const newPath = currentPath ? `${currentPath}/${file.name}` : file.name
       console.log("Navigating to directory:", newPath)
-      navigate(`/${owner}/${repoName}/src/branch/${branch}/${newPath}`)
+
+      // Set the current path before navigation
+      setCurrentPath(newPath)
+
+      // Immediately load the directory contents
+      const apiUrl = `http://localhost:4000/api/repos/${owner}/${repoName}/contents/${newPath}?ref=${branch}`
+      setLoading(true)
+
+      fetch(apiUrl)
+        .then((res) => {
+          if (!res.ok) {
+            throw new Error("Failed to fetch directory contents")
+          }
+          return res.json()
+        })
+        .then((data) => {
+          console.log("Directory contents loaded:", data.length, "files")
+          setFiles(enhanceFilesWithCommitData(data))
+          setLoading(false)
+
+          // Then navigate to the directory URL
+          navigate(`/${owner}/${repoName}/src/branch/${branch}/${newPath}`)
+        })
+        .catch((err) => {
+          console.error("Error loading directory:", err)
+          setLoading(false)
+          toast({
+            title: "Error",
+            description: "Failed to load directory contents",
+            variant: "destructive",
+          })
+        })
     } else {
       // Navigate to file
       const filePath = currentPath ? `${currentPath}/${file.name}` : file.name
@@ -600,6 +596,56 @@ export default function RepoPage() {
     navigate(`/${owner}/${repoName}/src/branch/${branch}/${filePath}`)
   }
 
+ // Function to navigate to parent directory
+ const handleNavigateToParentDirectory = () => {
+  if (!currentPath) return
+
+  const pathParts = currentPath.split("/")
+  pathParts.pop() // Remove the last part
+  const parentPath = pathParts.join("/")
+
+  const branch = currentBranch || repo?.default_branch || "main"
+
+  // Update the current path
+  setCurrentPath(parentPath)
+
+  // Immediately load the parent directory contents
+  const apiUrl = parentPath
+    ? `http://localhost:4000/api/repos/${owner}/${repoName}/contents/${parentPath}?ref=${branch}`
+    : `http://localhost:4000/api/repos/${owner}/${repoName}`
+
+  setLoading(true)
+
+  fetch(apiUrl)
+    .then((res) => {
+      if (!res.ok) {
+        throw new Error("Failed to fetch directory contents")
+      }
+      return res.json()
+    })
+    .then((data) => {
+      console.log("Parent directory contents loaded:", data.length, "files")
+      setFiles(enhanceFilesWithCommitData(data.files))
+      setLoading(false)
+
+      // Navigate to the parent directory
+      if (parentPath) {
+        navigate(`/${owner}/${repoName}/src/branch/${branch}/${parentPath}`)
+      } else {
+        navigate(`/${owner}/${repoName}/src/branch/${branch}`)
+      }
+    })
+    .catch((err) => {
+      console.error("Error loading parent directory:", err)
+      setLoading(false)
+      toast({
+        title: "Error",
+        description: "Failed to load parent directory contents",
+        variant: "destructive",
+      })
+    })
+}
+
   // Debug output
   console.log("Current state:", {
     selectedFile,
@@ -786,7 +832,6 @@ export default function RepoPage() {
                     <Code className="h-4 w-4" />
                     {config?.problem_name || "Qubot"}
                   </CardTitle>
-                  
                 </CardHeader>
                 <CardContent>
                   {showCreateForm ? (
@@ -814,14 +859,10 @@ export default function RepoPage() {
                           )}
                         </div>
                       )}
-
-                      
                     </div>
                   ) : (
                     <div className="text-center py-4">
-                      <p className="text-sm text-muted-foreground mb-4">
-                        No Qubot Card found.
-                      </p>
+                      <p className="text-sm text-muted-foreground mb-4">No Qubot Card found.</p>
                       <Button
                         onClick={() => {
                           setActiveTab("qubot")
@@ -873,7 +914,8 @@ export default function RepoPage() {
                       onClick={() => {
                         const snippet =
                           config.type === "problem"
-                            ? `pip install qubots\nfrom qubots import AutoProblem\nproblem = AutoProblem.from_repo("${repo.owner.login}/${repo.name}")`
+                            ? `pip install qubots\nfrom qubots import AutoProblem
+                            problem = AutoProblem.from_repo("${repo.owner.login}/${repo.name}")`
                             : `pip install qubots\nfrom qubots import AutoOptimizer\noptimizer = AutoOptimizer.from_repo("${repo.owner.login}/${repo.name}")`
                         navigator.clipboard.writeText(snippet)
                         toast({
@@ -887,7 +929,6 @@ export default function RepoPage() {
                   </CardContent>
                 </Card>
               )}
-
             </div>
           </div>
 
@@ -950,12 +991,10 @@ export default function RepoPage() {
                         <CardTitle>Readme</CardTitle>
                         <CardDescription>Add a readme file to your repository in the files section.</CardDescription>
                       </CardHeader>
-                      
                     </Card>
                   </div>
                 )}
               </TabsContent>
-
 
               {/* Files Tab */}
               <TabsContent value="files" className="mt-6 space-y-4">
@@ -963,10 +1002,12 @@ export default function RepoPage() {
                   <FileExplorer
                     files={files}
                     onFileClick={handleFileClick}
-                    defaultBranch={currentBranch || repo.default_branch || "main"}
+                    defaultBranch={currentBranch || repo?.default_branch || "main"}
                     path={currentPath}
                     className="w-full"
                     onAddFile={() => setShowFileUploadDialog(true)}
+                    onNavigateToParent={handleNavigateToParentDirectory}
+                    isLoading={loading}
                   />
                 ) : (
                   <div className="h-[calc(100vh-250px)] min-h-[600px]">
