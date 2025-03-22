@@ -1,97 +1,175 @@
-import React, { useState } from 'react';
-import { Dialog } from '@headlessui/react';
-import { Button } from '@/components/ui/button';
+import type React from "react"
 
-function EditProfileModal({ isOpen, onClose, user, onSave }) {
+import { useState } from "react"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { User, Mail, MapPin, Globe, FileText } from "lucide-react"
+
+interface EditProfileModalProps {
+  isOpen: boolean
+  onClose: () => void
+  user: any
+  onSave: (updatedData: any) => void
+}
+
+export default function EditProfileModal({ isOpen, onClose, user, onSave }: EditProfileModalProps) {
   const [formData, setFormData] = useState({
-    full_name: user.full_name || '',
-    location: user.location || '',
-    website: user.website || '',
-    description: user.description || '',
-  });
+    full_name: user?.full_name || "",
+    email: user?.email || "",
+    location: user?.location || "",
+    website: user?.website || "",
+    description: user?.description || "",
+    visibility: user?.visibility || "public",
+  })
 
-  // Handle form input changes
-  const handleChange = (e) => {
-    setFormData((prev) => ({
-      ...prev,
-      [e.target.name]: e.target.value,
-    }));
-  };
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
-  // Save and close
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    onSave(formData);
-  };
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target
+    setFormData((prev) => ({ ...prev, [name]: value }))
+  }
+
+  const handleSelectChange = (name: string, value: string) => {
+    setFormData((prev) => ({ ...prev, [name]: value }))
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setIsSubmitting(true)
+
+    try {
+      await onSave(formData)
+    } catch (error) {
+      console.error("Error saving profile:", error)
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
 
   return (
-    <Dialog open={isOpen} onClose={onClose} className="fixed z-50 inset-0 overflow-y-auto">
-      {/* Custom overlay */}
-      <div
-        className="fixed inset-0 bg-gray-100 bg-opacity-75"
-        onClick={onClose}
-      />
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-[500px]">
+        <DialogHeader>
+          <DialogTitle className="text-xl">Edit Profile</DialogTitle>
+        </DialogHeader>
 
-      <div className="flex items-center justify-center min-h-screen px-4">
-        {/* Modal content */}
-        <div className="relative bg-white rounded-lg shadow-lg max-w-md w-full mx-auto p-6">
-          <Dialog.Title className="text-xl font-bold mb-4">Edit Profile</Dialog.Title>
-
-          <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-6 py-4">
+          {/* Avatar Preview */}
+          <div className="flex items-center gap-4">
+            <Avatar className="w-16 h-16 border-2 border-muted">
+              <AvatarImage src={user?.avatar_url} alt={user?.login} />
+              <AvatarFallback>{user?.login?.substring(0, 2).toUpperCase()}</AvatarFallback>
+            </Avatar>
             <div>
-              <label className="block text-sm font-medium text-gray-700">Full Name</label>
-              <input
-                type="text"
+              <p className="font-medium">@{user?.login}</p>
+              <p className="text-sm text-muted-foreground">Avatar can be changed in account settings</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="full_name" className="flex items-center gap-1">
+                <User className="w-3.5 h-3.5" />
+                Full Name
+              </Label>
+              <Input
+                id="full_name"
                 name="full_name"
                 value={formData.full_name}
                 onChange={handleChange}
-                className="mt-1 block w-full border border-gray-300 rounded-md py-2 px-3"
+                placeholder="Your full name"
               />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Location</label>
-              <input
-                type="text"
+
+            <div className="space-y-2">
+              <Label htmlFor="email" className="flex items-center gap-1">
+                <Mail className="w-3.5 h-3.5" />
+                Email
+              </Label>
+              <Input
+                id="email"
+                name="email"
+                type="email"
+                value={formData.email}
+                onChange={handleChange}
+                placeholder="your.email@example.com"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="location" className="flex items-center gap-1">
+                <MapPin className="w-3.5 h-3.5" />
+                Location
+              </Label>
+              <Input
+                id="location"
                 name="location"
                 value={formData.location}
                 onChange={handleChange}
-                className="mt-1 block w-full border border-gray-300 rounded-md py-2 px-3"
+                placeholder="City, Country"
               />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Website</label>
-              <input
-                type="text"
+
+            <div className="space-y-2">
+              <Label htmlFor="website" className="flex items-center gap-1">
+                <Globe className="w-3.5 h-3.5" />
+                Website
+              </Label>
+              <Input
+                id="website"
                 name="website"
                 value={formData.website}
                 onChange={handleChange}
-                className="mt-1 block w-full border border-gray-300 rounded-md py-2 px-3"
+                placeholder="https://example.com"
               />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Description</label>
-              <textarea
+
+            <div className="space-y-2 md:col-span-2">
+              <Label htmlFor="description" className="flex items-center gap-1">
+                <FileText className="w-3.5 h-3.5" />
+                Bio
+              </Label>
+              <Textarea
+                id="description"
                 name="description"
-                rows={3}
                 value={formData.description}
                 onChange={handleChange}
-                className="mt-1 block w-full border border-gray-300 rounded-md py-2 px-3"
+                placeholder="Tell us about yourself"
+                rows={4}
               />
             </div>
 
-            <div className="flex justify-end gap-2 mt-4">
-              <Button variant="outline" onClick={onClose}>
-                Cancel
-              </Button>
-              <Button type="submit" variant="default">
-                Save
-              </Button>
+            <div className="space-y-2 md:col-span-2">
+              <Label htmlFor="visibility">Profile Visibility</Label>
+              <Select value={formData.visibility} onValueChange={(value) => handleSelectChange("visibility", value)}>
+                <SelectTrigger id="visibility">
+                  <SelectValue placeholder="Select visibility" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="public">Public</SelectItem>
+                  <SelectItem value="limited">Limited</SelectItem>
+                  <SelectItem value="private">Private</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-          </form>
-        </div>
-      </div>
+          </div>
+
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting ? "Saving..." : "Save Changes"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
     </Dialog>
-  );
+  )
 }
 
-export default EditProfileModal;

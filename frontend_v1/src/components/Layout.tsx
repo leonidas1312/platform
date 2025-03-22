@@ -5,12 +5,13 @@ import { motion } from "framer-motion";
 
 interface LayoutProps {
   children: React.ReactNode;
+  hideNavbar?: boolean;
 }
 
-const Layout = ({ children }: LayoutProps) => {
+const Layout = ({ children, hideNavbar }: LayoutProps) => {
   return (
-    <div className="flex flex-col min-h-screen">
-      <Navbar />
+    <div className="flex flex-col min-h-screen bg-background text-foreground">
+      {!hideNavbar && <Navbar />}
       <motion.main 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}

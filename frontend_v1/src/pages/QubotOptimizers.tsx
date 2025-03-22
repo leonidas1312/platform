@@ -175,7 +175,7 @@ const QubotOptimizers = () => {
           className="mb-12"
         >
           <h1 className="text-4xl md:text-5xl font-bold mb-4">AI Models</h1>
-          <p className="text-lg text-foreground/70 max-w-3xl">
+          <p className="text-lg max-w-3xl">
             Explore our comprehensive collection of state-of-the-art AI models across various domains. 
             Find the perfect model for your next project.
           </p>
@@ -190,13 +190,13 @@ const QubotOptimizers = () => {
         >
           <div className="flex flex-col md:flex-row gap-4 mb-6">
             <div className="relative flex-grow">
-              <Search className="absolute left-3 top-2.5 h-5 w-5 text-foreground/50" />
+              <Search className="absolute left-3 top-2.5 h-5 w-5 " />
               <input
                 type="text"
                 placeholder="Search models..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 pr-4 py-2 w-full rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary/50"
+                className="pl-10 pr-4 py-2 w-full rounded-lg border border-border focus:outline-none focus:ring-2 focus:ring-primary/50"
               />
             </div>
             <div className="flex gap-2">
@@ -250,7 +250,7 @@ const QubotOptimizers = () => {
         <Separator className="my-8" />
 
         {/* Results Count */}
-        <div className="text-sm text-foreground/70 mb-6">
+        <div className="text-sm  mb-6">
           {filteredModels.length} {filteredModels.length === 1 ? 'model' : 'models'} found
         </div>
 
@@ -263,7 +263,7 @@ const QubotOptimizers = () => {
 
         {filteredModels.length === 0 && (
           <div className="text-center py-16">
-            <p className="text-xl text-foreground/70">No models match your search criteria</p>
+            <p className="text-xl ">No models match your search criteria</p>
             <Button
               variant="outline"
               className="mt-4"

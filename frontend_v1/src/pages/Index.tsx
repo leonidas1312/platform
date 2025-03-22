@@ -9,7 +9,7 @@ const Index = () => {
     <Layout>
       <Hero />
       
-      <div className="mt-24 pt-24">
+      <div className="mt-4 pt-2">
         <section id="how-it-works" className="py-24 container mx-auto px-4">
           <div className="max-w-3xl mx-auto text-center mb-16">
             <motion.h2 
@@ -19,7 +19,7 @@ const Index = () => {
               transition={{ duration: 0.5 }}
               className="text-3xl md:text-4xl font-bold mb-6"
             >
-              How AI Platform Works
+              How Rastion platform works
             </motion.h2>
             <motion.p 
               initial={{ opacity: 0, y: 20 }}
@@ -28,7 +28,7 @@ const Index = () => {
               transition={{ duration: 0.5, delay: 0.1 }}
               className="text-lg text-foreground/70"
             >
-              Access and deploy state-of-the-art models with just a few lines of code
+              Access and deploy state-of-the-art optimizers with just a few lines of code
             </motion.p>
           </div>
           
@@ -81,7 +81,7 @@ const Index = () => {
         </section>
       </div>
       
-      <ModelShowcase />
+      
       
       <section className="py-24 bg-gradient-to-b from-background to-secondary/50">
         <div className="container mx-auto px-4">
@@ -93,7 +93,7 @@ const Index = () => {
               transition={{ duration: 0.5 }}
               className="text-3xl md:text-4xl font-bold mb-6"
             >
-              Ready to transform your projects with AI?
+              Ready to transform your projects with Rastion?
             </motion.h2>
             <motion.p 
               initial={{ opacity: 0, y: 20 }}
@@ -102,7 +102,7 @@ const Index = () => {
               transition={{ duration: 0.5, delay: 0.1 }}
               className="text-lg text-foreground/70 mb-8"
             >
-              Join thousands of developers, researchers, and businesses leveraging our models
+              Join our community and help us accelerate the field of optimization
             </motion.p>
             <motion.div 
               initial={{ opacity: 0, y: 20 }}
@@ -115,7 +115,13 @@ const Index = () => {
                 href="#models" 
                 className="px-6 py-3 rounded-full bg-primary text-primary-foreground font-medium transition-all hover:bg-primary/90 hover:shadow-lg hover:shadow-primary/20"
               >
-                Get Started
+                Sign up
+              </a>
+              <a 
+                href="#models" 
+                className="px-6 py-3 rounded-full bg-primary text-primary-foreground font-medium transition-all hover:bg-primary/90 hover:shadow-lg hover:shadow-primary/20"
+              >
+                Contact us
               </a>
               <a 
                 href="#" 
