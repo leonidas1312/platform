@@ -10,7 +10,7 @@ import QubotOptDetail from "./pages/QubotOptDetail";
 import QubotProblems from "./pages/QubotProblems";
 import Community from "./pages/Community";
 import Documentation from "./pages/Documentation";
-import Blogs from "./pages/Blogs";
+import BlogsPage from "./pages/Blogs";
 import NotFound from "./pages/NotFound";
 import AuthPage from "./pages/AuthPage";
 import Profile from "./pages/Profile";
@@ -18,6 +18,7 @@ import EmailVerify from "./pages/EmailVerify";
 import PublicReposPage from "./pages/PublicReposPage";
 import RepoPage from "./pages/RepoPage";
 import { ThemeProvider } from "./components/ThemeContext";
+import SettingsPage from "./pages/SettingsPage";
 
 const queryClient = new QueryClient();
 
@@ -33,7 +34,7 @@ const App = () => (
               <Route path="/" element={<Index />} />
               <Route path="/qubot-problems" element={<QubotProblems />} />
               <Route path="/community" element={<Community />} />
-              <Route path="/blogs" element={<Blogs />} />
+              <Route path="/blogs" element={<BlogsPage />} />
               <Route path="/docs" element={<Documentation />} />
               <Route path="/auth" element={<AuthPage />} />
               <Route path="/profile" element={<Profile />} />
@@ -43,6 +44,7 @@ const App = () => (
 
               {/* Profile page with username in URL */}
               <Route path="/u/:username" element={<Profile />} />
+              <Route path="/u/:username/settings" element={<SettingsPage />} />
               
               {/* Gitea-style repository routes */}
               <Route path="/:owner/:repoName" element={<RepoPage />} />

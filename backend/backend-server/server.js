@@ -615,7 +615,7 @@ app.put("/api/repos/:owner/:repoName/contents/:filepath(*)", async (req, res) =>
 
     const giteaUrl = `${GITEA_URL}/api/v1/repos/${owner}/${repoName}/contents/${encodedPath}`
     const giteaRes = await fetch(giteaUrl, {
-      method: "PUT",
+      method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `token ${userToken}`,
@@ -670,6 +670,8 @@ app.post("/api/repos/:owner/:repo/contents/:filepath(*)", async (req, res) => {
     return res.status(400).json({ message: "Content is required" })
   }
 
+  const base64Content = Buffer.from(content, "utf8").toString("base64");
+
   const authHeader = req.headers.authorization
   if (!authHeader || !authHeader.startsWith("token ")) {
     return res.status(401).json({ message: "Missing or invalid token" })
@@ -693,7 +695,7 @@ app.post("/api/repos/:owner/:repo/contents/:filepath(*)", async (req, res) => {
       author,
       branch: branch || undefined,
       committer,
-      content: content,
+      content: base64Content,
       dates,
       message: message || `Create or update ${filepath}`,
       new_branch: new_branch || undefined,

@@ -1,7 +1,10 @@
 "use client"
+import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { Input } from "@/components/ui/input"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import {
   FileCode,
   FileJson,
@@ -15,6 +18,7 @@ import {
   Plus,
   Search,
   ArrowLeft,
+  X,
 } from "lucide-react"
 
 interface FileExplorerProps {
@@ -25,6 +29,8 @@ interface FileExplorerProps {
   className?: string
   onAddFile?: () => void
   onNavigateToParent?: () => void
+  onGoToFile?: (path: any) => void
+  isLoading?: boolean
 }
 
 interface FileRowProps {
@@ -34,6 +40,13 @@ interface FileRowProps {
   timeAgo: string
   size?: number
   onClick?: () => void
+}
+
+// Add a new interface for search results
+interface SearchResult {
+  name: string
+  path: string
+  type: string
 }
 
 // Function to determine the appropriate icon for a file based on its name/extension
@@ -100,7 +113,7 @@ function FileRow({ name, type, lastCommit, timeAgo, onClick, size }: FileRowProp
   )
 }
 
-// Add a loading indicator to the FileExplorer component
+// Update the FileExplorer component to include search functionality
 export default function FileExplorer({
   files,
   onFileClick,
@@ -109,14 +122,93 @@ export default function FileExplorer({
   className = "",
   onAddFile,
   onNavigateToParent,
+  onGoToFile,
   isLoading = false,
-}: FileExplorerProps & { isLoading?: boolean }) {
+  allRepoFiles = [], // Add this prop to receive all files for search
+}: FileExplorerProps & { isLoading?: boolean; allRepoFiles?: any[] }) {
+  // Add state for search
+  const [isSearchExpanded, setIsSearchExpanded] = useState(false)
+  const [searchTerm, setSearchTerm] = useState("")
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([])
+  const searchInputRef = useRef<HTMLInputElement>(null)
+
   // Sort files: directories first, then files alphabetically
   const sortedFiles = [...files].sort((a, b) => {
     if (a.type === "dir" && b.type !== "dir") return -1
     if (a.type !== "dir" && b.type === "dir") return 1
     return a.name.localeCompare(b.name)
   })
+
+  // Focus search input when expanded
+  useEffect(() => {
+    if (isSearchExpanded && searchInputRef.current) {
+      searchInputRef.current.focus()
+    }
+  }, [isSearchExpanded])
+
+  // Handle search
+  const handleSearch = (term: string) => {
+    setSearchTerm(term)
+
+    if (!term.trim()) {
+      setSearchResults([])
+      return
+    }
+
+    const lowerTerm = term.toLowerCase()
+
+    // First search in current directory
+    const localResults = sortedFiles
+      .filter((file) => file.name.toLowerCase().includes(lowerTerm))
+      .map((file) => ({
+        name: file.name,
+        path: path ? `${path}/${file.name}` : file.name,
+        type: file.type,
+      }))
+
+    // Then search in all repo files if provided
+    const globalResults = allRepoFiles
+      .filter(
+        (file) =>
+          (file.name.toLowerCase().includes(lowerTerm) || (file.path && file.path.toLowerCase().includes(lowerTerm))) &&
+          // Exclude files that are already in local results
+          !localResults.some((local) => local.path === file.path),
+      )
+      .map((file) => ({
+        name: file.name,
+        path: file.path || file.name,
+        type: file.type,
+      }))
+
+    setSearchResults([...localResults, ...globalResults])
+  }
+
+  // Handle file selection from search results
+  const handleSearchResultClick = (result: SearchResult) => {
+    // Find the file in the current directory or all repo files
+    const fileInCurrentDir = sortedFiles.find((f) => (path ? `${path}/${f.name}` : f.name) === result.path)
+
+    if (fileInCurrentDir) {
+      onFileClick(fileInCurrentDir)
+    } else {
+      // For files outside current directory, use the onGoToFile callback
+      if (onGoToFile) {
+        onGoToFile(result.path)
+      }
+    }
+
+    // Reset search
+    setSearchTerm("")
+    setIsSearchExpanded(false)
+    setSearchResults([])
+  }
+
+  // Close search
+  const handleCloseSearch = () => {
+    setIsSearchExpanded(false)
+    setSearchTerm("")
+    setSearchResults([])
+  }
 
   return (
     <div className={`space-y-4 ${className}`}>
@@ -150,16 +242,72 @@ export default function FileExplorer({
           </TooltipProvider>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" className="h-8">
-            <Search className="mr-2 h-4 w-4" />
-            Go to file
-          </Button>
+          {isSearchExpanded ? (
+            <div className="relative flex-grow max-w-md">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                ref={searchInputRef}
+                placeholder="Search for files..."
+                className="pl-9 pr-9 h-8"
+                value={searchTerm}
+                onChange={(e) => handleSearch(e.target.value)}
+              />
+              <Button
+                variant="ghost"
+                size="icon"
+                className="absolute right-0 top-0 h-8 w-8"
+                onClick={handleCloseSearch}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          ) : (
+            <Button variant="outline" size="sm" className="h-8" onClick={() => setIsSearchExpanded(true)}>
+              <Search className="mr-2 h-4 w-4" />
+              Go to file
+            </Button>
+          )}
           <Button size="sm" className="h-8" onClick={onAddFile}>
             <Plus className="mr-2 h-4 w-4" />
             Add file
           </Button>
         </div>
       </div>
+
+      {/* Search Results */}
+      {isSearchExpanded && searchResults.length > 0 && (
+        <Card className="absolute z-10 mt-1 right-4 w-full max-w-md">
+          <ScrollArea className="max-h-80">
+            <div className="p-2 space-y-1">
+              {searchResults.map((result, index) => (
+                <Button
+                  key={`${result.path}-${index}`}
+                  variant="ghost"
+                  className="w-full justify-start text-sm font-normal"
+                  onClick={() => handleSearchResultClick(result)}
+                >
+                  <div className="flex items-center gap-2 truncate">
+                    {result.type === "dir" ? (
+                      <Folder className="h-4 w-4 text-muted-foreground" />
+                    ) : result.name.endsWith(".md") ? (
+                      <FileText className="h-4 w-4 text-blue-500" />
+                    ) : result.name.endsWith(".json") ? (
+                      <FileJson className="h-4 w-4 text-yellow-500" />
+                    ) : result.name.endsWith(".py") ? (
+                      <FileCode className="h-4 w-4 text-green-500" />
+                    ) : result.name.endsWith(".js") || result.name.endsWith(".ts") || result.name.endsWith(".tsx") ? (
+                      <FileCode className="h-4 w-4 text-yellow-400" />
+                    ) : (
+                      <FileCode className="h-4 w-4 text-muted-foreground" />
+                    )}
+                    <span className="truncate">{result.path}</span>
+                  </div>
+                </Button>
+              ))}
+            </div>
+          </ScrollArea>
+        </Card>
+      )}
 
       {/* Current directory indicator */}
       {path && (

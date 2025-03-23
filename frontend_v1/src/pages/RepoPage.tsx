@@ -25,6 +25,8 @@ import QubotCardDisplay from "@/components/QubotCardDisplay"
 import FileExplorer from "@/components/FileExplorer"
 import CodeViewer from "@/components/CodeViewerRepoPage"
 import FileUploadDialog from "@/components/FileUploadDialog"
+import FileSearchDialog from "@/components/FileSearchDialog"
+import { ReadStream } from "fs"
 
 // For demo purposes, we retrieve the user token from localStorage.
 const getUserToken = () => localStorage.getItem("gitea_token") || ""
@@ -87,6 +89,10 @@ export default function RepoPage() {
   // File upload dialog state
   const [showFileUploadDialog, setShowFileUploadDialog] = useState(false)
   const [branches, setBranches] = useState<string[]>([])
+
+  // File search dialog state
+  const [showFileSearchDialog, setShowFileSearchDialog] = useState(false)
+  const [allRepoFiles, setAllRepoFiles] = useState<any[]>([])
 
   // Dummy data for Other Qubots tab
   const otherQubots = [
@@ -214,6 +220,9 @@ export default function RepoPage() {
 
         // Load branches
         loadBranches(data.repo.owner.login, data.repo.name)
+
+        // Load all files for search functionality
+        loadAllFiles(data.repo.owner.login, data.repo.name, data.repo.default_branch || "main")
       })
       .catch((err) => {
         setError(err.message || "Unknown error")
@@ -234,8 +243,48 @@ export default function RepoPage() {
     }
   }
 
-  // Load directory contents when path changes
+  // Load all files in the repository for search functionality
+  const loadAllFiles = async (repoOwner: string, repoName: string, branch: string) => {
+    try {
+      // For demo purposes, we'll use a simplified approach
+      // In a real app, you might want to use a recursive function to get all files
+      const response = await fetch(
+        `http://localhost:4000/api/repos/${repoOwner}/${repoName}/git/trees/${branch}?recursive=1`,
+      )
+      if (response.ok) {
+        const data = await response.json()
+        if (data.tree) {
+          // Filter out directories and only keep files
+          const allFiles = data.tree
+            .filter((item: any) => item.type === "blob")
+            .map((item: any) => ({
+              name: item.path.split("/").pop(),
+              path: item.path,
+              type: "file",
+              sha: item.sha,
+              size: item.size,
+            }))
 
+          setAllRepoFiles(allFiles)
+          console.log("Loaded all files for search:", allFiles.length)
+        }
+      }
+    } catch (error) {
+      console.error("Failed to load all files:", error)
+
+      // For demo purposes, create some sample files
+      const sampleFiles = [
+        { name: "README.md", path: "README.md", type: "file", sha: "sample1", size: 1024 },
+        { name: "config.json", path: "config.json", type: "file", sha: "sample2", size: 512 },
+        { name: "main.py", path: "src/main.py", type: "file", sha: "sample3", size: 2048 },
+        { name: "utils.js", path: "src/utils/utils.js", type: "file", sha: "sample4", size: 1536 },
+        { name: "index.tsx", path: "src/components/index.tsx", type: "file", sha: "sample5", size: 3072 },
+        { name: "styles.css", path: "src/styles/styles.css", type: "file", sha: "sample6", size: 768 },
+      ]
+      setAllRepoFiles(sampleFiles)
+      console.log("Using sample files for search:", sampleFiles.length)
+    }
+  }
 
   // Add this useEffect hook after the other useEffect hooks to handle hash navigation
   useEffect(() => {
@@ -334,7 +383,7 @@ export default function RepoPage() {
 
       // Save config.json
       const configResponse = await fetch(`http://localhost:4000/api/repos/${owner}/${repoName}/contents/config.json`, {
-        method: "PUT",
+        method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `token ${token}`,
@@ -501,42 +550,40 @@ export default function RepoPage() {
   }
 
   // Handle file upload
-  // Handle file upload using your Gitea API
   const handleFileUpload = async (file: File, commitMessage: string, branch?: string) => {
     if (!owner || !repoName) return
 
     try {
       const token = getUserToken()
 
-      // Read the file as a data URL using a Promise
-      const fileDataUrl = await new Promise<string>((resolve, reject) => {
+      // Read the file using a Promise
+      const fileText = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader()
         reader.onload = () => {
-          if (reader.result) {
+          if (reader.result !== null) {
             resolve(reader.result as string)
           } else {
-            reject(new Error("Failed to read file."))
+            reject(new Error("FileReader result is null"))
           }
         }
         reader.onerror = () => reject(reader.error)
-        reader.readAsDataURL(file)
+        reader.readAsText(file)
       })
 
-      // Extract the Base64 part of the data URL (removing the "data:..." prefix)
-      const base64Content = fileDataUrl.split(",")[1]
+      
 
       // Determine the file path using currentPath (if any)
       const filePath = currentPath ? `${currentPath}/${file.name}` : file.name
 
       // Call your server's API to create/update the file using a PUT request
       const response = await fetch(`http://localhost:4000/api/repos/${owner}/${repoName}/contents/${filePath}`, {
-        method: "PUT",
+        method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `token ${token}`,
         },
         body: JSON.stringify({
-          content: base64Content,
+          content: fileText,
           message: commitMessage || `Add ${file.name}`,
           branch: branch || currentBranch || repo?.default_branch || "main",
         }),
@@ -596,55 +643,61 @@ export default function RepoPage() {
     navigate(`/${owner}/${repoName}/src/branch/${branch}/${filePath}`)
   }
 
- // Function to navigate to parent directory
- const handleNavigateToParentDirectory = () => {
-  if (!currentPath) return
+  // Function to navigate to parent directory
+  const handleNavigateToParentDirectory = () => {
+    if (!currentPath) return
 
-  const pathParts = currentPath.split("/")
-  pathParts.pop() // Remove the last part
-  const parentPath = pathParts.join("/")
+    const pathParts = currentPath.split("/")
+    pathParts.pop() // Remove the last part
+    const parentPath = pathParts.join("/")
 
-  const branch = currentBranch || repo?.default_branch || "main"
+    const branch = currentBranch || repo?.default_branch || "main"
 
-  // Update the current path
-  setCurrentPath(parentPath)
+    // Update the current path
+    setCurrentPath(parentPath)
 
-  // Immediately load the parent directory contents
-  const apiUrl = parentPath
-    ? `http://localhost:4000/api/repos/${owner}/${repoName}/contents/${parentPath}?ref=${branch}`
-    : `http://localhost:4000/api/repos/${owner}/${repoName}`
+    // Immediately load the parent directory contents
+    const apiUrl = parentPath
+      ? `http://localhost:4000/api/repos/${owner}/${repoName}/contents/${parentPath}?ref=${branch}`
+      : `http://localhost:4000/api/repos/${owner}/${repoName}`
 
-  setLoading(true)
+    setLoading(true)
 
-  fetch(apiUrl)
-    .then((res) => {
-      if (!res.ok) {
-        throw new Error("Failed to fetch directory contents")
-      }
-      return res.json()
-    })
-    .then((data) => {
-      console.log("Parent directory contents loaded:", data.length, "files")
-      setFiles(enhanceFilesWithCommitData(data.files))
-      setLoading(false)
-
-      // Navigate to the parent directory
-      if (parentPath) {
-        navigate(`/${owner}/${repoName}/src/branch/${branch}/${parentPath}`)
-      } else {
-        navigate(`/${owner}/${repoName}/src/branch/${branch}`)
-      }
-    })
-    .catch((err) => {
-      console.error("Error loading parent directory:", err)
-      setLoading(false)
-      toast({
-        title: "Error",
-        description: "Failed to load parent directory contents",
-        variant: "destructive",
+    fetch(apiUrl)
+      .then((res) => {
+        if (!res.ok) {
+          throw new Error("Failed to fetch directory contents")
+        }
+        return res.json()
       })
-    })
-}
+      .then((data) => {
+        console.log("Parent directory contents loaded:", data.length, "files")
+        setFiles(enhanceFilesWithCommitData(data.files))
+        setLoading(false)
+
+        // Navigate to the parent directory
+        if (parentPath) {
+          navigate(`/${owner}/${repoName}/src/branch/${branch}/${parentPath}`)
+        } else {
+          navigate(`/${owner}/${repoName}/src/branch/${branch}`)
+        }
+      })
+      .catch((err) => {
+        console.error("Error loading parent directory:", err)
+        setLoading(false)
+        toast({
+          title: "Error",
+          description: "Failed to load parent directory contents",
+          variant: "destructive",
+        })
+      })
+  }
+
+  // Handle file search
+  const handleFileSearch = (filePath: string) => {
+    const branch = currentBranch || repo?.default_branch || "main"
+    handleGoToFile(filePath)
+  }
 
   // Debug output
   console.log("Current state:", {
@@ -914,8 +967,7 @@ export default function RepoPage() {
                       onClick={() => {
                         const snippet =
                           config.type === "problem"
-                            ? `pip install qubots\nfrom qubots import AutoProblem
-                            problem = AutoProblem.from_repo("${repo.owner.login}/${repo.name}")`
+                            ? `pip install qubots\nfrom qubots import AutoProblem\nproblem = AutoProblem.from_repo("${repo.owner.login}/${repo.name}")`
                             : `pip install qubots\nfrom qubots import AutoOptimizer\noptimizer = AutoOptimizer.from_repo("${repo.owner.login}/${repo.name}")`
                         navigator.clipboard.writeText(snippet)
                         toast({
@@ -969,7 +1021,7 @@ export default function RepoPage() {
                     className="data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none"
                   >
                     <GitBranch className="mr-2 h-4 w-4" />
-                    Other Qubots
+                    Usage examples
                   </TabsTrigger>
                 </TabsList>
               </div>
@@ -1007,7 +1059,9 @@ export default function RepoPage() {
                     className="w-full"
                     onAddFile={() => setShowFileUploadDialog(true)}
                     onNavigateToParent={handleNavigateToParentDirectory}
+                    onGoToFile={handleGoToFile}
                     isLoading={loading}
+                    allRepoFiles={allRepoFiles}
                   />
                 ) : (
                   <div className="h-[calc(100vh-250px)] min-h-[600px]">
@@ -1064,6 +1118,15 @@ export default function RepoPage() {
         currentPath={currentPath}
         defaultBranch={currentBranch || repo.default_branch || "main"}
         branches={branches}
+      />
+
+      {/* File Search Dialog */}
+      <FileSearchDialog
+        isOpen={showFileSearchDialog}
+        onClose={() => setShowFileSearchDialog(false)}
+        files={allRepoFiles}
+        currentPath={currentPath}
+        onFileSelect={handleFileSearch}
       />
     </Layout>
   )
