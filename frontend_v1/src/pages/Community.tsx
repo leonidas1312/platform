@@ -1,16 +1,454 @@
-import React, { useState } from "react";
-import { motion } from "framer-motion";
-import Layout from "../components/Layout";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
-import { MessageSquare, Users, BookOpen, Star, ThumbsUp, MessageCircle, Share2, Heart } from "lucide-react";
+"use client"
+
+import { useState, useRef, useEffect } from "react"
+import { motion, AnimatePresence } from "framer-motion"
+import Layout from "../components/Layout"
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
+import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
+import {
+  Users,
+  BookOpen,
+  MessageCircle,
+  Heart,
+  Send,
+  Sparkles,
+  Repeat2,
+  Clock,
+  TrendingUp,
+  Search,
+  Bell,
+  Bookmark,
+  MoreHorizontal,
+  ImageIcon,
+  LinkIcon,
+  Smile,
+  Loader2,
+} from "lucide-react"
+import { useToast } from "@/hooks/use-toast"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { Skeleton } from "@/components/ui/skeleton"
+
+// Types
+interface User {
+  id: number
+  login: string
+  full_name: string
+  avatar_url: string
+  email: string
+}
+
+interface Post {
+  id: number
+  content: string
+  author: User
+  created_at: string
+  likes: number
+  comments: number
+  reposts: number
+  isLiked: boolean
+  isReposted: boolean
+  isBookmarked: boolean
+}
+
+interface ApiError {
+  message: string
+}
 
 const Community = () => {
-  const [activeTab, setActiveTab] = useState("discussions");
+  const { toast } = useToast()
+  const [activeTab, setActiveTab] = useState("feed")
+  const [postText, setPostText] = useState("")
+  const [isExpanded, setIsExpanded] = useState(false)
+  const [posts, setPosts] = useState<Post[]>([])
+  const [searchQuery, setSearchQuery] = useState("")
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [currentUser, setCurrentUser] = useState<User | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [isPosting, setIsPosting] = useState(false)
+  const [activeUsers, setActiveUsers] = useState<User[]>([])
+  const [isLoadingUsers, setIsLoadingUsers] = useState(true)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
+
+  // Fetch current user and authentication status
+  useEffect(() => {
+    const token = localStorage.getItem("token")
+    if (!token) {
+      setIsAuthenticated(false)
+      setIsLoading(false)
+      return
+    }
+
+    const fetchCurrentUser = async () => {
+      try {
+        const response = await fetch("/api/profile", {
+          headers: {
+            Authorization: `token ${token}`,
+          },
+        })
+
+        if (response.ok) {
+          const userData = await response.json()
+          setCurrentUser(userData)
+          setIsAuthenticated(true)
+        } else {
+          // Token might be invalid
+          localStorage.removeItem("token")
+          setIsAuthenticated(false)
+        }
+      } catch (error) {
+        console.error("Error fetching user profile:", error)
+        toast({
+          title: "Error",
+          description: "Failed to fetch your profile. Please try again.",
+          variant: "destructive",
+        })
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchCurrentUser()
+  }, [toast])
+
+  // Fetch posts
+  useEffect(() => {
+    const fetchPosts = async () => {
+      setIsLoading(true)
+      try {
+        const token = localStorage.getItem("token")
+        const headers: HeadersInit = {}
+
+        if (token) {
+          headers["Authorization"] = `token ${token}`
+        }
+
+        // This would be a real endpoint in your API
+        // For now, we'll simulate with a timeout
+        // const response = await fetch('/api/community/posts', { headers });
+
+        // Simulate API delay
+        await new Promise((resolve) => setTimeout(resolve, 1000))
+
+        // Simulate empty posts initially
+        setPosts([])
+      } catch (error) {
+        console.error("Error fetching posts:", error)
+        toast({
+          title: "Error",
+          description: "Failed to load community posts. Please try again.",
+          variant: "destructive",
+        })
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchPosts()
+  }, [toast])
+
+  // Fetch active users
+  useEffect(() => {
+    const fetchActiveUsers = async () => {
+      setIsLoadingUsers(true)
+      try {
+        const token = localStorage.getItem("token")
+        const headers: HeadersInit = {
+          "Content-Type": "application/json",
+        }
+
+        if (token) {
+          headers["Authorization"] = `token ${token}`
+        }
+
+        // Fetch users from Gitea
+        const response = await fetch("/api/public-repos", {
+          headers,
+        })
+
+        if (!response.ok) {
+          throw new Error("Failed to fetch repositories")
+        }
+
+        const data = await response.json()
+
+        // Extract unique users from repositories
+        const uniqueUsers = new Map()
+        if (data.data && Array.isArray(data.data)) {
+          data.data.forEach((repo: any) => {
+            if (repo.owner && !uniqueUsers.has(repo.owner.id)) {
+              uniqueUsers.set(repo.owner.id, {
+                id: repo.owner.id,
+                login: repo.owner.login,
+                full_name: repo.owner.full_name || repo.owner.login,
+                avatar_url: repo.owner.avatar_url,
+                email: repo.owner.email || "",
+              })
+            }
+          })
+        }
+
+        setActiveUsers(Array.from(uniqueUsers.values()))
+      } catch (error) {
+        console.error("Error fetching active users:", error)
+      } finally {
+        setIsLoadingUsers(false)
+      }
+    }
+
+    fetchActiveUsers()
+  }, [toast])
+
+  // Handle post submission
+  const handlePostSubmit = async () => {
+    if (!postText.trim()) return
+
+    if (!isAuthenticated) {
+      toast({
+        title: "Authentication required",
+        description: "Please sign in to post in the community",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setIsPosting(true)
+    try {
+      const token = localStorage.getItem("token")
+
+      // In a real implementation, you would send this to your backend
+      // const response = await fetch('/api/community/posts', {
+      //   method: 'POST',
+      //   headers: {
+      //     'Content-Type': 'application/json',
+      //     'Authorization': `token ${token}`
+      //   },
+      //   body: JSON.stringify({ content: postText })
+      // });
+
+      // Simulate API delay
+      await new Promise((resolve) => setTimeout(resolve, 1000))
+
+      // Create a new post with the current user's information
+      if (currentUser) {
+        const newPost: Post = {
+          id: Date.now(),
+          content: postText,
+          author: currentUser,
+          created_at: new Date().toISOString(),
+          likes: 0,
+          comments: 0,
+          reposts: 0,
+          isLiked: false,
+          isReposted: false,
+          isBookmarked: false,
+        }
+
+        setPosts((prevPosts) => [newPost, ...prevPosts])
+        setPostText("")
+        setIsExpanded(false)
+
+        toast({
+          title: "Post shared!",
+          description: "Your post has been shared with the community",
+        })
+      }
+    } catch (error) {
+      console.error("Error creating post:", error)
+      toast({
+        title: "Error",
+        description: "Failed to create your post. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsPosting(false)
+    }
+  }
+
+  // Handle textarea focus
+  const handleTextareaFocus = () => {
+    if (isAuthenticated) {
+      setIsExpanded(true)
+    } else {
+      toast({
+        title: "Authentication required",
+        description: "Please sign in to post in the community",
+        variant: "destructive",
+      })
+    }
+  }
+
+  // Handle cancel post
+  const handleCancelPost = () => {
+    setPostText("")
+    setIsExpanded(false)
+  }
+
+  // Handle like post
+  const handleLikePost = async (postId: number) => {
+    if (!isAuthenticated) {
+      toast({
+        title: "Authentication required",
+        description: "Please sign in to like posts",
+        variant: "destructive",
+      })
+      return
+    }
+
+    // Optimistic update
+    setPosts(
+      posts.map((post) => {
+        if (post.id === postId) {
+          const isLiked = !post.isLiked
+          return {
+            ...post,
+            likes: isLiked ? post.likes + 1 : post.likes - 1,
+            isLiked,
+          }
+        }
+        return post
+      }),
+    )
+
+    // In a real implementation, you would send this to your backend
+    // try {
+    //   const token = localStorage.getItem('token');
+    //   await fetch(`/api/community/posts/${postId}/like`, {
+    //     method: 'POST',
+    //     headers: {
+    //       'Authorization': `token ${token}`
+    //     }
+    //   });
+    // } catch (error) {
+    //   console.error('Error liking post:', error);
+    //   toast({
+    //     title: "Error",
+    //     description: "Failed to like the post. Please try again.",
+    //     variant: "destructive"
+    //   });
+    //   // Revert the optimistic update on error
+    //   setPosts(prevPosts => prevPosts.map(post => {
+    //     if (post.id === postId) {
+    //       const isLiked = !post.isLiked;
+    //       return {
+    //         ...post,
+    //         likes: isLiked ? post.likes + 1 : post.likes - 1,
+    //         isLiked
+    //       };
+    //     }
+    //     return post;
+    //   }));
+    // }
+  }
+
+  // Handle repost
+  const handleRepost = async (postId: number) => {
+    if (!isAuthenticated) {
+      toast({
+        title: "Authentication required",
+        description: "Please sign in to repost",
+        variant: "destructive",
+      })
+      return
+    }
+
+    // Optimistic update
+    setPosts(
+      posts.map((post) => {
+        if (post.id === postId) {
+          const isReposted = !post.isReposted
+          return {
+            ...post,
+            reposts: isReposted ? post.reposts + 1 : post.reposts - 1,
+            isReposted,
+          }
+        }
+        return post
+      }),
+    )
+
+    // In a real implementation, you would send this to your backend
+  }
+
+  // Handle bookmark
+  const handleBookmark = async (postId: number) => {
+    if (!isAuthenticated) {
+      toast({
+        title: "Authentication required",
+        description: "Please sign in to bookmark posts",
+        variant: "destructive",
+      })
+      return
+    }
+
+    // Optimistic update
+    setPosts(
+      posts.map((post) => {
+        if (post.id === postId) {
+          return {
+            ...post,
+            isBookmarked: !post.isBookmarked,
+          }
+        }
+        return post
+      }),
+    )
+
+    toast({
+      title: "Post bookmarked",
+      description: "You can find this post in your bookmarks",
+    })
+
+    // In a real implementation, you would send this to your backend
+  }
+
+  // Filter posts based on search query
+  const filteredPosts = posts.filter(
+    (post) =>
+      post.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      post.author.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      post.author.login.toLowerCase().includes(searchQuery.toLowerCase()),
+  )
+
+  // Format date for display
+  const formatDate = (dateString: string): string => {
+    const date = new Date(dateString)
+    const now = new Date()
+    const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000)
+
+    if (diffInSeconds < 60) {
+      return `${diffInSeconds} seconds ago`
+    }
+
+    const diffInMinutes = Math.floor(diffInSeconds / 60)
+    if (diffInMinutes < 60) {
+      return `${diffInMinutes} ${diffInMinutes === 1 ? "minute" : "minutes"} ago`
+    }
+
+    const diffInHours = Math.floor(diffInMinutes / 60)
+    if (diffInHours < 24) {
+      return `${diffInHours} ${diffInHours === 1 ? "hour" : "hours"} ago`
+    }
+
+    const diffInDays = Math.floor(diffInHours / 24)
+    if (diffInDays < 7) {
+      return `${diffInDays} ${diffInDays === 1 ? "day" : "days"} ago`
+    }
+
+    return date.toLocaleDateString()
+  }
+
+  // Auto-resize textarea
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "auto"
+      textareaRef.current.style.height = textareaRef.current.scrollHeight + "px"
+    }
+  }, [postText])
 
   return (
     <Layout>
@@ -19,11 +457,11 @@ const Community = () => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
-          className="mb-12 text-center"
+          className="mb-8 text-center"
         >
-          <h1 className="text-4xl md:text-5xl font-bold mb-4">AI Community</h1>
+          <h1 className="text-4xl md:text-5xl font-bold mb-4">Community</h1>
           <p className="text-xl text-foreground/70 max-w-3xl mx-auto">
-            Connect with AI enthusiasts, share your projects, and discover collaborative opportunities in our global community.
+            Connect with optimization enthusiasts, share ideas, and discover collaborative opportunities.
           </p>
         </motion.div>
 
@@ -35,93 +473,389 @@ const Community = () => {
         >
           <div className="flex flex-col md:flex-row gap-8 items-start">
             <div className="w-full md:w-3/4">
-              <Tabs 
-                defaultValue="discussions" 
-                value={activeTab}
-                onValueChange={setActiveTab}
-                className="w-full"
-              >
-                <TabsList className="grid grid-cols-3 mb-8">
-                  <TabsTrigger value="discussions" className="flex items-center gap-1.5">
-                    <MessageSquare size={16} />
-                    <span>Discussions</span>
-                  </TabsTrigger>
-                  <TabsTrigger value="projects" className="flex items-center gap-1.5">
-                    <BookOpen size={16} />
-                    <span>Projects</span>
-                  </TabsTrigger>
-                  <TabsTrigger value="groups" className="flex items-center gap-1.5">
-                    <Users size={16} />
-                    <span>Groups</span>
-                  </TabsTrigger>
-                </TabsList>
+              {/* Post creation card */}
+              <Card className="mb-6 overflow-hidden">
+                <CardContent className="pt-6">
+                  <div className="flex gap-3">
+                    <Avatar className="w-10 h-10">
+                      {currentUser && currentUser.avatar_url ? (
+                        <AvatarImage src={currentUser.avatar_url} alt={currentUser.full_name} />
+                      ) : (
+                        <AvatarFallback>{currentUser ? currentUser.full_name.charAt(0) : "G"}</AvatarFallback>
+                      )}
+                    </Avatar>
+                    <div className="flex-1">
+                      <Textarea
+                        ref={textareaRef}
+                        placeholder={
+                          isAuthenticated ? "Share a quick thought or update..." : "Sign in to post in the community..."
+                        }
+                        value={postText}
+                        onChange={(e) => setPostText(e.target.value)}
+                        onFocus={handleTextareaFocus}
+                        className="min-h-[40px] resize-none border-none shadow-none focus-visible:ring-0 p-0 text-base"
+                        maxLength={280}
+                        disabled={!isAuthenticated || isPosting}
+                      />
 
-                {/* Discussions Tab */}
-                <TabsContent value="discussions" className="space-y-6">
-                  {discussions.map((discussion) => (
-                    <DiscussionCard key={discussion.id} discussion={discussion} />
-                  ))}
+                      <AnimatePresence>
+                        {isExpanded && (
+                          <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: "auto" }}
+                            exit={{ opacity: 0, height: 0 }}
+                            className="mt-3"
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex gap-2">
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-8 w-8 rounded-full"
+                                        disabled={isPosting}
+                                      >
+                                        <ImageIcon size={18} className="text-primary" />
+                                      </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      <p>Add image</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-8 w-8 rounded-full"
+                                        disabled={isPosting}
+                                      >
+                                        <LinkIcon size={18} className="text-primary" />
+                                      </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      <p>Add link</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-8 w-8 rounded-full"
+                                        disabled={isPosting}
+                                      >
+                                        <Smile size={18} className="text-primary" />
+                                      </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      <p>Add emoji</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                              </div>
+
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs text-muted-foreground">{postText.length}/280</span>
+                                <Button variant="ghost" size="sm" onClick={handleCancelPost} disabled={isPosting}>
+                                  Cancel
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  onClick={handlePostSubmit}
+                                  disabled={!postText.trim() || isPosting}
+                                  className="gap-1"
+                                >
+                                  {isPosting ? (
+                                    <>
+                                      <Loader2 size={14} className="animate-spin" />
+                                      Posting...
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Send size={14} />
+                                      Post
+                                    </>
+                                  )}
+                                </Button>
+                              </div>
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Feed tabs */}
+              <Tabs defaultValue="feed" value={activeTab} onValueChange={setActiveTab} className="w-full">
+                <div className="flex justify-between items-center mb-4">
+                  <TabsList className="grid grid-cols-3">
+                    <TabsTrigger value="feed" className="flex items-center gap-1.5">
+                      <Sparkles size={16} />
+                      <span>For You</span>
+                    </TabsTrigger>
+                    <TabsTrigger value="trending" className="flex items-center gap-1.5">
+                      <TrendingUp size={16} />
+                      <span>Trending</span>
+                    </TabsTrigger>
+                    <TabsTrigger value="latest" className="flex items-center gap-1.5">
+                      <Clock size={16} />
+                      <span>Latest</span>
+                    </TabsTrigger>
+                  </TabsList>
+
+                  <div className="relative">
+                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search posts..."
+                      className="w-[200px] pl-8 h-9"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                {/* Feed content */}
+                <TabsContent value="feed" className="space-y-4 mt-2">
+                  {isLoading ? (
+                    // Loading skeletons
+                    Array(3)
+                      .fill(0)
+                      .map((_, index) => (
+                        <Card key={index} className="overflow-hidden">
+                          <CardHeader className="pb-3 pt-4">
+                            <div className="flex justify-between items-start">
+                              <div className="flex items-center gap-3">
+                                <Skeleton className="h-10 w-10 rounded-full" />
+                                <div>
+                                  <Skeleton className="h-4 w-32 mb-2" />
+                                  <Skeleton className="h-3 w-24" />
+                                </div>
+                              </div>
+                            </div>
+                          </CardHeader>
+                          <CardContent className="pb-3">
+                            <Skeleton className="h-4 w-full mb-2" />
+                            <Skeleton className="h-4 w-3/4" />
+                          </CardContent>
+                          <CardFooter className="flex justify-between py-3 border-t">
+                            <div className="flex items-center gap-6">
+                              <Skeleton className="h-8 w-16" />
+                              <Skeleton className="h-8 w-16" />
+                              <Skeleton className="h-8 w-16" />
+                            </div>
+                            <Skeleton className="h-8 w-8" />
+                          </CardFooter>
+                        </Card>
+                      ))
+                  ) : filteredPosts.length > 0 ? (
+                    filteredPosts.map((post) => (
+                      <PostCard
+                        key={post.id}
+                        post={post}
+                        onLike={handleLikePost}
+                        onRepost={handleRepost}
+                        onBookmark={handleBookmark}
+                        formatDate={formatDate}
+                      />
+                    ))
+                  ) : (
+                    <div className="text-center py-12">
+                      <p className="text-muted-foreground">No posts found. Be the first to post!</p>
+                      {!isAuthenticated && (
+                        <Button variant="outline" className="mt-4" onClick={() => (window.location.href = "/login")}>
+                          Sign in to post
+                        </Button>
+                      )}
+                    </div>
+                  )}
                 </TabsContent>
 
-                {/* Projects Tab */}
-                <TabsContent value="projects" className="space-y-8">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {projects.map((project) => (
-                      <ProjectCard key={project.id} project={project} />
-                    ))}
-                  </div>
+                <TabsContent value="trending" className="space-y-4 mt-2">
+                  {isLoading ? (
+                    // Loading skeletons
+                    Array(3)
+                      .fill(0)
+                      .map((_, index) => (
+                        <Card key={index} className="overflow-hidden">
+                          <CardHeader className="pb-3 pt-4">
+                            <div className="flex justify-between items-start">
+                              <div className="flex items-center gap-3">
+                                <Skeleton className="h-10 w-10 rounded-full" />
+                                <div>
+                                  <Skeleton className="h-4 w-32 mb-2" />
+                                  <Skeleton className="h-3 w-24" />
+                                </div>
+                              </div>
+                            </div>
+                          </CardHeader>
+                          <CardContent className="pb-3">
+                            <Skeleton className="h-4 w-full mb-2" />
+                            <Skeleton className="h-4 w-3/4" />
+                          </CardContent>
+                          <CardFooter className="flex justify-between py-3 border-t">
+                            <div className="flex items-center gap-6">
+                              <Skeleton className="h-8 w-16" />
+                              <Skeleton className="h-8 w-16" />
+                              <Skeleton className="h-8 w-16" />
+                            </div>
+                            <Skeleton className="h-8 w-8" />
+                          </CardFooter>
+                        </Card>
+                      ))
+                  ) : filteredPosts.length > 0 ? (
+                    [...filteredPosts]
+                      .sort((a, b) => b.likes - a.likes)
+                      .map((post) => (
+                        <PostCard
+                          key={post.id}
+                          post={post}
+                          onLike={handleLikePost}
+                          onRepost={handleRepost}
+                          onBookmark={handleBookmark}
+                          formatDate={formatDate}
+                        />
+                      ))
+                  ) : (
+                    <div className="text-center py-12">
+                      <p className="text-muted-foreground">No trending posts yet. Be the first to post!</p>
+                    </div>
+                  )}
                 </TabsContent>
 
-                {/* Groups Tab */}
-                <TabsContent value="groups" className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {groups.map((group) => (
-                      <GroupCard key={group.id} group={group} />
-                    ))}
-                  </div>
+                <TabsContent value="latest" className="space-y-4 mt-2">
+                  {isLoading ? (
+                    // Loading skeletons
+                    Array(3)
+                      .fill(0)
+                      .map((_, index) => (
+                        <Card key={index} className="overflow-hidden">
+                          <CardHeader className="pb-3 pt-4">
+                            <div className="flex justify-between items-start">
+                              <div className="flex items-center gap-3">
+                                <Skeleton className="h-10 w-10 rounded-full" />
+                                <div>
+                                  <Skeleton className="h-4 w-32 mb-2" />
+                                  <Skeleton className="h-3 w-24" />
+                                </div>
+                              </div>
+                            </div>
+                          </CardHeader>
+                          <CardContent className="pb-3">
+                            <Skeleton className="h-4 w-full mb-2" />
+                            <Skeleton className="h-4 w-3/4" />
+                          </CardContent>
+                          <CardFooter className="flex justify-between py-3 border-t">
+                            <div className="flex items-center gap-6">
+                              <Skeleton className="h-8 w-16" />
+                              <Skeleton className="h-8 w-16" />
+                              <Skeleton className="h-8 w-16" />
+                            </div>
+                            <Skeleton className="h-8 w-8" />
+                          </CardFooter>
+                        </Card>
+                      ))
+                  ) : filteredPosts.length > 0 ? (
+                    [...filteredPosts]
+                      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+                      .map((post) => (
+                        <PostCard
+                          key={post.id}
+                          post={post}
+                          onLike={handleLikePost}
+                          onRepost={handleRepost}
+                          onBookmark={handleBookmark}
+                          formatDate={formatDate}
+                        />
+                      ))
+                  ) : (
+                    <div className="text-center py-12">
+                      <p className="text-muted-foreground">No posts yet. Be the first to post!</p>
+                    </div>
+                  )}
                 </TabsContent>
               </Tabs>
             </div>
 
             <div className="w-full md:w-1/4 space-y-6">
+              {/* Active users card */}
               <Card>
                 <CardHeader className="pb-3">
-                  <h3 className="font-medium">Top Contributors</h3>
+                  <h3 className="font-medium flex items-center gap-2">
+                    <Users size={16} />
+                    Active Users
+                  </h3>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {topContributors.map((contributor) => (
-                    <div key={contributor.id} className="flex items-center gap-3">
-                      <Avatar>
-                        <AvatarImage src={contributor.avatar} alt={contributor.name} />
-                        <AvatarFallback>{contributor.name.charAt(0)}</AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <p className="text-sm font-medium">{contributor.name}</p>
-                        <p className="text-xs text-foreground/60">{contributor.contributions} contributions</p>
+                  {isLoadingUsers ? (
+                    // Loading skeletons for users
+                    Array(4)
+                      .fill(0)
+                      .map((_, index) => (
+                        <div key={index} className="flex items-center gap-3">
+                          <Skeleton className="h-8 w-8 rounded-full" />
+                          <div>
+                            <Skeleton className="h-4 w-24 mb-1" />
+                            <Skeleton className="h-3 w-16" />
+                          </div>
+                        </div>
+                      ))
+                  ) : activeUsers.length > 0 ? (
+                    activeUsers.slice(0, 5).map((user) => (
+                      <div key={user.id} className="flex items-center gap-3">
+                        <Avatar>
+                          <AvatarImage src={user.avatar_url} alt={user.full_name} />
+                          <AvatarFallback>{user.full_name.charAt(0)}</AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <p className="text-sm font-medium">{user.full_name}</p>
+                          <p className="text-xs text-foreground/60">@{user.login}</p>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    ))
+                  ) : (
+                    <p className="text-sm text-muted-foreground">No active users found</p>
+                  )}
                 </CardContent>
-                <CardFooter>
-                  <Button variant="ghost" size="sm" className="w-full">View All</Button>
-                </CardFooter>
+                {activeUsers.length > 0 && (
+                  <CardFooter>
+                    <Button variant="ghost" size="sm" className="w-full">
+                      View All Users
+                    </Button>
+                  </CardFooter>
+                )}
               </Card>
 
+              
+
+              {/* Community guidelines card */}
               <Card>
                 <CardHeader className="pb-3">
-                  <h3 className="font-medium">Events</h3>
+                  <h3 className="font-medium flex items-center gap-2">
+                    <BookOpen size={16} />
+                    Community Guidelines
+                  </h3>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  {events.map((event) => (
-                    <div key={event.id} className="space-y-1">
-                      <p className="text-sm font-medium">{event.name}</p>
-                      <p className="text-xs text-foreground/60">{event.date}</p>
-                      <p className="text-xs">{event.description}</p>
-                    </div>
-                  ))}
+                <CardContent className="space-y-2">
+                  <p className="text-sm">• Be respectful and constructive</p>
+                  <p className="text-sm">• Share knowledge and insights</p>
+                  <p className="text-sm">• Cite sources when applicable</p>
+                  <p className="text-sm">• Keep discussions on topic</p>
                 </CardContent>
                 <CardFooter>
-                  <Button variant="ghost" size="sm" className="w-full">View Calendar</Button>
+                  <Button variant="ghost" size="sm" className="w-full">
+                    Read Full Guidelines
+                  </Button>
                 </CardFooter>
               </Card>
             </div>
@@ -129,355 +863,84 @@ const Community = () => {
         </motion.div>
       </div>
     </Layout>
-  );
-};
+  )
+}
 
-// Discussion Card Component
-const DiscussionCard = ({ discussion }) => (
-  <Card className="transition-all hover:border-primary/50">
-    <CardHeader className="pb-3">
-      <div className="flex justify-between items-start">
-        <div className="flex items-center gap-3">
-          <Avatar>
-            <AvatarImage src={discussion.author.avatar} alt={discussion.author.name} />
-            <AvatarFallback>{discussion.author.name.charAt(0)}</AvatarFallback>
-          </Avatar>
-          <div>
-            <h3 className="font-medium text-base">{discussion.title}</h3>
-            <div className="flex items-center gap-2 text-xs text-foreground/60">
-              <span>{discussion.author.name}</span>
-              <span>•</span>
-              <span>{discussion.date}</span>
+// Post Card Component
+const PostCard = ({ post, onLike, onRepost, onBookmark, formatDate }) => {
+  return (
+    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
+      <Card className="overflow-hidden hover:border-primary/30 transition-all">
+        <CardHeader className="pb-3 pt-4">
+          <div className="flex justify-between items-start">
+            <div className="flex items-center gap-3">
+              <Avatar>
+                <AvatarImage src={post.author.avatar_url} alt={post.author.full_name} />
+                <AvatarFallback>{post.author.full_name.charAt(0)}</AvatarFallback>
+              </Avatar>
+              <div>
+                <div className="flex items-center gap-1">
+                  <h3 className="font-medium text-base">{post.author.full_name}</h3>
+                  <span className="text-xs text-muted-foreground">@{post.author.login}</span>
+                </div>
+                <div className="text-xs text-foreground/60">{formatDate(post.created_at)}</div>
+              </div>
             </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full">
+                  <MoreHorizontal size={16} />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem>Copy link</DropdownMenuItem>
+                <DropdownMenuItem>Report post</DropdownMenuItem>
+                <DropdownMenuItem>Mute user</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
-        </div>
-        <Badge variant="outline">{discussion.category}</Badge>
-      </div>
-    </CardHeader>
-    <CardContent>
-      <p className="text-sm text-foreground/80 line-clamp-3">{discussion.content}</p>
-    </CardContent>
-    <CardFooter className="flex justify-between border-t pt-3">
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="sm" className="flex items-center gap-1.5 h-8">
-          <ThumbsUp size={14} />
-          <span>{discussion.likes}</span>
-        </Button>
-        <Button variant="ghost" size="sm" className="flex items-center gap-1.5 h-8">
-          <MessageCircle size={14} />
-          <span>{discussion.comments}</span>
-        </Button>
-      </div>
-      <Button variant="ghost" size="sm" className="h-8">
-        <Share2 size={14} />
-      </Button>
-    </CardFooter>
-  </Card>
-);
-
-// Project Card Component
-const ProjectCard = ({ project }) => (
-  <Card className="transition-all hover:border-primary/50">
-    <CardHeader className="pb-3">
-      <div className="flex justify-between items-start">
-        <h3 className="font-medium text-base">{project.title}</h3>
-        <Badge variant={project.status === "Active" ? "default" : "secondary"}>{project.status}</Badge>
-      </div>
-      <div className="flex items-center gap-2 text-xs text-foreground/60">
-        <span>{project.author.name}</span>
-        <span>•</span>
-        <span>Updated {project.lastUpdated}</span>
-      </div>
-    </CardHeader>
-    <CardContent>
-      <p className="text-sm text-foreground/80 mb-3 line-clamp-2">{project.description}</p>
-      <div className="flex flex-wrap gap-2 mb-3">
-        {project.technologies.map((tech, i) => (
-          <Badge key={i} variant="outline" className="bg-secondary/50">{tech}</Badge>
-        ))}
-      </div>
-    </CardContent>
-    <CardFooter className="flex justify-between border-t pt-3">
-      <div className="flex items-center gap-4">
-        <div className="flex items-center gap-1 text-xs">
-          <Star size={14} className="text-foreground/60" />
-          <span>{project.stars}</span>
-        </div>
-        <div className="flex items-center gap-1 text-xs">
-          <MessageSquare size={14} className="text-foreground/60" />
-          <span>{project.discussions}</span>
-        </div>
-      </div>
-      <div className="flex -space-x-2">
-        {project.contributors.slice(0, 3).map((contributor, i) => (
-          <Avatar key={i} className="border-2 border-background w-6 h-6">
-            <AvatarImage src={contributor.avatar} alt={contributor.name} />
-            <AvatarFallback>{contributor.name.charAt(0)}</AvatarFallback>
-          </Avatar>
-        ))}
-        {project.contributors.length > 3 && (
-          <div className="flex items-center justify-center w-6 h-6 rounded-full bg-secondary text-xs border-2 border-background">
-            +{project.contributors.length - 3}
+        </CardHeader>
+        <CardContent className="pb-3">
+          <p className="text-base">{post.content}</p>
+        </CardContent>
+        <CardFooter className="flex justify-between py-3 border-t">
+          <div className="flex items-center gap-6">
+            <Button
+              variant="ghost"
+              size="sm"
+              className={`flex items-center gap-1.5 h-8 ${post.isLiked ? "text-red-500" : ""}`}
+              onClick={() => onLike(post.id)}
+            >
+              <Heart size={16} className={post.isLiked ? "fill-current" : ""} />
+              <span>{post.likes}</span>
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className={`flex items-center gap-1.5 h-8 ${post.isReposted ? "text-green-500" : ""}`}
+              onClick={() => onRepost(post.id)}
+            >
+              <Repeat2 size={16} />
+              <span>{post.reposts}</span>
+            </Button>
+            <Button variant="ghost" size="sm" className="flex items-center gap-1.5 h-8">
+              <MessageCircle size={16} />
+              <span>{post.comments}</span>
+            </Button>
           </div>
-        )}
-      </div>
-    </CardFooter>
-  </Card>
-);
+          <Button
+            variant="ghost"
+            size="sm"
+            className={`h-8 ${post.isBookmarked ? "text-blue-500" : ""}`}
+            onClick={() => onBookmark(post.id)}
+          >
+            <Bookmark size={16} className={post.isBookmarked ? "fill-current" : ""} />
+          </Button>
+        </CardFooter>
+      </Card>
+    </motion.div>
+  )
+}
 
-// Group Card Component
-const GroupCard = ({ group }) => (
-  <Card className="transition-all hover:border-primary/50">
-    <CardHeader className="pb-3">
-      <div className="flex justify-between items-start">
-        <h3 className="font-medium text-base">{group.name}</h3>
-        <Badge variant="outline">{group.members} members</Badge>
-      </div>
-    </CardHeader>
-    <CardContent>
-      <p className="text-sm text-foreground/80 mb-4 line-clamp-2">{group.description}</p>
-      <div className="flex flex-wrap gap-2 mb-3">
-        {group.tags.map((tag, i) => (
-          <Badge key={i} variant="outline" className="bg-secondary/50">{tag}</Badge>
-        ))}
-      </div>
-    </CardContent>
-    <CardFooter className="flex justify-between border-t pt-3">
-      <Button size="sm" variant="default">Join Group</Button>
-      <Button size="sm" variant="ghost">
-        <Share2 size={14} />
-      </Button>
-    </CardFooter>
-  </Card>
-);
+export default Community
 
-// Sample data
-const discussions = [
-  {
-    id: 1,
-    title: "How do you fine-tune BERT for sentiment analysis?",
-    content: "I'm working on a project that requires sentiment analysis on product reviews. I'd like to fine-tune BERT for this task, but I'm running into issues with overfitting. Has anyone successfully implemented this and can share some tips or best practices?",
-    author: {
-      name: "Sarah Johnson",
-      avatar: "https://randomuser.me/api/portraits/women/1.jpg"
-    },
-    category: "BERT",
-    date: "2 hours ago",
-    likes: 24,
-    comments: 8
-  },
-  {
-    id: 2,
-    title: "Comparing transformer architectures for text summarization",
-    content: "I've been experimenting with different transformer architectures for text summarization and would love to discuss the pros and cons of T5, BART, and Pegasus for this specific task. In my experiments, I've found that...",
-    author: {
-      name: "Michael Chen",
-      avatar: "https://randomuser.me/api/portraits/men/2.jpg"
-    },
-    category: "Transformers",
-    date: "Yesterday",
-    likes: 56,
-    comments: 23
-  },
-  {
-    id: 3,
-    title: "Deploying large LLMs in production environments",
-    content: "With the growing size of language models, I'm facing challenges in deploying them efficiently in production. Has anyone had success with quantization or distillation techniques to reduce model size while maintaining acceptable performance?",
-    author: {
-      name: "Alex Williams",
-      avatar: "https://randomuser.me/api/portraits/men/3.jpg"
-    },
-    category: "Deployment",
-    date: "3 days ago",
-    likes: 82,
-    comments: 34
-  },
-  {
-    id: 4,
-    title: "Ethics in generative AI: Preventing harmful outputs",
-    content: "I'm concerned about the potential for generative AI models to produce harmful or biased content. What are the best approaches for ensuring that these models are used responsibly and ethically?",
-    author: {
-      name: "Priya Patel",
-      avatar: "https://randomuser.me/api/portraits/women/4.jpg"
-    },
-    category: "Ethics",
-    date: "1 week ago",
-    likes: 97,
-    comments: 42
-  }
-];
-
-const projects = [
-  {
-    id: 1,
-    title: "MediScan: Medical Image Analysis with Vision Transformers",
-    description: "An open-source platform for medical image analysis using Vision Transformers, specifically designed for early detection of lung abnormalities.",
-    author: {
-      name: "Dr. Emma Roberts",
-      avatar: "https://randomuser.me/api/portraits/women/5.jpg"
-    },
-    status: "Active",
-    lastUpdated: "2 days ago",
-    technologies: ["PyTorch", "Vision Transformer", "Medical AI"],
-    stars: 342,
-    discussions: 28,
-    contributors: [
-      { name: "Emma Roberts", avatar: "https://randomuser.me/api/portraits/women/5.jpg" },
-      { name: "James Wilson", avatar: "https://randomuser.me/api/portraits/men/6.jpg" },
-      { name: "Liu Wei", avatar: "https://randomuser.me/api/portraits/men/7.jpg" },
-      { name: "Sofia Garcia", avatar: "https://randomuser.me/api/portraits/women/6.jpg" }
-    ]
-  },
-  {
-    id: 2,
-    title: "EcoLLM: Energy-Efficient Large Language Models",
-    description: "Research project focused on developing energy-efficient methods for training and deploying large language models without compromising performance.",
-    author: {
-      name: "Daniel Kim",
-      avatar: "https://randomuser.me/api/portraits/men/8.jpg"
-    },
-    status: "Active",
-    lastUpdated: "1 week ago",
-    technologies: ["TensorFlow", "LLM", "Green AI"],
-    stars: 256,
-    discussions: 15,
-    contributors: [
-      { name: "Daniel Kim", avatar: "https://randomuser.me/api/portraits/men/8.jpg" },
-      { name: "Olivia Brown", avatar: "https://randomuser.me/api/portraits/women/7.jpg" },
-      { name: "Thomas Martin", avatar: "https://randomuser.me/api/portraits/men/9.jpg" }
-    ]
-  },
-  {
-    id: 3,
-    title: "VoiceGPT: Multilingual Speech Recognition and Generation",
-    description: "An end-to-end system for multilingual speech recognition and generation using transformer-based architectures.",
-    author: {
-      name: "Sophia Martinez",
-      avatar: "https://randomuser.me/api/portraits/women/8.jpg"
-    },
-    status: "Completed",
-    lastUpdated: "1 month ago",
-    technologies: ["Wav2Vec", "GPT", "Speech AI"],
-    stars: 189,
-    discussions: 12,
-    contributors: [
-      { name: "Sophia Martinez", avatar: "https://randomuser.me/api/portraits/women/8.jpg" },
-      { name: "Robert Johnson", avatar: "https://randomuser.me/api/portraits/men/10.jpg" },
-      { name: "Aisha Khan", avatar: "https://randomuser.me/api/portraits/women/9.jpg" },
-      { name: "John Smith", avatar: "https://randomuser.me/api/portraits/men/11.jpg" }
-    ]
-  },
-  {
-    id: 4,
-    title: "NeuroSim: Neural Network Simulation for Education",
-    description: "Educational platform for visualizing and understanding how neural networks work, designed for students and educators.",
-    author: {
-      name: "Marcus Lee",
-      avatar: "https://randomuser.me/api/portraits/men/12.jpg"
-    },
-    status: "Active",
-    lastUpdated: "3 days ago",
-    technologies: ["React", "D3.js", "Educational AI"],
-    stars: 215,
-    discussions: 19,
-    contributors: [
-      { name: "Marcus Lee", avatar: "https://randomuser.me/api/portraits/men/12.jpg" },
-      { name: "Emily Davis", avatar: "https://randomuser.me/api/portraits/women/10.jpg" }
-    ]
-  }
-];
-
-const groups = [
-  {
-    id: 1,
-    name: "Computer Vision Researchers",
-    description: "A community of researchers exploring cutting-edge techniques in computer vision, object detection, and image segmentation.",
-    members: 3245,
-    tags: ["Computer Vision", "Object Detection", "CNN", "Vision Transformer"]
-  },
-  {
-    id: 2,
-    name: "NLP Enthusiasts",
-    description: "Discuss the latest advancements in Natural Language Processing, from transformer architectures to multilingual models.",
-    members: 4567,
-    tags: ["NLP", "BERT", "GPT", "Transformers"]
-  },
-  {
-    id: 3,
-    name: "AI Ethics & Governance",
-    description: "Focused on the ethical implications of AI and developing frameworks for responsible AI deployment.",
-    members: 1823,
-    tags: ["Ethics", "Governance", "Responsible AI", "Bias"]
-  },
-  {
-    id: 4,
-    name: "MLOps Practitioners",
-    description: "Share best practices for deploying and maintaining machine learning models in production environments.",
-    members: 2956,
-    tags: ["MLOps", "DevOps", "Deployment", "Monitoring"]
-  },
-  {
-    id: 5,
-    name: "Reinforcement Learning",
-    description: "Explore reinforcement learning algorithms, from classic approaches to cutting-edge techniques.",
-    members: 2134,
-    tags: ["RL", "Deep RL", "Q-Learning", "Policy Gradients"]
-  },
-  {
-    id: 6,
-    name: "AI for Healthcare",
-    description: "Collaboration between healthcare professionals and AI researchers to develop solutions for medical challenges.",
-    members: 1756,
-    tags: ["Healthcare", "Medical AI", "Diagnosis", "Biomedical"]
-  }
-];
-
-const topContributors = [
-  {
-    id: 1,
-    name: "Maya Patel",
-    avatar: "https://randomuser.me/api/portraits/women/11.jpg",
-    contributions: 248
-  },
-  {
-    id: 2,
-    name: "David Wilson",
-    avatar: "https://randomuser.me/api/portraits/men/13.jpg",
-    contributions: 186
-  },
-  {
-    id: 3,
-    name: "Sophia Chen",
-    avatar: "https://randomuser.me/api/portraits/women/12.jpg",
-    contributions: 154
-  },
-  {
-    id: 4,
-    name: "Omar Hassan",
-    avatar: "https://randomuser.me/api/portraits/men/14.jpg",
-    contributions: 132
-  }
-];
-
-const events = [
-  {
-    id: 1,
-    name: "AI Summer Conference 2023",
-    date: "August 15-18, 2023",
-    description: "Annual conference featuring the latest research in artificial intelligence."
-  },
-  {
-    id: 2,
-    name: "NLP Workshop Series",
-    date: "Every Tuesday, 7PM ET",
-    description: "Weekly workshop exploring natural language processing techniques."
-  },
-  {
-    id: 3,
-    name: "Ethical AI Roundtable",
-    date: "September 5, 2023",
-    description: "Discussion on developing and implementing ethical guidelines for AI."
-  }
-];
-
-export default Community;

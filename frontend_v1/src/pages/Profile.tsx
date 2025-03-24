@@ -50,7 +50,7 @@ const Profile = () => {
   const [loading, setLoading] = useState(true)
   const [reposLoading, setReposLoading] = useState(true)
   const [isModalOpen, setIsModalOpen] = useState(false)
-  const [activeTab, setActiveTab] = useState("repositories")
+  const [activeTab, setActiveTab] = useState("about")
 
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [repoName, setRepoName] = useState("")
@@ -372,14 +372,15 @@ const Profile = () => {
             <div className="lg:col-span-3">
               <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                 <TabsList className="w-full justify-start mb-6 bg-card rounded-xl p-1">
+                <TabsTrigger value="about" className="flex items-center gap-1">
+                    <User className="w-4 h-4" />
+                    About
+                  </TabsTrigger>
                   <TabsTrigger value="repositories" className="flex items-center gap-1">
                     <FolderGit className="w-4 h-4" />
                     Repositories
                   </TabsTrigger>
-                  <TabsTrigger value="about" className="flex items-center gap-1">
-                    <User className="w-4 h-4" />
-                    About
-                  </TabsTrigger>
+                  
                 </TabsList>
 
                 {/* Repositories Tab */}
@@ -498,61 +499,7 @@ const Profile = () => {
                         )}
                       </div>
 
-                      <Separator />
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div>
-                          <h3 className="text-sm text-muted-foreground mb-2">Full Name</h3>
-                          <p className="text-foreground">{user.full_name || "Not provided"}</p>
-                        </div>
-
-                        <div>
-                          <h3 className="text-sm text-muted-foreground mb-2">Username</h3>
-                          <p className="text-foreground">{user.login}</p>
-                        </div>
-
-                        <div>
-                          <h3 className="text-sm text-muted-foreground mb-2">Email</h3>
-                          <p className="text-foreground">{user.email || "Not provided"}</p>
-                        </div>
-
-                        <div>
-                          <h3 className="text-sm text-muted-foreground mb-2">Location</h3>
-                          <p className="text-foreground">{user.location || "Not provided"}</p>
-                        </div>
-
-                        <div>
-                          <h3 className="text-sm text-muted-foreground mb-2">Website</h3>
-                          {user.website ? (
-                            <a
-                              href={user.website.startsWith("http") ? user.website : `https://${user.website}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-primary hover:underline flex items-center"
-                            >
-                              {user.website}
-                              <ArrowUpRight className="w-3 h-3 ml-1" />
-                            </a>
-                          ) : (
-                            <p className="text-foreground">Not provided</p>
-                          )}
-                        </div>
-
-                        <div>
-                          <h3 className="text-sm text-muted-foreground mb-2">Visibility</h3>
-                          <p className="text-foreground">{user.visibility || "Not provided"}</p>
-                        </div>
-
-                        <div>
-                          <h3 className="text-sm text-muted-foreground mb-2">Member Since</h3>
-                          <p className="text-foreground">{formatDate(user.created_at)}</p>
-                        </div>
-
-                        <div>
-                          <h3 className="text-sm text-muted-foreground mb-2">Last Active</h3>
-                          <p className="text-foreground">{formatDate(user.last_login)}</p>
-                        </div>
-                      </div>
+                      
                     </div>
                   </div>
                 </TabsContent>

@@ -5,7 +5,7 @@ import type React from "react"
 import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { motion } from "framer-motion"
-import { Search, Filter, Clock, ArrowRight, Loader2, Lock, X, Heart } from "lucide-react"
+import { Search, Filter, Clock, ArrowRight, Loader2, Lock, X, Heart, MessageSquare, Share2 } from "lucide-react"
 import Layout from "@/components/Layout"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -25,116 +25,44 @@ import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { toast } from "@/components/ui/use-toast"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { AlertCircle } from "lucide-react"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+
+interface BlogAuthor {
+  name: string
+  avatar?: string
+  username: string
+  full_name?: string
+}
+
+interface BlogOptimizer {
+  name: string
+  repoUrl: string
+}
+
+interface BlogProblem {
+  name: string
+  description: string
+}
 
 interface BlogPost {
   id: string
   title: string
   content: string
   summary: string
-  author: {
-    name: string
-    avatar?: string
-    username: string
-  }
+  author: BlogAuthor
   date: string
   tags: string[]
   imageUrl?: string
   category: string
   readTime: number
   likes: number
-  optimizer?: {
-    name: string
-    repoUrl: string
-  }
-  problem?: {
-    name: string
-    description: string
-  }
+  comments: number
+  optimizer?: BlogOptimizer
+  problem?: BlogProblem
 }
 
-// Sample blog posts focused on optimization problems and solutions
-const sampleBlogs: BlogPost[] = [
-  {
-    id: "1",
-    title: "Solving the Traveling Salesman Problem with Quantum Annealing",
-    summary: "How we used quantum annealing to find near-optimal solutions for complex routing problems.",
-    content:
-      "The Traveling Salesman Problem (TSP) is a classic optimization challenge that involves finding the shortest possible route that visits a set of cities exactly once and returns to the origin city. Traditional algorithms struggle with large instances of this NP-hard problem.\n\nIn our experiment, we implemented a quantum annealing approach using our QuAnneal optimizer on a dataset of 50 cities. The results showed a 30% improvement in solution quality compared to classical simulated annealing, with computation time reduced by 45%.\n\nThe key innovation was in our problem encoding, which mapped city distances to qubit couplings in a way that minimized the energy function when the optimal path was found. This approach can be extended to other routing and scheduling problems with similar constraints.",
-    author: {
-      name: "Dr. Sarah Chen",
-      avatar: "/placeholder.svg?height=40&width=40",
-      username: "quantum_sarah",
-    },
-    date: "2023-11-15",
-    tags: ["Quantum Computing", "Annealing", "TSP", "Routing", "NP-Hard"],
-    imageUrl: "/placeholder.svg?height=400&width=600",
-    category: "Quantum Optimization",
-    readTime: 8,
-    likes: 42,
-    optimizer: {
-      name: "QuAnneal v2.1",
-      repoUrl: "/quantum_sarah/quanneal",
-    },
-    problem: {
-      name: "TSP-50",
-      description: "50-city traveling salesman problem with asymmetric distances",
-    },
-  },
-  {
-    id: "2",
-    title: "Portfolio Optimization Using Genetic Algorithms",
-    summary:
-      "A case study on using evolutionary algorithms to maximize returns while minimizing risk in financial portfolios.",
-    content:
-      "Modern portfolio theory seeks to optimize the allocation of assets to maximize returns for a given level of risk. This multi-objective optimization problem is well-suited for genetic algorithms due to its complex search space and multiple constraints.\n\nWe developed a genetic algorithm-based optimizer called GeneticFolio that evolves portfolio allocations across different asset classes. Using historical market data from 2010-2022, our algorithm consistently outperformed traditional mean-variance optimization by 2.3% annually while maintaining similar risk profiles.\n\nThe key to our approach was a custom fitness function that balanced expected returns, volatility, and correlation metrics, along with specialized crossover operators that preserved allocation constraints. We also implemented adaptive mutation rates that responded to market volatility signals.",
-    author: {
-      name: "Marcus Wong",
-      avatar: "/placeholder.svg?height=40&width=40",
-      username: "fintech_marcus",
-    },
-    date: "2023-09-22",
-    tags: ["Finance", "Genetic Algorithms", "Portfolio Theory", "Risk Management"],
-    imageUrl: "/placeholder.svg?height=400&width=600",
-    category: "Financial Optimization",
-    readTime: 12,
-    likes: 78,
-    optimizer: {
-      name: "GeneticFolio",
-      repoUrl: "/fintech_marcus/geneticfolio",
-    },
-    problem: {
-      name: "Multi-Asset Portfolio",
-      description: "Allocation optimization across 20 asset classes with risk constraints",
-    },
-  },
-  {
-    id: "3",
-    title: "Optimizing Wind Farm Layouts with Particle Swarm Optimization",
-    summary: "How we increased energy output by 18% by optimizing turbine placement using PSO algorithms.",
-    content:
-      "Wind farm layout optimization is a critical factor in maximizing energy production while minimizing costs. The wake effect, where upstream turbines reduce the wind speed for downstream turbines, creates a complex optimization challenge.\n\nOur team applied a modified Particle Swarm Optimization (PSO) algorithm to determine optimal turbine placements for a 50-turbine offshore wind farm. The algorithm considered wake effects, wind direction probabilities, turbine specifications, and geographical constraints.\n\nBy implementing our WindSwarm optimizer, we achieved an 18% increase in annual energy production compared to grid-based layouts, with only a 5% increase in infrastructure costs. The optimization process also reduced maintenance costs by improving accessibility patterns.\n\nThe solution has been deployed in three commercial wind farms, with consistent performance improvements observed across different geographical and wind profile conditions.",
-    author: {
-      name: "Elena Rodriguez",
-      avatar: "/placeholder.svg?height=40&width=40",
-      username: "renewable_elena",
-    },
-    date: "2023-10-05",
-    tags: ["Renewable Energy", "PSO", "Wind Power", "Layout Optimization"],
-    imageUrl: "/placeholder.svg?height=400&width=600",
-    category: "Energy Optimization",
-    readTime: 10,
-    likes: 56,
-    optimizer: {
-      name: "WindSwarm",
-      repoUrl: "/renewable_elena/windswarm",
-    },
-    problem: {
-      name: "Offshore Wind Layout",
-      description: "50-turbine layout optimization with wake effect modeling",
-    },
-  },
-]
-
+// Available categories for blog posts
 const categories = [
   "All Categories",
   "Quantum Optimization",
@@ -147,9 +75,10 @@ const categories = [
 
 const BlogsPage = () => {
   const navigate = useNavigate()
-  const [blogs, setBlogs] = useState<BlogPost[]>(sampleBlogs)
-  const [filteredBlogs, setFilteredBlogs] = useState<BlogPost[]>(sampleBlogs)
-  const [isLoading, setIsLoading] = useState(false)
+  const [blogs, setBlogs] = useState<BlogPost[]>([])
+  const [filteredBlogs, setFilteredBlogs] = useState<BlogPost[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedCategory, setSelectedCategory] = useState("All Categories")
   const [selectedTag, setSelectedTag] = useState<string | null>(null)
@@ -157,6 +86,7 @@ const BlogsPage = () => {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [activeTab, setActiveTab] = useState("all")
+  const [currentUser, setCurrentUser] = useState<any>(null)
 
   // Form state for new blog
   const [newBlog, setNewBlog] = useState({
@@ -173,11 +103,103 @@ const BlogsPage = () => {
   })
   const [tagInput, setTagInput] = useState("")
 
-  // Check if user is authenticated
+  // Check if user is authenticated and get user data
   useEffect(() => {
     const token = localStorage.getItem("gitea_token")
     setIsAuthenticated(!!token)
+
+    if (token) {
+      fetchCurrentUser(token)
+    }
   }, [])
+
+  // Fetch current user data
+  const fetchCurrentUser = async (token: string) => {
+    try {
+      const response = await fetch("/api/profile", {
+        headers: {
+          Authorization: `token ${token}`,
+        },
+      })
+
+      if (response.ok) {
+        const userData = await response.json()
+        setCurrentUser(userData)
+      }
+    } catch (error) {
+      console.error("Error fetching user profile:", error)
+    }
+  }
+
+  // Fetch blogs from API
+  useEffect(() => {
+    fetchBlogs()
+  }, [])
+
+  const fetchBlogs = async () => {
+    setIsLoading(true)
+    setError(null)
+
+    try {
+      const token = localStorage.getItem("gitea_token")
+      const headers: HeadersInit = {}
+
+      if (token) {
+        headers["Authorization"] = `token ${token}`
+      }
+
+      // Fetch blogs from the API
+      // This endpoint would need to be implemented on the server
+      const response = await fetch("/api/blogs", { headers })
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch blogs")
+      }
+
+      const data = await response.json()
+
+      // Transform the data if needed to match our BlogPost interface
+      const formattedBlogs: BlogPost[] = data.map((blog: any) => ({
+        id: blog.id,
+        title: blog.title,
+        content: blog.content,
+        summary: blog.summary || blog.content.substring(0, 150) + "...",
+        author: {
+          name: blog.author.full_name || blog.author.username,
+          username: blog.author.username,
+          avatar: blog.author.avatar_url,
+          full_name: blog.author.full_name,
+        },
+        date: new Date(blog.created_at).toISOString().split("T")[0],
+        tags: blog.tags || [],
+        imageUrl: blog.image_url,
+        category: blog.category,
+        readTime: blog.read_time || Math.ceil(blog.content.length / 1000),
+        likes: blog.likes || 0,
+        comments: blog.comments || 0,
+        optimizer: blog.optimizer
+          ? {
+              name: blog.optimizer.name,
+              repoUrl: blog.optimizer.repo_url,
+            }
+          : undefined,
+        problem: blog.problem
+          ? {
+              name: blog.problem.name,
+              description: blog.problem.description,
+            }
+          : undefined,
+      }))
+
+      setBlogs(formattedBlogs)
+      setFilteredBlogs(formattedBlogs)
+    } catch (err) {
+      console.error("Error fetching blogs:", err)
+      setError("Failed to load blog posts. Please try again later.")
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   // Filter blogs based on search, category, and tag
   useEffect(() => {
@@ -205,8 +227,15 @@ const BlogsPage = () => {
       result = result.filter((blog) => blog.tags.includes(selectedTag))
     }
 
+    // Sort based on active tab
+    if (activeTab === "popular") {
+      result = [...result].sort((a, b) => b.likes - a.likes)
+    } else if (activeTab === "recent") {
+      result = [...result].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    }
+
     setFilteredBlogs(result)
-  }, [blogs, searchQuery, selectedCategory, selectedTag])
+  }, [blogs, searchQuery, selectedCategory, selectedTag, activeTab])
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
@@ -244,6 +273,49 @@ const BlogsPage = () => {
     }))
   }
 
+  const handleLikeBlog = async (blogId: string) => {
+    if (!isAuthenticated) {
+      toast({
+        title: "Authentication required",
+        description: "Please log in to like blog posts.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    try {
+      const token = localStorage.getItem("gitea_token")
+
+      // Call API to like the blog
+      const response = await fetch(`/api/blogs/${blogId}/like`, {
+        method: "POST",
+        headers: {
+          Authorization: `token ${token}`,
+          "Content-Type": "application/json",
+        },
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to like blog post")
+      }
+
+      // Update the blogs state with the updated like count
+      setBlogs((prevBlogs) => prevBlogs.map((blog) => (blog.id === blogId ? { ...blog, likes: blog.likes + 1 } : blog)))
+
+      toast({
+        title: "Success",
+        description: "You liked this blog post.",
+      })
+    } catch (error) {
+      console.error("Error liking blog:", error)
+      toast({
+        title: "Error",
+        description: "Failed to like blog post. Please try again.",
+        variant: "destructive",
+      })
+    }
+  }
+
   const handleCreateBlog = async (e: React.FormEvent) => {
     e.preventDefault()
 
@@ -270,31 +342,20 @@ const BlogsPage = () => {
     setIsSubmitting(true)
 
     try {
-      // In a real app, this would be an API call
-      // Simulate API call with timeout
-      await new Promise((resolve) => setTimeout(resolve, 1000))
+      const token = localStorage.getItem("gitea_token")
 
-      const now = new Date()
-      const newBlogPost: BlogPost = {
-        id: Date.now().toString(),
+      // Prepare blog data for API
+      const blogData = {
         title: newBlog.title,
-        summary: newBlog.summary,
         content: newBlog.content,
-        author: {
-          name: "Current User", // In a real app, get from user profile
-          username: "current_user",
-          avatar: "/placeholder.svg?height=40&width=40",
-        },
-        date: now.toISOString().split("T")[0],
-        tags: newBlog.tags,
-        imageUrl: newBlog.imageUrl || undefined,
+        summary: newBlog.summary,
         category: newBlog.category,
-        readTime: Math.ceil(newBlog.content.length / 1000), // Rough estimate
-        likes: 0,
+        image_url: newBlog.imageUrl,
+        tags: newBlog.tags,
         optimizer: newBlog.optimizerName
           ? {
               name: newBlog.optimizerName,
-              repoUrl: newBlog.optimizerRepo,
+              repo_url: newBlog.optimizerRepo,
             }
           : undefined,
         problem: newBlog.problemName
@@ -305,7 +366,21 @@ const BlogsPage = () => {
           : undefined,
       }
 
-      setBlogs((prev) => [newBlogPost, ...prev])
+      // Call API to create blog
+      const response = await fetch("/api/blogs", {
+        method: "POST",
+        headers: {
+          Authorization: `token ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(blogData),
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to create blog post")
+      }
+
+      const createdBlog = await response.json()
 
       // Reset form
       setNewBlog({
@@ -323,11 +398,15 @@ const BlogsPage = () => {
 
       setShowCreateDialog(false)
 
+      // Refresh blogs to include the new one
+      fetchBlogs()
+
       toast({
         title: "Blog post created!",
         description: "Your blog post has been published successfully.",
       })
     } catch (error) {
+      console.error("Error creating blog:", error)
       toast({
         title: "Error",
         description: "Failed to create blog post. Please try again.",
@@ -444,6 +523,15 @@ const BlogsPage = () => {
             </TabsList>
           </Tabs>
 
+          {/* Error Alert */}
+          {error && (
+            <Alert variant="destructive" className="mb-6">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Error</AlertTitle>
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+
           {/* Blog Posts */}
           {isLoading ? (
             <div className="flex flex-col items-center justify-center py-12">
@@ -463,7 +551,7 @@ const BlogsPage = () => {
                     {blog.imageUrl && (
                       <div className="aspect-video w-full overflow-hidden">
                         <img
-                          src={blog.imageUrl || "/placeholder.svg"}
+                          src={blog.imageUrl || "/placeholder.svg?height=400&width=600"}
                           alt={blog.title}
                           className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
                         />
@@ -524,13 +612,30 @@ const BlogsPage = () => {
                       </div>
 
                       <div className="flex items-center justify-between w-full">
-                        <div className="flex items-center gap-2 text-muted-foreground">
-                          <Button variant="ghost" size="sm" className="h-8 px-2">
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 px-2"
+                            onClick={() => handleLikeBlog(blog.id)}
+                          >
                             <Heart className={`h-4 w-4 mr-1 ${blog.likes > 0 ? "fill-primary text-primary" : ""}`} />
                             <span>{blog.likes}</span>
                           </Button>
+                          <Button variant="ghost" size="sm" className="h-8 px-2">
+                            <MessageSquare className="h-4 w-4 mr-1" />
+                            <span>{blog.comments}</span>
+                          </Button>
+                          <Button variant="ghost" size="sm" className="h-8 px-2">
+                            <Share2 className="h-4 w-4" />
+                          </Button>
                         </div>
-                        <Button variant="ghost" size="sm" className="h-8 px-3">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 px-3"
+                          onClick={() => navigate(`/blogs/${blog.id}`)}
+                        >
                           Read more
                           <ArrowRight className="ml-2 h-4 w-4" />
                         </Button>
@@ -545,18 +650,25 @@ const BlogsPage = () => {
               <Search className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
               <h3 className="text-lg font-medium">No blog posts found</h3>
               <p className="text-muted-foreground mt-1 mb-4">
-                Try adjusting your search or filters to find what you're looking for.
+                {searchQuery || selectedCategory !== "All Categories" || selectedTag
+                  ? "Try adjusting your search or filters to find what you're looking for."
+                  : "Be the first to share your optimization use case with the community!"}
               </p>
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setSearchQuery("")
-                  setSelectedCategory("All Categories")
-                  setSelectedTag(null)
-                }}
-              >
-                Clear all filters
-              </Button>
+              {(searchQuery || selectedCategory !== "All Categories" || selectedTag) && (
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setSearchQuery("")
+                    setSelectedCategory("All Categories")
+                    setSelectedTag(null)
+                  }}
+                >
+                  Clear all filters
+                </Button>
+              )}
+              {!searchQuery && selectedCategory === "All Categories" && !selectedTag && isAuthenticated && (
+                <Button onClick={() => setShowCreateDialog(true)}>Create First Blog Post</Button>
+              )}
             </div>
           )}
         </div>

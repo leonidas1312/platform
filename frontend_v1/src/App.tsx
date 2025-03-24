@@ -5,8 +5,6 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { LazyMotion, domAnimation } from "framer-motion";
 import Index from "./pages/Index";
-import QubotOptimizers from "./pages/QubotOptimizers";
-import QubotOptDetail from "./pages/QubotOptDetail";
 import QubotProblems from "./pages/QubotProblems";
 import Community from "./pages/Community";
 import Documentation from "./pages/Documentation";
@@ -39,7 +37,7 @@ const App = () => (
               <Route path="/auth" element={<AuthPage />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/email-verify" element={<EmailVerify />} />
-              <Route path="/qubot-optimizers" element={<PublicReposPage />} />
+              <Route path="/qubots" element={<PublicReposPage />} />
               
 
               {/* Profile page with username in URL */}

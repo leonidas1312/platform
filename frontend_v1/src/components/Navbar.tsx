@@ -251,26 +251,17 @@ const Navbar = () => {
             transition={{ duration: 0.5, delay: 0.1 }}
             className="hidden md:flex items-center gap-1"
           >
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="h-9 gap-1 px-3">
-                  <FileCode className="w-4 h-4" />
-                  Qubots
-                  <ChevronDown className="w-3 h-3 opacity-50" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-56">
-                <DropdownMenuItem onClick={() => navigate("/qubot-optimizers")}>
-                  <Star className="w-4 h-4 mr-2" />
-                  Qubot optimizers
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => navigate("/qubot-problems")}>
-                  <Bookmark className="w-4 h-4 mr-2" />
-                  Qubot problems
-                </DropdownMenuItem>
-                
-              </DropdownMenuContent>
-            </DropdownMenu>
+            
+
+            <Button
+              variant="ghost"
+              size="sm"
+              className={`h-9 gap-1 px-3 ${location.pathname === "/qubots" ? "bg-muted" : ""}`}
+              onClick={() => navigate("/qubots")}
+            >
+              <BookOpen className="w-4 h-4" />
+              Qubots
+            </Button>
 
             <Button
               variant="ghost"
