@@ -221,8 +221,7 @@ export default function RepoPage() {
         // Load branches
         loadBranches(data.repo.owner.login, data.repo.name)
 
-        // Load all files for search functionality
-        loadAllFiles(data.repo.owner.login, data.repo.name, data.repo.default_branch || "main")
+        
       })
       .catch((err) => {
         setError(err.message || "Unknown error")
@@ -240,49 +239,6 @@ export default function RepoPage() {
       }
     } catch (error) {
       console.error("Failed to load branches:", error)
-    }
-  }
-
-  // Load all files in the repository for search functionality
-  const loadAllFiles = async (repoOwner: string, repoName: string, branch: string) => {
-    try {
-      // For demo purposes, we'll use a simplified approach
-      // In a real app, you might want to use a recursive function to get all files
-      const response = await fetch(
-        `http://localhost:4000/api/repos/${repoOwner}/${repoName}/git/trees/${branch}?recursive=1`,
-      )
-      if (response.ok) {
-        const data = await response.json()
-        if (data.tree) {
-          // Filter out directories and only keep files
-          const allFiles = data.tree
-            .filter((item: any) => item.type === "blob")
-            .map((item: any) => ({
-              name: item.path.split("/").pop(),
-              path: item.path,
-              type: "file",
-              sha: item.sha,
-              size: item.size,
-            }))
-
-          setAllRepoFiles(allFiles)
-          console.log("Loaded all files for search:", allFiles.length)
-        }
-      }
-    } catch (error) {
-      console.error("Failed to load all files:", error)
-
-      // For demo purposes, create some sample files
-      const sampleFiles = [
-        { name: "README.md", path: "README.md", type: "file", sha: "sample1", size: 1024 },
-        { name: "config.json", path: "config.json", type: "file", sha: "sample2", size: 512 },
-        { name: "main.py", path: "src/main.py", type: "file", sha: "sample3", size: 2048 },
-        { name: "utils.js", path: "src/utils/utils.js", type: "file", sha: "sample4", size: 1536 },
-        { name: "index.tsx", path: "src/components/index.tsx", type: "file", sha: "sample5", size: 3072 },
-        { name: "styles.css", path: "src/styles/styles.css", type: "file", sha: "sample6", size: 768 },
-      ]
-      setAllRepoFiles(sampleFiles)
-      console.log("Using sample files for search:", sampleFiles.length)
     }
   }
 
@@ -505,6 +461,75 @@ export default function RepoPage() {
       toast({
         title: "Error",
         description: err.message || "Failed to save file",
+        variant: "destructive",
+      })
+    } finally {
+      setEditorLoading(false)
+    }
+  }
+
+  // Add a handleDeleteFile function after the handleSaveFile function
+  const handleDeleteFile = async () => {
+    if (!selectedFile || !owner || !repoName || !selectedFileSha) return
+    try {
+      setEditorLoading(true)
+      const token = getUserToken()
+
+      const response = await fetch(`http://localhost:4000/api/repos/${owner}/${repoName}/contents/${selectedFile}`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `token ${token}`,
+        },
+        body: JSON.stringify({
+          message: `Delete ${selectedFile}`,
+          branch: currentBranch || repo?.default_branch || "main",
+          sha: selectedFileSha,
+        }),
+      })
+
+      if (!response.ok) {
+        const errData = await response.json()
+        throw new Error(errData.message || "Failed to delete file")
+      }
+
+      // Clear the selected file state
+      setSelectedFile(null)
+      setFileContent("")
+      setSelectedFileSha(null)
+
+      // Navigate back to the directory
+      const branch = currentBranch || repo?.default_branch || "main"
+      if (currentPath) {
+        navigate(`/${owner}/${repoName}/src/branch/${branch}/${currentPath}`)
+      } else {
+        navigate(`/${owner}/${repoName}/src/branch/${branch}`)
+      }
+
+      // Reload the directory contents
+      if (currentPath) {
+        const dirResponse = await fetch(
+          `http://localhost:4000/api/repos/${owner}/${repoName}/contents/${currentPath}?ref=${branch}`,
+          { headers: { Authorization: `token ${token}` } },
+        )
+        if (dirResponse.ok) {
+          const dirData = await dirResponse.json()
+          setFiles(enhanceFilesWithCommitData(dirData))
+        }
+      } else {
+        await reloadRepoData()
+      }
+
+      toast({
+        title: "Success",
+        description: "File deleted successfully!",
+      })
+    } catch (err: any) {
+      console.error(err)
+      setError(err.message || "Error deleting file")
+      toast({
+        title: "Error",
+        description: err.message || "Failed to delete file",
         variant: "destructive",
       })
     } finally {
@@ -1062,6 +1087,8 @@ export default function RepoPage() {
                     onGoToFile={handleGoToFile}
                     isLoading={loading}
                     allRepoFiles={allRepoFiles}
+                    repoOwner={owner}
+                    repoName={repoName}
                   />
                 ) : (
                   <div className="h-[calc(100vh-250px)] min-h-[600px]">
@@ -1075,6 +1102,7 @@ export default function RepoPage() {
                       onCancel={() => setIsEditing(false)}
                       onChange={setFileContent}
                       onBack={handleBackToFiles}
+                      onDelete={handleDeleteFile}
                       className="w-full h-full"
                     />
                   </div>

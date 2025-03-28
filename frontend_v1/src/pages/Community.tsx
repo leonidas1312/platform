@@ -76,7 +76,7 @@ const Community = () => {
 
   // Fetch current user and authentication status
   useEffect(() => {
-    const token = localStorage.getItem("token")
+    const token = localStorage.getItem("gitea_token")
     if (!token) {
       setIsAuthenticated(false)
       setIsLoading(false)
@@ -85,7 +85,7 @@ const Community = () => {
 
     const fetchCurrentUser = async () => {
       try {
-        const response = await fetch("/api/profile", {
+        const response = await fetch("http://localhost:4000/api/profile", {
           headers: {
             Authorization: `token ${token}`,
           },
@@ -120,22 +120,22 @@ const Community = () => {
     const fetchPosts = async () => {
       setIsLoading(true)
       try {
-        const token = localStorage.getItem("token")
+        const token = localStorage.getItem("gitea_token")
         const headers: HeadersInit = {}
 
         if (token) {
           headers["Authorization"] = `token ${token}`
         }
 
-        // This would be a real endpoint in your API
-        // For now, we'll simulate with a timeout
-        // const response = await fetch('/api/community/posts', { headers });
+        // CHANGED: Actually fetch from our new backend route
+        const response = await fetch("http://localhost:4000/api/community/posts", { headers })
 
-        // Simulate API delay
-        await new Promise((resolve) => setTimeout(resolve, 1000))
-
-        // Simulate empty posts initially
-        setPosts([])
+        if (!response.ok) {
+          throw new Error(`Failed to fetch posts: ${response.statusText}`)
+        }
+  
+        const data = await response.json() // This should be an array of posts
+        setPosts(data)
       } catch (error) {
         console.error("Error fetching posts:", error)
         toast({
@@ -156,7 +156,7 @@ const Community = () => {
     const fetchActiveUsers = async () => {
       setIsLoadingUsers(true)
       try {
-        const token = localStorage.getItem("token")
+        const token = localStorage.getItem("gitea_token")
         const headers: HeadersInit = {
           "Content-Type": "application/json",
         }
@@ -166,7 +166,7 @@ const Community = () => {
         }
 
         // Fetch users from Gitea
-        const response = await fetch("/api/public-repos", {
+        const response = await fetch("http://localhost:4000/api/public-repos", {
           headers,
         })
 
@@ -206,7 +206,7 @@ const Community = () => {
   // Handle post submission
   const handlePostSubmit = async () => {
     if (!postText.trim()) return
-
+  
     if (!isAuthenticated) {
       toast({
         title: "Authentication required",
@@ -215,53 +215,67 @@ const Community = () => {
       })
       return
     }
-
+  
     setIsPosting(true)
     try {
-      const token = localStorage.getItem("token")
-
-      // In a real implementation, you would send this to your backend
-      // const response = await fetch('/api/community/posts', {
-      //   method: 'POST',
-      //   headers: {
-      //     'Content-Type': 'application/json',
-      //     'Authorization': `token ${token}`
-      //   },
-      //   body: JSON.stringify({ content: postText })
-      // });
-
-      // Simulate API delay
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-
-      // Create a new post with the current user's information
-      if (currentUser) {
-        const newPost: Post = {
-          id: Date.now(),
-          content: postText,
-          author: currentUser,
-          created_at: new Date().toISOString(),
-          likes: 0,
-          comments: 0,
-          reposts: 0,
+      const token = localStorage.getItem("gitea_token")
+      if (!token) throw new Error("Missing token")
+  
+      // CHANGED: Actually POST to our new endpoint:
+      const response = await fetch("http://localhost:4000/api/community/posts", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `token ${token}`,
+        },
+        body: JSON.stringify({ content: postText }),
+      })
+  
+      if (!response.ok) {
+        const errData = await response.json()
+        throw new Error(errData.message || "Failed to create post.")
+      }
+  
+      // The server returns the newly created post (DB row).
+      const createdPost = await response.json()
+  
+      // We still need to shape it for the front-end
+      // Typically we'd re-fetch osts, or we can patch it in manually:all p
+      setPosts((prevPosts) => [
+        {
+          id: createdPost.id,
+          content: createdPost.content,
+          // For now, set the user info from the already known user
+          author: {
+            id: currentUser?.id ?? 0,
+            login: currentUser?.login ?? "",
+            full_name: currentUser?.full_name ?? "",
+            avatar_url: currentUser?.avatar_url ?? "",
+            email: currentUser?.email ?? "",
+          },
+          created_at: createdPost.created_at,
+          likes: createdPost.likes_count || 0,
+          comments: createdPost.comments_count || 0,
+          reposts: createdPost.reposts_count || 0,
           isLiked: false,
           isReposted: false,
           isBookmarked: false,
-        }
-
-        setPosts((prevPosts) => [newPost, ...prevPosts])
-        setPostText("")
-        setIsExpanded(false)
-
-        toast({
-          title: "Post shared!",
-          description: "Your post has been shared with the community",
-        })
-      }
+        },
+        ...prevPosts,
+      ])
+  
+      setPostText("")
+      setIsExpanded(false)
+  
+      toast({
+        title: "Post shared!",
+        description: "Your post has been shared with the community",
+      })
     } catch (error) {
       console.error("Error creating post:", error)
       toast({
         title: "Error",
-        description: "Failed to create your post. Please try again.",
+        description: String(error),
         variant: "destructive",
       })
     } finally {
@@ -788,53 +802,7 @@ const Community = () => {
             </div>
 
             <div className="w-full md:w-1/4 space-y-6">
-              {/* Active users card */}
-              <Card>
-                <CardHeader className="pb-3">
-                  <h3 className="font-medium flex items-center gap-2">
-                    <Users size={16} />
-                    Active Users
-                  </h3>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {isLoadingUsers ? (
-                    // Loading skeletons for users
-                    Array(4)
-                      .fill(0)
-                      .map((_, index) => (
-                        <div key={index} className="flex items-center gap-3">
-                          <Skeleton className="h-8 w-8 rounded-full" />
-                          <div>
-                            <Skeleton className="h-4 w-24 mb-1" />
-                            <Skeleton className="h-3 w-16" />
-                          </div>
-                        </div>
-                      ))
-                  ) : activeUsers.length > 0 ? (
-                    activeUsers.slice(0, 5).map((user) => (
-                      <div key={user.id} className="flex items-center gap-3">
-                        <Avatar>
-                          <AvatarImage src={user.avatar_url} alt={user.full_name} />
-                          <AvatarFallback>{user.full_name.charAt(0)}</AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <p className="text-sm font-medium">{user.full_name}</p>
-                          <p className="text-xs text-foreground/60">@{user.login}</p>
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <p className="text-sm text-muted-foreground">No active users found</p>
-                  )}
-                </CardContent>
-                {activeUsers.length > 0 && (
-                  <CardFooter>
-                    <Button variant="ghost" size="sm" className="w-full">
-                      View All Users
-                    </Button>
-                  </CardFooter>
-                )}
-              </Card>
+              
 
               
 

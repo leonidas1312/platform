@@ -31,6 +31,9 @@ interface FileExplorerProps {
   onNavigateToParent?: () => void
   onGoToFile?: (path: any) => void
   isLoading?: boolean
+  allRepoFiles?: any[]
+  repoOwner: string
+  repoName: string
 }
 
 interface FileRowProps {
@@ -89,23 +92,11 @@ function FileRow({ name, type, lastCommit, timeAgo, onClick, size }: FileRowProp
     <tr onClick={onClick} className="cursor-pointer hover:bg-muted/50 transition-colors">
       <td className="py-2 px-4">
         <div className="flex items-center gap-2">
-          {type === "dir" ? (
-            <Folder className="h-4 w-4 text-muted-foreground" />
-          ) : name.endsWith(".md") ? (
-            <FileText className="h-4 w-4 text-blue-500" />
-          ) : name.endsWith(".json") ? (
-            <FileJson className="h-4 w-4 text-yellow-500" />
-          ) : name.endsWith(".py") ? (
-            <FileCode className="h-4 w-4 text-green-500" />
-          ) : name.endsWith(".js") || name.endsWith(".ts") || name.endsWith(".tsx") ? (
-            <FileCode className="h-4 w-4 text-yellow-400" />
-          ) : (
-            <FileCode className="h-4 w-4 text-muted-foreground" />
-          )}
+          {type === "dir" ? <Folder className="h-4 w-4 text-muted-foreground" /> : getFileIcon(name)}
           <span className={type === "dir" ? "font-medium" : ""}>{name}</span>
         </div>
       </td>
-      <td className="py-2 px-4 hidden md:table-cell text-sm text-muted-foreground">{lastCommit}</td>
+      <td className="py-2 px-4 hidden md:table-cell text-sm text-muted-foreground">{lastCommit || "No commit data"}</td>
       <td className="py-2 px-4 text-right text-sm text-muted-foreground">
         {type === "dir" ? "-" : formatFileSize(size)}
       </td>
@@ -124,13 +115,19 @@ export default function FileExplorer({
   onNavigateToParent,
   onGoToFile,
   isLoading = false,
-  allRepoFiles = [], // Add this prop to receive all files for search
-}: FileExplorerProps & { isLoading?: boolean; allRepoFiles?: any[] }) {
+  allRepoFiles = [],
+  repoOwner,
+  repoName,
+}: FileExplorerProps) {
   // Add state for search
   const [isSearchExpanded, setIsSearchExpanded] = useState(false)
   const [searchTerm, setSearchTerm] = useState("")
   const [searchResults, setSearchResults] = useState<SearchResult[]>([])
   const searchInputRef = useRef<HTMLInputElement>(null)
+
+  // Add state for commit history
+  const [commitHistory, setCommitHistory] = useState<any>(null)
+  const [isCommitLoading, setIsCommitLoading] = useState(false)
 
   // Sort files: directories first, then files alphabetically
   const sortedFiles = [...files].sort((a, b) => {
@@ -145,6 +142,41 @@ export default function FileExplorer({
       searchInputRef.current.focus()
     }
   }, [isSearchExpanded])
+
+  // Fetch commit history
+  useEffect(() => {
+    const fetchCommitHistory = async () => {
+      if (!repoOwner || !repoName) return
+
+      setIsCommitLoading(true)
+      try {
+        const token = localStorage.getItem("gitea_token")
+        const response = await fetch(`http://localhost:4000/api/repos/${repoOwner}/${repoName}/commits?limit=1`, {
+          headers: {
+            Authorization: `token ${token}`,
+          },
+        })
+
+        if (!response.ok) {
+          console.error(`Error fetching commits: ${response.status} ${response.statusText}`)
+          const errorText = await response.text()
+          console.error("Error response:", errorText)
+          setCommitHistory(null)
+          return
+        }
+
+        const data = await response.json()
+        setCommitHistory(data.length > 0 ? data[0] : null)
+      } catch (error) {
+        console.error("Error fetching commit history:", error)
+        setCommitHistory(null)
+      } finally {
+        setIsCommitLoading(false)
+      }
+    }
+    
+    fetchCommitHistory()
+  }, [repoOwner, repoName])
 
   // Handle search
   const handleSearch = (term: string) => {
@@ -227,19 +259,7 @@ export default function FileExplorer({
             </Button>
           )}
 
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="ghost" size="sm" className="text-xs text-muted-foreground">
-                  <GitCommit className="mr-1 h-3 w-3" />
-                  <span className="hidden sm:inline">Latest commit</span>
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>View commit history</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+          
         </div>
         <div className="flex gap-2">
           {isSearchExpanded ? (
@@ -324,12 +344,22 @@ export default function FileExplorer({
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <History className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm">
-                <span className="font-medium">Last commit</span> 2 days ago
-              </span>
+              {isCommitLoading ? (
+                <span className="text-sm">Loading commit history...</span>
+              ) : commitHistory ? (
+                <span className="text-sm">
+                  <span className="font-medium">{commitHistory.commit.message}</span>
+                  {" by "}
+                  {commitHistory.author?.login || commitHistory.commit.author.name}
+                </span>
+              ) : (
+                <span className="text-sm">No commit history available</span>
+              )}
             </div>
             <div className="text-sm text-muted-foreground">
-              <code className="px-1 py-0.5 bg-muted rounded text-xs">a1b2c3d</code>
+              {commitHistory && (
+                <code className="px-1 py-0.5 bg-muted rounded text-xs">{commitHistory.sha.substring(0, 7)}</code>
+              )}
             </div>
           </div>
         </CardHeader>
@@ -374,6 +404,6 @@ export default function FileExplorer({
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }
 

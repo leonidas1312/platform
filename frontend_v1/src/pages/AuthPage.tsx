@@ -16,6 +16,7 @@ const AuthPage = () => {
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
+
     e.preventDefault();
     setLoading(true);
     const endpoint = isLogin ? "login" : "register";
@@ -33,7 +34,7 @@ const AuthPage = () => {
       if (res.ok) {
         if (isLogin) {
           if (data.token) {
-            localStorage.setItem("gitea_token", data.token);
+            localStorage.setItem("gitea_token", "123");
           }
           toast({ title: "Success!", description: "Login successful!" });
           navigate("/profile");

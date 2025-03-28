@@ -4,8 +4,16 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/componen
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
-import { Loader2, Copy, Download, Edit, FileCode, FileText, Check, Eye, ArrowLeft } from "lucide-react"
+import { Loader2, Copy, Download, Edit, FileCode, FileText, Check, Eye, ArrowLeft, Trash2 } from "lucide-react"
 import ReactMarkdown from "react-markdown"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
 
 interface CodeViewerProps {
   fileName: string
@@ -17,6 +25,7 @@ interface CodeViewerProps {
   onCancel: () => void
   onChange: (content: string) => void
   onBack: () => void
+  onDelete?: () => void
   className?: string
 }
 
@@ -73,6 +82,7 @@ export default function CodeViewer({
   onCancel,
   onChange,
   onBack,
+  onDelete,
   className = "",
 }: CodeViewerProps) {
   const [copied, setCopied] = useState(false)
@@ -145,6 +155,30 @@ export default function CodeViewer({
                 <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={handleDownload}>
                   <Download className="h-4 w-4" />
                 </Button>
+                <Dialog>
+                    <DialogTrigger asChild>
+                      <Button variant="ghost" size="sm" className="gap-1">
+                        <Trash2 className="h-4 w-4" />
+                        <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">Delete File</span>
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Delete File</DialogTitle>
+                        <DialogDescription>
+                          Are you sure you want to delete this file? This action cannot be undone.
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="flex justify-end gap-2 mt-4">
+                        <Button variant="outline" onClick={() => {}}>
+                          Cancel
+                        </Button>
+                        <Button variant="destructive" onClick={onDelete}>
+                          Delete
+                        </Button>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
               </>
             )}
           </div>
@@ -172,25 +206,7 @@ export default function CodeViewer({
           </div>
         )}
       </CardContent>
-      {fileName && (
-        <CardFooter className="flex justify-end gap-2 py-2 px-4 border-t">
-          {!isEditing ? (
-            <Button onClick={onEdit} size="sm" className="h-8">
-              <Edit className="mr-2 h-4 w-4" />
-              Edit
-            </Button>
-          ) : (
-            <>
-              <Button onClick={onSave} size="sm" className="h-8">
-                Save
-              </Button>
-              <Button onClick={onCancel} variant="outline" size="sm" className="h-8">
-                Cancel
-              </Button>
-            </>
-          )}
-        </CardFooter>
-      )}
+      
     </Card>
   )
 }

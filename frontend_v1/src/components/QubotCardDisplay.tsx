@@ -2,13 +2,10 @@
 
 import ReactMarkdown from "react-markdown"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { FileText } from "lucide-react"
+import { FileText, FolderOpen } from "lucide-react"
 import remarkGfm from "remark-gfm"
 import rehypeRaw from "rehype-raw"
-import { Prism as SyntaxHighlighter } from "react-syntax-highlighter"
-import { oneDark } from "react-syntax-highlighter/dist/cjs/styles/prism"
 import { Button } from "@/components/ui/button"
-import { FolderOpen } from "lucide-react"
 
 interface QubotCardDisplayProps {
   readme: string
@@ -39,11 +36,16 @@ export default function QubotCardDisplay({ readme, onGoToFile }: QubotCardDispla
                   code({ className, children, ...props }) {
                     const match = /language-(\w+)/.exec(className || "")
                     return match ? (
-                      <SyntaxHighlighter style={oneDark} language={match[1]} PreTag="div" {...props}>
-                        {String(children).replace(/\n$/, "")}
-                      </SyntaxHighlighter>
+                      <div className="relative rounded-md overflow-hidden my-4">
+                        <div className="bg-muted text-xs px-3 py-1 border-b border-border">{match[1]}</div>
+                        <pre className="p-4 overflow-x-auto bg-muted/50 text-sm">
+                          <code className={className} {...props}>
+                            {String(children).replace(/\n$/, "")}
+                          </code>
+                        </pre>
+                      </div>
                     ) : (
-                      <code className={className} {...props}>
+                      <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm" {...props}>
                         {children}
                       </code>
                     )
