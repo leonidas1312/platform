@@ -1,15 +1,23 @@
 const fetch = (...args) => import("node-fetch").then(({ default: fetch }) => fetch(...args))
 const express = require("express")
+const session = require('express-session');
 const cors = require("cors")
 const crypto = require("crypto")
 const knex = require("knex")(require("./DB_postgres/knexfile").production)
 const nodemailer = require("nodemailer")
 require("dotenv").config()
 
-
 const app = express()
 app.use(express.json())
 app.use(cors())
+
+// Session Middleware
+app.use(session({
+  secret: 'RwsikosPromaxxwnas',
+  resave: false,
+  saveUninitialized: false,
+  cookie: { secure: false, httpOnly: true, maxAge: 6000000 } // 100 min expiry
+}));
 
 const GITEA_URL = process.env.GITEA_URL
 let ADMIN_TOKEN = "not_set"
@@ -169,20 +177,29 @@ app.post("/api/login", async (req, res) => {
   const { username, password } = req.body;
 
   try {
-    // 1) Look up user in your local database
-    const existingUser = await knex("users").where({ username }).first();
-    if (!existingUser) {
-      return res.status(401).json({ message: "Invalid username or password." });
+    const createTokenRes = await fetch(`${GITEA_URL}/api/v1/users/${username}/tokens`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Basic " + Buffer.from(`${username}:${password}`).toString("base64")
+      },
+      body: JSON.stringify({
+        name: Date.now().toString(),
+        scopes: ["all"]
+      })
+    });
+
+    if (!createTokenRes.ok) {
+      const createTokenErr = await createTokenRes.json();
+      console.error("Failed to fetch Gitea profile:", createTokenErr);
+      return res.status(createTokenRes.status).json({
+        message: createTokenErr.message.split("[")[0] || "Failed to fetch user profile from Gitea.",
+      });
     }
 
-    // 2) Check if the password matches the hashed password in the DB
-    
-    // 3) Retrieve the user's Gitea token from the DB
-    const userToken = existingUser.gitea_token;
-    if (!userToken) {
-      // Possibly handle the case where the user does not have a token yet
-      return res.status(400).json({ message: "No Gitea token found for this user." });
-    }
+    const createdToken = await createTokenRes.json();
+
+    const userToken = createdToken['sha1'];
 
     // 4) Use the Gitea token to fetch the user's Gitea profile
     const profileRes = await fetch(`${GITEA_URL}/api/v1/user`, {
@@ -202,16 +219,16 @@ app.post("/api/login", async (req, res) => {
 
     const userProfile = await profileRes.json();
 
-    // 5) (Optional) Create a server session or sign a JWT
-    //    Example with express-session:
-    req.session.userId = existingUser.id; 
-
+    req.session.user_data = {
+      user: userProfile,
+      token: userToken
+    };
+    res.cookie("user_data", req.session.user_data)
     // 6) Return whatever data you want the frontend to have
     return res.json({
       message: "Login successful",
       user: userProfile,
-      // ...plus any local user details you want to send
-      id: existingUser.id,
+      token: userToken
     });
   } catch (err) {
     console.error("Login error:", err);
@@ -222,22 +239,14 @@ app.post("/api/login", async (req, res) => {
 
 // This route returns user information for the profile page
 app.get("/api/profile", async (req, res) => {
-  const userId = req.session?.userId // if using sessions
-
-  if (!userId) {
-    return res.status(401).json({ message: "Not logged in." })
+  const token = req.headers.authorization?.split(" ")[1]; // Get token from header
+  if (! token) {
+    return res.status(401).json({ message: "Unrecognised request." })
   }
-
-  // 2) Fetch that user from 'users' table
-  const user = await knex("users").where({ id: userId }).first()
-  if (!user || !user.gitea_token) {
-    return res.status(401).json({ message: "No Gitea token found for user." })
-  }
-
 
   try {
     const giteaRes = await fetch(`${GITEA_URL}/api/v1/user`, {
-      headers: { Authorization: `token ${user.gitea_token}` },
+      headers: { Authorization: `token ${token}` },
     })
 
     if (!giteaRes.ok) {
@@ -256,23 +265,16 @@ app.get("/api/profile", async (req, res) => {
 // Get user profile by username
 app.get("/api/users/:username", async (req, res) => {
   const { username } = req.params
-  // 1) Identify the user from session or JWT
-  const userId = req.session?.userId // if using sessions
-  // const userId = getUserIdFromJwt(req) // if using JWT
 
-  if (!userId) {
+  if (!req.session.user_data) {
     return res.status(401).json({ message: "Not logged in." })
   }
 
-  // 2) Fetch that user from 'users' table
-  const user = await knex("users").where({ id: userId }).first()
-  if (!user || !user.gitea_token) {
-    return res.status(401).json({ message: "No Gitea token found for user." })
-  }
+  const token = req.session.user_data['token']
 
   try {
     const giteaRes = await fetch(`${GITEA_URL}/api/v1/users/${username}`, {
-      headers: { Authorization: `token ${user.gitea_token}` },
+      headers: { Authorization: `token ${token}` },
     })
 
     if (!giteaRes.ok) {
@@ -291,23 +293,15 @@ app.get("/api/users/:username", async (req, res) => {
 // Get user repositories by username
 app.get("/api/users/:username/repos", async (req, res) => {
   const { username } = req.params
-  // 1) Identify the user from session or JWT
-  const userId = req.session?.userId // if using sessions
-  // const userId = getUserIdFromJwt(req) // if using JWT
 
-  if (!userId) {
-    return res.status(401).json({ message: "Not logged in." })
-  }
-
-  // 2) Fetch that user from 'users' table
-  const user = await knex("users").where({ id: userId }).first()
-  if (!user || !user.gitea_token) {
-    return res.status(401).json({ message: "No Gitea token found for user." })
+  const token = req.headers.authorization?.split(" ")[1]; // Get token from header
+  if (! token) {
+    return res.status(401).json({ message: "Unrecognised request." })
   }
 
   try {
     const giteaRes = await fetch(`${GITEA_URL}/api/v1/users/${username}/repos`, {
-      headers: { Authorization: `token ${user.gitea_token}` },
+      headers: { Authorization: `token ${token}` },
     })
 
     if (!giteaRes.ok) {
@@ -325,19 +319,11 @@ app.get("/api/users/:username/repos", async (req, res) => {
 
 // PATCH /api/profile
 app.patch("/api/profile", async (req, res) => {
-  // 1) Identify the user from session or JWT
-  const userId = req.session?.userId // if using sessions
-  // const userId = getUserIdFromJwt(req) // if using JWT
-
-  if (!userId) {
-    return res.status(401).json({ message: "Not logged in." })
+  const token = req.headers.authorization?.split(" ")[1]; // Get token from header
+  if (! token) {
+    return res.status(401).json({ message: "Unrecognised request." })
   }
 
-  // 2) Fetch that user from 'users' table
-  const user = await knex("users").where({ id: userId }).first()
-  if (!user || !user.gitea_token) {
-    return res.status(401).json({ message: "No Gitea token found for user." })
-  }
   // Extract only the fields that the user wants to update.
   // The frontend may send only the changed fields.
   const { full_name, location, website, description } = req.body
@@ -376,7 +362,7 @@ app.patch("/api/profile", async (req, res) => {
       method: "PATCH",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `token ${user.gitea_token}`,
+        Authorization: `token ${token}`,
       },
       body: JSON.stringify(payload),
     })
@@ -404,24 +390,15 @@ app.patch("/api/profile", async (req, res) => {
 // This route returns a user's repos in Gitea
 app.get("/api/user-repos", async (req, res) => {
   try {
-    // 1) Identify the user from session or JWT
-    const userId = req.session?.userId // if using sessions
-    // const userId = getUserIdFromJwt(req) // if using JWT
-
-    if (!userId) {
-      return res.status(401).json({ message: "Not logged in." })
-    }
-
-    // 2) Fetch that user from 'users' table
-    const user = await knex("users").where({ id: userId }).first()
-    if (!user || !user.gitea_token) {
-      return res.status(401).json({ message: "No Gitea token found for user." })
+    const token = req.headers.authorization?.split(" ")[1]; // Get token from header
+    if (! token) {
+      return res.status(401).json({ message: "Unrecognised request." })
     }
 
     // 2) (Optional) figure out the user's username by calling /api/v1/user
     //    Because we need their actual username for the next step
     const userRes = await fetch(`${GITEA_URL}/api/v1/user`, {
-      headers: { Authorization: `token ${user.gitea_token}` },
+      headers: { Authorization: `token ${token}` },
     })
 
     if (!userRes.ok) {
@@ -436,7 +413,7 @@ app.get("/api/user-repos", async (req, res) => {
     //    For Gitea, you can call GET /users/:username/repos
     //    or if the user is the same as the token, GET /user/repos might also work
     const reposRes = await fetch(`${GITEA_URL}/api/v1/users/${userData.login}/repos`, {
-      headers: { Authorization: `token ${user.gitea_token}` },
+      headers: { Authorization: `token ${token}` },
     })
 
     if (!reposRes.ok) {
@@ -500,18 +477,10 @@ app.get("/api/public-repos", async (req, res) => {
 // POST /api/create-repo
 app.post("/api/create-repo", async (req, res) => {
   const { name, license, isPrivate } = req.body
-  // 1) Identify the user from session or JWT
-  const userId = req.session?.userId // if using sessions
-  // const userId = getUserIdFromJwt(req) // if using JWT
 
-  if (!userId) {
-    return res.status(401).json({ message: "Not logged in." })
-  }
-
-  // 2) Fetch that user from 'users' table
-  const user = await knex("users").where({ id: userId }).first()
-  if (!user || !user.gitea_token) {
-    return res.status(401).json({ message: "No Gitea token found for user." })
+  const token = req.headers.authorization?.split(" ")[1]; // Get token from header
+  if (! token) {
+    return res.status(401).json({ message: "Unrecognised request." })
   }
 
   try {
@@ -521,7 +490,7 @@ app.post("/api/create-repo", async (req, res) => {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `token ${user.gitea_token}`,
+        Authorization: `token ${token}`,
       },
       body: JSON.stringify({
         name, // required
@@ -651,14 +620,9 @@ app.put("/api/repos/:owner/:repoName/contents/:filepath(*)", async (req, res) =>
   const userId = req.session?.userId // if using sessions
   // const userId = getUserIdFromJwt(req) // if using JWT
 
-  if (!userId) {
-    return res.status(401).json({ message: "Not logged in." })
-  }
-
-  // 2) Fetch that user from 'users' table
-  const user = await knex("users").where({ id: userId }).first()
-  if (!user || !user.gitea_token) {
-    return res.status(401).json({ message: "No Gitea token found for user." })
+  const token = req.headers.authorization?.split(" ")[1]; // Get token from header
+  if (! token) {
+    return res.status(401).json({ message: "Unrecognised request." })
   }
 
   try {
@@ -678,7 +642,7 @@ app.put("/api/repos/:owner/:repoName/contents/:filepath(*)", async (req, res) =>
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `token ${user.gitea_token}`,
+        Authorization: `token ${token}`,
       },
       body: JSON.stringify(payload),
     })
@@ -736,14 +700,9 @@ app.post("/api/repos/:owner/:repo/contents/:filepath(*)", async (req, res) => {
   const userId = req.session?.userId // if using sessions
   // const userId = getUserIdFromJwt(req) // if using JWT
 
-  if (!userId) {
-    return res.status(401).json({ message: "Not logged in." })
-  }
-
-  // 2) Fetch that user from 'users' table
-  const user = await knex("users").where({ id: userId }).first()
-  if (!user || !user.gitea_token) {
-    return res.status(401).json({ message: "No Gitea token found for user." })
+  const token = req.headers.authorization?.split(" ")[1]; // Get token from header
+  if (! token) {
+    return res.status(401).json({ message: "Unrecognised request." })
   }
 
   try {
@@ -754,7 +713,7 @@ app.post("/api/repos/:owner/:repo/contents/:filepath(*)", async (req, res) => {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `token ${user.gitea_token}`,
+        Authorization: `token ${token}`,
       },
     })
 
@@ -861,14 +820,9 @@ app.post("/api/repos/:owner/:repo/contents", async (req, res) => {
   const userId = req.session?.userId // if using sessions
   // const userId = getUserIdFromJwt(req) // if using JWT
 
-  if (!userId) {
-    return res.status(401).json({ message: "Not logged in." })
-  }
-
-  // 2) Fetch that user from 'users' table
-  const user = await knex("users").where({ id: userId }).first()
-  if (!user || !user.gitea_token) {
-    return res.status(401).json({ message: "No Gitea token found for user." })
+  const token = req.headers.authorization?.split(" ")[1]; // Get token from header
+  if (! token) {
+    return res.status(401).json({ message: "Unrecognised request." })
   }
 
   try {
@@ -897,7 +851,7 @@ app.post("/api/repos/:owner/:repo/contents", async (req, res) => {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `token ${user.gitea_token}`,
+        Authorization: `token ${token}`,
       },
       body: JSON.stringify(payload),
     })
@@ -923,15 +877,11 @@ app.get("/api/repos/:owner/:repoName/commits", async (req, res) => {
   const userId = req.session?.userId // if using sessions
   // const userId = getUserIdFromJwt(req) // if using JWT
 
-  if (!userId) {
+  if (!req.session.user_data) {
     return res.status(401).json({ message: "Not logged in." })
   }
 
-  // 2) Fetch that user from 'users' table
-  const user = await knex("users").where({ id: userId }).first()
-  if (!user || !user.gitea_token) {
-    return res.status(401).json({ message: "No Gitea token found for user." })
-  }
+  const token = req.session.user_data['token']
   
   try {
     // Construct the URL for Gitea's commits API
@@ -952,7 +902,7 @@ app.get("/api/repos/:owner/:repoName/commits", async (req, res) => {
 
     const commitsRes = await fetch(commitsUrl, {
       headers: {
-        Authorization: `token ${user.gitea_token}`,
+        Authorization: `token ${token}`,
         Accept: "application/json",
       },
     })
@@ -997,14 +947,9 @@ app.delete("/api/repos/:owner/:repo/contents/:filepath(*)", async (req, res) => 
   const userId = req.session?.userId // if using sessions
   // const userId = getUserIdFromJwt(req) // if using JWT
 
-  if (!userId) {
-    return res.status(401).json({ message: "Not logged in." })
-  }
-
-  // 2) Fetch that user from 'users' table
-  const user = await knex("users").where({ id: userId }).first()
-  if (!user || !user.gitea_token) {
-    return res.status(401).json({ message: "No Gitea token found for user." })
+  const token = req.headers.authorization?.split(" ")[1]; // Get token from header
+  if (! token) {
+    return res.status(401).json({ message: "Unrecognised request." })
   }
 
   try {
@@ -1020,7 +965,7 @@ app.delete("/api/repos/:owner/:repo/contents/:filepath(*)", async (req, res) => 
       method: "DELETE",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `token ${user.gitea_token}`,
+        Authorization: `token ${token}`,
       },
       body: JSON.stringify(payload),
     })
@@ -1045,15 +990,11 @@ app.post("/api/community/posts", async (req, res) => {
     const userId = req.session?.userId // if using sessions
     // const userId = getUserIdFromJwt(req) // if using JWT
 
-    if (!userId) {
-      return res.status(401).json({ message: "Not logged in." })
+    const token = req.headers.authorization?.split(" ")[1]; // Get token from header
+    if (! token) {
+      return res.status(401).json({ message: "Unrecognised request." })
     }
-
-    // 2) Fetch that user from 'users' table
-    const user = await knex("users").where({ id: userId }).first()
-    if (!user || !user.gitea_token) {
-      return res.status(401).json({ message: "No Gitea token found for user." })
-    }
+    
     const { content } = req.body
 
     if (!content || !content.trim()) {
@@ -1062,7 +1003,7 @@ app.post("/api/community/posts", async (req, res) => {
 
     // 1) Get user info from Gitea to know who is creating the post
     const userRes = await fetch(`${GITEA_URL}/api/v1/user`, {
-      headers: { Authorization: `token ${user.gitea_token}` },
+      headers: { Authorization: `token ${token}` },
     })
 
     if (!userRes.ok) {

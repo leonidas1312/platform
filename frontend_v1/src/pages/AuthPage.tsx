@@ -34,7 +34,7 @@ const AuthPage = () => {
       if (res.ok) {
         if (isLogin) {
           if (data.token) {
-            localStorage.setItem("gitea_token", "123");
+            localStorage.setItem("gitea_token", data.token);
           }
           toast({ title: "Success!", description: "Login successful!" });
           navigate("/profile");
