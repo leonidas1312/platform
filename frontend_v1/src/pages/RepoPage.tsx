@@ -327,8 +327,31 @@ export default function RepoPage() {
   }
 
   // Qubot Card Handlers
-  const handleCreateQubotCardClick = () => {
-    setShowCreateForm(true)
+  const toggleStar = async () => {
+    console.log("test")
+    if (!owner || !repoName) return
+    try {
+      const starRes = await fetch(
+        `http://localhost:4000/api/toggleStar/${owner}/${repoName}`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `token ${getUserToken()}`,
+          },
+        },
+      )
+
+      if (starRes.ok) {
+        console.log("starRes OK")
+      } else {
+        console.log(`Error starRes, status: ${starRes.status}`)
+      }
+    } catch (err) {
+      console.error("Error toggling star state:", err)
+    } 
+    // finally {
+    //   setEditorLoading(false)
+    // }
   }
 
   const handleSaveQubotCard = async (formData: any) => {
@@ -798,9 +821,10 @@ export default function RepoPage() {
               {config?.description || repo.description || "No description provided."}
             </p>
             <div className="flex gap-2 items-center ml-auto">
-              <Button variant="outline" size="sm" className="h-8">
+              <Button 
+                onClick={() => {toggleStar()}} variant="outline" size="sm" className="h-8">
                 <Star className="mr-1 h-4 w-4" />
-                Star
+                TsiaoStarr
                 <Badge variant="secondary" className="ml-1 rounded-sm px-1">
                   {repo.stars_count}
                 </Badge>

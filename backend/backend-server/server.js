@@ -9,7 +9,17 @@ require("dotenv").config()
 
 const app = express()
 app.use(express.json())
-app.use(cors())
+
+app.use(cors({
+  origin: (origin, callback) => {
+      if (!origin) return callback(null, true)
+      if (origin.startsWith("http://localhost") || origin.startsWith("http://127.0.0.1")) {
+          return callback(null, true)
+      }
+      return callback(new Error("Not allowed by CORS"))
+  },
+  credentials: true
+}))
 
 // Session Middleware
 app.use(session({
@@ -266,11 +276,10 @@ app.get("/api/profile", async (req, res) => {
 app.get("/api/users/:username", async (req, res) => {
   const { username } = req.params
 
-  if (!req.session.user_data) {
+  const token = req.headers.authorization?.split(" ")[1]; // Get token from header
+  if (! token) {
     return res.status(401).json({ message: "Not logged in." })
   }
-
-  const token = req.session.user_data['token']
 
   try {
     const giteaRes = await fetch(`${GITEA_URL}/api/v1/users/${username}`, {
@@ -616,10 +625,6 @@ app.put("/api/repos/:owner/:repoName/contents/:filepath(*)", async (req, res) =>
   const { owner, repoName, filepath } = req.params
   const { content, message, branch, sha } = req.body
 
-  // 1) Identify the user from session or JWT
-  const userId = req.session?.userId // if using sessions
-  // const userId = getUserIdFromJwt(req) // if using JWT
-
   const token = req.headers.authorization?.split(" ")[1]; // Get token from header
   if (! token) {
     return res.status(401).json({ message: "Unrecognised request." })
@@ -696,10 +701,6 @@ app.post("/api/repos/:owner/:repo/contents/:filepath(*)", async (req, res) => {
 
   const base64Content = Buffer.from(content, "utf8").toString("base64");
 
-  // 1) Identify the user from session or JWT
-  const userId = req.session?.userId // if using sessions
-  // const userId = getUserIdFromJwt(req) // if using JWT
-
   const token = req.headers.authorization?.split(" ")[1]; // Get token from header
   if (! token) {
     return res.status(401).json({ message: "Unrecognised request." })
@@ -754,7 +755,7 @@ app.post("/api/repos/:owner/:repo/contents/:filepath(*)", async (req, res) => {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `token ${userToken}`,
+          Authorization: `token ${token}`,
         },
         body: JSON.stringify(updatePayload),
       })
@@ -778,7 +779,7 @@ app.post("/api/repos/:owner/:repo/contents/:filepath(*)", async (req, res) => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `token ${user.gitea_token}`,
+          Authorization: `token ${token}`,
         },
         body: JSON.stringify(payload),
       })
@@ -815,10 +816,6 @@ app.post("/api/repos/:owner/:repo/contents", async (req, res) => {
   if (!files || !Array.isArray(files) || files.length === 0) {
     return res.status(400).json({ message: "Files array is required" })
   }
-
-  // 1) Identify the user from session or JWT
-  const userId = req.session?.userId // if using sessions
-  // const userId = getUserIdFromJwt(req) // if using JWT
 
   const token = req.headers.authorization?.split(" ")[1]; // Get token from header
   if (! token) {
@@ -873,15 +870,11 @@ app.post("/api/repos/:owner/:repo/contents", async (req, res) => {
 app.get("/api/repos/:owner/:repoName/commits", async (req, res) => {
   const { owner, repoName } = req.params
   const { path, limit = 10, page = 1 } = req.query
-  // 1) Identify the user from session or JWT
-  const userId = req.session?.userId // if using sessions
-  // const userId = getUserIdFromJwt(req) // if using JWT
 
-  if (!req.session.user_data) {
+  const token = req.headers.authorization?.split(" ")[1]; // Get token from header
+  if (! token) {
     return res.status(401).json({ message: "Not logged in." })
   }
-
-  const token = req.session.user_data['token']
   
   try {
     // Construct the URL for Gitea's commits API
@@ -943,10 +936,6 @@ app.delete("/api/repos/:owner/:repo/contents/:filepath(*)", async (req, res) => 
     return res.status(400).json({ message: "SHA is required for file deletion" })
   }
 
-  // 1) Identify the user from session or JWT
-  const userId = req.session?.userId // if using sessions
-  // const userId = getUserIdFromJwt(req) // if using JWT
-
   const token = req.headers.authorization?.split(" ")[1]; // Get token from header
   if (! token) {
     return res.status(401).json({ message: "Unrecognised request." })
@@ -986,10 +975,6 @@ app.delete("/api/repos/:owner/:repo/contents/:filepath(*)", async (req, res) => 
 // Create a new post
 app.post("/api/community/posts", async (req, res) => {
   try {
-    // 1) Identify the user from session or JWT
-    const userId = req.session?.userId // if using sessions
-    // const userId = getUserIdFromJwt(req) // if using JWT
-
     const token = req.headers.authorization?.split(" ")[1]; // Get token from header
     if (! token) {
       return res.status(401).json({ message: "Unrecognised request." })
@@ -1101,6 +1086,41 @@ app.get("/api/community/posts", async (req, res) => {
   }
 })
 
+// Modify multiple files in a repository (POST)
+app.post("/api/toggleStar/:owner/:repo", async (req, res) => {
+  const { owner, repo } = req.params
+  const token = req.headers.authorization?.split(" ")[1]; // Get token from header
+  if (! token) {
+    return res.status(401).json({ message: "Unrecognised request." })
+  }
+
+  try {
+    // 4) Use the Gitea token to fetch the user's Gitea profile
+    const checkStarUrl = `${GITEA_URL}/api/v1/user/starred/${owner}/${repo}`
+    const starredRes = await fetch(checkStarUrl, {
+      method: "GET",
+      headers: {
+        Authorization: `token ${token}`,
+      },
+    });
+
+    const isStarred = await starredRes.status === 204;
+    
+    const toggleRes = await fetch(checkStarUrl, {
+      method: isStarred ? "DELETE" : "PUT",
+      headers: {
+        Authorization: `token ${token}`,
+      },
+    });
+    
+    
+    return res.status(toggleRes.status).json({ message: "Toggled star." })
+
+  } catch (err) {
+    console.error("Error modifying files:", err)
+    return res.status(500).json({ message: "Internal server error" })
+  }
+})
 
 
 app.listen(4000, () => console.log("Backend running at port 4000"))
