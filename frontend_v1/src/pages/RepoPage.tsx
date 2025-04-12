@@ -1,13 +1,15 @@
 "use client"
 
+import { DialogFooter } from "@/components/ui/dialog"
+
 import { useEffect, useState, useRef } from "react"
 import { useParams, useNavigate, useLocation } from "react-router-dom"
 import Layout from "../components/Layout"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
-import { Book, Code, Copy, FileText, GitBranch, Loader2, Star, MoreVertical, GitFork, Edit } from "lucide-react"
+import { Book, Code, Copy, FileText, GitBranch, Loader2, Star, MoreVertical, GitFork, Plus, Trash2 } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import {
@@ -19,6 +21,9 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
+import { Edit } from "lucide-react"
+import { Textarea } from "@/components/ui/textarea"
+import { Label } from "@/components/ui/label"
 
 import QubotCardForm from "@/components/CreateQubotCard"
 import QubotCardDisplay from "@/components/QubotCardDisplay"
@@ -26,7 +31,6 @@ import FileExplorer from "@/components/FileExplorer"
 import CodeViewer from "@/components/CodeViewerRepoPage"
 import FileUploadDialog from "@/components/FileUploadDialog"
 import FileSearchDialog from "@/components/FileSearchDialog"
-import { ReadStream } from "fs"
 
 // For demo purposes, we retrieve the user token from localStorage.
 const getUserToken = () => localStorage.getItem("gitea_token") || ""
@@ -101,6 +105,20 @@ export default function RepoPage() {
     { id: 3, title: "Optimizer C", description: "Advanced techniques with C." },
   ]
 
+  // New state variables for connections
+  const [connections, setConnections] = useState<Array<{
+    repoPath: string;
+    description: string;
+    codeSnippet: string;
+  }>>([])
+  const [showConnectionDialog, setShowConnectionDialog] = useState(false)
+  const [editingConnectionIndex, setEditingConnectionIndex] = useState<number | null>(null)
+  const [connectionForm, setConnectionForm] = useState({
+    repoPath: "",
+    description: "",
+    codeSnippet: ""
+  })
+
   // Parse the URL to determine current path, branch, and file
   useEffect(() => {
     if (processingUrlChange.current) return
@@ -164,14 +182,6 @@ export default function RepoPage() {
     return files.map((file) => ({
       ...file,
       commit: {
-        message:
-          file.name === "README.md"
-            ? "Update documentation"
-            : file.name === "config.json"
-              ? "Update configuration"
-              : file.name.endsWith(".py")
-                ? "Fix bug in algorithm"
-                : "Initial commit",
         date: new Date(Date.now() - Math.random() * 10000000000).toISOString(),
       },
     }))
@@ -203,13 +213,14 @@ export default function RepoPage() {
         setRepo(data.repo)
         setReadme(data.readme)
         setConfig(data.config)
-        // Enhance files with dummy commit data for demo
-        setFiles(enhanceFilesWithCommitData(data.files))
-
         // Set default branch if not already set
-        if (!currentBranch) {
-          setCurrentBranch(data.repo.default_branch || "main")
-        }
+        const branch = currentBranch || data.repo.default_branch || "main"
+        setCurrentBranch(branch)
+
+        // Fetch commit information for files
+        fetchFileCommits(data.files, branch).then((filesWithCommits) => {
+          setFiles(filesWithCommits)
+        })
 
         setLoading(false)
 
@@ -221,7 +232,8 @@ export default function RepoPage() {
         // Load branches
         loadBranches(data.repo.owner.login, data.repo.name)
 
-        
+        // Load all files for search functionality
+        loadAllFiles(data.repo.owner.login, data.repo.name, data.repo.default_branch || "main")
       })
       .catch((err) => {
         setError(err.message || "Unknown error")
@@ -331,15 +343,12 @@ export default function RepoPage() {
     console.log("test")
     if (!owner || !repoName) return
     try {
-      const starRes = await fetch(
-        `http://localhost:4000/api/toggleStar/${owner}/${repoName}`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `token ${getUserToken()}`,
-          },
+      const starRes = await fetch(`http://localhost:4000/api/toggleStar/${owner}/${repoName}`, {
+        method: "POST",
+        headers: {
+          Authorization: `token ${getUserToken()}`,
         },
-      )
+      })
 
       if (starRes.ok) {
         console.log("starRes OK")
@@ -348,7 +357,7 @@ export default function RepoPage() {
       }
     } catch (err) {
       console.error("Error toggling star state:", err)
-    } 
+    }
     // finally {
     //   setEditorLoading(false)
     // }
@@ -403,6 +412,7 @@ export default function RepoPage() {
       setCurrentPath(newPath)
 
       // Immediately load the directory contents
+      const branch = currentBranch || repo?.default_branch || "main"
       const apiUrl = `http://localhost:4000/api/repos/${owner}/${repoName}/contents/${newPath}?ref=${branch}`
       setLoading(true)
 
@@ -413,9 +423,11 @@ export default function RepoPage() {
           }
           return res.json()
         })
-        .then((data) => {
+        .then(async (data) => {
           console.log("Directory contents loaded:", data.length, "files")
-          setFiles(enhanceFilesWithCommitData(data))
+          // Fetch commit information for each file
+          const filesWithCommits = await fetchFileCommits(data, branch)
+          setFiles(filesWithCommits)
           setLoading(false)
 
           // Then navigate to the directory URL
@@ -618,8 +630,6 @@ export default function RepoPage() {
         reader.readAsText(file)
       })
 
-      
-
       // Determine the file path using currentPath (if any)
       const filePath = currentPath ? `${currentPath}/${file.name}` : file.name
 
@@ -747,6 +757,149 @@ export default function RepoPage() {
     handleGoToFile(filePath)
   }
 
+  // Update the fetchFiles function to include commit information for each file
+  // Add this function after the loadAllFiles function
+
+  // Fetch commit information for files in the current directory
+  const fetchFileCommits = async (files: any[], branch: string) => {
+    if (!owner || !repoName || files.length === 0) return files
+
+    try {
+      const token = getUserToken()
+      const enhancedFiles = [...files]
+
+      // For each file, fetch its latest commit
+      for (let i = 0; i < enhancedFiles.length; i++) {
+        const file = enhancedFiles[i]
+        const filePath = currentPath ? `${currentPath}/${file.name}` : file.name
+
+        const commitResponse = await fetch(
+          `http://localhost:4000/api/repos/${owner}/${repoName}/commits?path=${encodeURIComponent(filePath)}&limit=1&ref=${branch}`,
+          {
+            headers: token ? { Authorization: `token ${token}` } : {},
+          },
+        )
+
+        if (commitResponse.ok) {
+          const commits = await commitResponse.json()
+          if (commits && commits.length > 0) {
+            enhancedFiles[i] = {
+              ...file,
+              commit: {
+                message: commits[0].commit.message,
+                date: commits[0].commit.author.date,
+                author: commits[0].author?.login || commits[0].commit.author.name,
+                sha: commits[0].sha,
+              },
+            }
+          }
+        }
+      }
+
+      return enhancedFiles
+    } catch (error) {
+      console.error("Error fetching file commits:", error)
+      return files
+    }
+  }
+
+  // Function to load all files in the repository for the file search dialog
+  const loadAllFiles = async (repoOwner: string, repoName: string, defaultBranch: string) => {
+    try {
+      const response = await fetch(
+        `http://localhost:4000/api/repos/${repoOwner}/${repoName}/files?ref=${defaultBranch}`,
+      )
+      if (response.ok) {
+        const filesData = await response.json()
+        setAllRepoFiles(filesData)
+      } else {
+        console.error("Failed to load all files:", response.status)
+      }
+    } catch (error) {
+      console.error("Failed to load all files:", error)
+    }
+  }
+
+  const handleCopySnippet = (snippet: string) => {
+    navigator.clipboard.writeText(snippet)
+    toast({
+      title: "Copied to clipboard",
+      description: "Code snippet copied to clipboard",
+    })
+  }
+
+  const handleEditConnection = (index: number) => {
+    const connection = connections[index]
+    setConnectionForm({
+      repoPath: connection.repoPath,
+      description: connection.description,
+      codeSnippet: connection.codeSnippet
+    })
+    setEditingConnectionIndex(index)
+    setShowConnectionDialog(true)
+  }
+
+  const handleDeleteConnection = (index: number) => {
+    const updatedConnections = [...connections]
+    updatedConnections.splice(index, 1)
+    setConnections(updatedConnections)
+    
+    // In a real app, you would save this to the backend
+    toast({
+      title: "Connection removed",
+      description: "The repository connection has been removed",
+    })
+  }
+
+  const handleSaveConnection = () => {
+    if (!connectionForm.repoPath || !connectionForm.codeSnippet) {
+      toast({
+        title: "Required fields missing",
+        description: "Please fill in all required fields",
+        variant: "destructive",
+      })
+      return
+    }
+
+    const updatedConnections = [...connections]
+    
+    if (editingConnectionIndex !== null) {
+      // Edit existing connection
+      updatedConnections[editingConnectionIndex] = connectionForm
+    } else {
+      // Add new connection
+      updatedConnections.push(connectionForm)
+    }
+    
+    setConnections(updatedConnections)
+    setShowConnectionDialog(false)
+    setEditingConnectionIndex(null)
+    setConnectionForm({
+      repoPath: "",
+      description: "",
+      codeSnippet: ""
+    })
+    
+    // In a real app, you would save this to the backend
+    toast({
+      title: editingConnectionIndex !== null ? "Connection updated" : "Connection added",
+      description: editingConnectionIndex !== null 
+        ? "The repository connection has been updated" 
+        : "The repository connection has been added",
+    })
+  }
+
+  // Add this effect to load connections when the repo data is loaded
+  useEffect(() => {
+    if (repo) {
+      // In a real app, you would fetch connections from the backend
+      // For now, we'll just set some example connections if none exist
+      if (connections.length === 0) {
+        // Don't set example connections as requested
+      }
+    }
+  }, [repo])
+
   // Debug output
   console.log("Current state:", {
     selectedFile,
@@ -821,8 +974,14 @@ export default function RepoPage() {
               {config?.description || repo.description || "No description provided."}
             </p>
             <div className="flex gap-2 items-center ml-auto">
-              <Button 
-                onClick={() => {toggleStar()}} variant="outline" size="sm" className="h-8">
+              <Button
+                onClick={() => {
+                  toggleStar()
+                }}
+                variant="outline"
+                size="sm"
+                className="h-8"
+              >
                 <Star className="mr-1 h-4 w-4" />
                 TsiaoStarr
                 <Badge variant="secondary" className="ml-1 rounded-sm px-1">
@@ -1070,7 +1229,7 @@ export default function RepoPage() {
                     className="data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none"
                   >
                     <GitBranch className="mr-2 h-4 w-4" />
-                    Usage examples
+                    Connects to
                   </TabsTrigger>
                 </TabsList>
               </div>
@@ -1135,27 +1294,74 @@ export default function RepoPage() {
 
               {/* Other Qubots Tab */}
               <TabsContent value="others" className="mt-6 space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                  {otherQubots.map((qb) => (
-                    <Card key={qb.id} className="overflow-hidden">
-                      <CardHeader className="pb-2">
-                        <CardTitle>{qb.title}</CardTitle>
-                        <CardDescription>{qb.description}</CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="h-24 bg-muted rounded-md mb-4 flex items-center justify-center">
-                          <Code className="h-8 w-8 text-muted-foreground opacity-50" />
-                        </div>
-                        <p className="text-sm text-muted-foreground">
-                          Learn more about {qb.title} and how it can help optimize your projects.
+                <Card>
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <CardTitle>Repository Connections</CardTitle>
+                      <Button size="sm" onClick={() => setShowConnectionDialog(true)}>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add Connection
+                      </Button>
+                    </div>
+                    <CardDescription>
+                      Connect your repository with other Qubot repositories to extend functionality
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {connections.length === 0 ? (
+                      <div className="text-center py-12">
+                        <GitBranch className="h-12 w-12 text-muted-foreground opacity-50 mx-auto mb-4" />
+                        <h3 className="text-lg font-medium">No connections yet</h3>
+                        <p className="text-muted-foreground mt-1 mb-4">
+                          Connect your repository with other Qubot repositories to extend functionality
                         </p>
-                      </CardContent>
-                      <CardFooter>
-                        <Button size="sm">View Details</Button>
-                      </CardFooter>
-                    </Card>
-                  ))}
-                </div>
+                        <Button onClick={() => setShowConnectionDialog(true)}>
+                          <Plus className="h-4 w-4 mr-2" />
+                          Add First Connection
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="space-y-6">
+                        {connections.map((connection, index) => (
+                          <div key={index} className="border rounded-lg p-4">
+                            <div className="flex items-start justify-between mb-2">
+                              <div>
+                                <h3 className="font-medium flex items-center gap-2">
+                                  <GitBranch className="h-4 w-4 text-primary" />
+                                  <span>{connection.repoPath}</span>
+                                </h3>
+                                {connection.description && (
+                                  <p className="text-sm text-muted-foreground mt-1">{connection.description}</p>
+                                )}
+                              </div>
+                              <div className="flex gap-2">
+                                <Button variant="ghost" size="sm" onClick={() => handleEditConnection(index)}>
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                                <Button variant="ghost" size="sm" onClick={() => handleDeleteConnection(index)}>
+                                  <Trash2 className="h-4 w-4 text-destructive" />
+                                </Button>
+                              </div>
+                            </div>
+                            <div className="bg-muted rounded-md p-3 mt-2 relative">
+                              <pre className="text-xs font-mono overflow-x-auto whitespace-pre-wrap">
+                                {connection.codeSnippet}
+                              </pre>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="absolute top-2 right-2 h-7 w-7 p-0"
+                                onClick={() => handleCopySnippet(connection.codeSnippet)}
+                              >
+                                <Copy className="h-3.5 w-3.5" />
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
               </TabsContent>
             </Tabs>
           </div>
@@ -1180,7 +1386,81 @@ export default function RepoPage() {
         currentPath={currentPath}
         onFileSelect={handleFileSearch}
       />
+
+      {/* Connection Dialog */}
+      <Dialog open={showConnectionDialog} onOpenChange={(open) => {
+        if (!open) {
+          setEditingConnectionIndex(null)
+          setConnectionForm({
+            repoPath: "",
+            description: "",
+            codeSnippet: ""
+          })
+        }
+        setShowConnectionDialog(open)
+      }}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>
+              {editingConnectionIndex !== null ? "Edit Connection" : "Add Repository Connection"}
+            </DialogTitle>
+            <DialogDescription>
+              Connect your repository with another Qubot repository to extend functionality
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="grid gap-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="repoPath">Repository Path <span className="text-destructive">*</span></Label>
+              <Input 
+                id="repoPath" 
+                placeholder="owner/repository-name" 
+                value={connectionForm.repoPath}
+                onChange={(e) => setConnectionForm({...connectionForm, repoPath: e.target.value})}
+              />
+              <p className="text-xs text-muted-foreground">
+                Format: username/repository-name (e.g., papaflesas/VRP_solver)
+              </p>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="description">Description</Label>
+              <Input 
+                id="description" 
+                placeholder="Brief description of how this connection is used" 
+                value={connectionForm.description}
+                onChange={(e) => setConnectionForm({...connectionForm, description: e.target.value})}
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="codeSnippet">Code Snippet <span className="text-destructive">*</span></Label>
+              <Textarea 
+                id="codeSnippet" 
+                placeholder="# Python code to connect to this repository
+from qubots import AutoProblem
+problem = AutoProblem.from_repo('owner/repo-name')" 
+                value={connectionForm.codeSnippet}
+                onChange={(e) => setConnectionForm({...connectionForm, codeSnippet: e.target.value})}
+                className="font-mono text-sm"
+                rows={6}
+              />
+              <p className="text-xs text-muted-foreground">
+                Add the code that shows how to connect to this repository
+              </p>
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowConnectionDialog(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleSaveConnection}>
+              {editingConnectionIndex !== null ? "Update Connection" : "Add Connection"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Layout>
   )
 }
-

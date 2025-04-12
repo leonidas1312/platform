@@ -1,3 +1,4 @@
+"use client"
 
 import type React from "react"
 import { useEffect, useState } from "react"
@@ -114,9 +115,11 @@ export default function PublicReposPage() {
         return res.json()
       })
       .then((result: SearchResult) => {
-        setRepos(result.data)
+        setRepos(result.data || [])
         // Calculate total pages based on total_count and limit (12)
-        setTotalPages(Math.ceil(result.total_count / 12))
+        // Add a fallback for when total_count is missing or invalid
+        const count = typeof result.total_count === "number" ? result.total_count : result.data?.length || 0
+        setTotalPages(Math.max(1, Math.ceil(count / 12)))
         setLoading(false)
       })
       .catch((err) => {
@@ -350,8 +353,8 @@ export default function PublicReposPage() {
             {/* Header with integrated search and filters */}
             <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
               <div>
-                <h1 className="text-2xl font-bold tracking-tight">Explore Qubots</h1>
-                <p className="text-sm text-muted-foreground">Discover public qubot optimizers from the community</p>
+                <h1 className="text-2xl font-bold tracking-tight">Explore Repositories</h1>
+                <p className="text-sm text-muted-foreground">Discover public repositories from the community</p>
               </div>
 
               <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
@@ -534,14 +537,14 @@ export default function PublicReposPage() {
             {filteredRepos.length > 0 && (
               <div className="flex items-center justify-between mt-6">
                 <div className="text-sm text-muted-foreground">
-                  Page {page} of {totalPages}
+                  Page {page} of {totalPages || 1}
                 </div>
                 <div className="flex items-center gap-2">
                   <Button variant="outline" size="sm" onClick={handlePrevPage} disabled={page === 1}>
                     <ChevronLeft className="h-4 w-4 mr-1" />
                     Previous
                   </Button>
-                  <Button variant="outline" size="sm" onClick={handleNextPage} disabled={page === totalPages}>
+                  <Button variant="outline" size="sm" onClick={handleNextPage} disabled={page >= (totalPages || 1)}>
                     Next
                     <ChevronRight className="h-4 w-4 ml-1" />
                   </Button>
@@ -554,4 +557,3 @@ export default function PublicReposPage() {
     </Layout>
   )
 }
-

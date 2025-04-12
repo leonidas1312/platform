@@ -247,10 +247,7 @@ export default function FileExplorer({
       {/* Directory navigation header */}
       <div className="flex justify-between items-center">
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" className="h-8">
-            <GitBranch className="mr-2 h-4 w-4" />
-            {defaultBranch}
-          </Button>
+          
 
           {path && (
             <Button variant="outline" size="sm" onClick={onNavigateToParent} className="h-8">
@@ -358,7 +355,7 @@ export default function FileExplorer({
             </div>
             <div className="text-sm text-muted-foreground">
               {commitHistory && (
-                <code className="px-1 py-0.5 bg-muted rounded text-xs">{commitHistory.sha.substring(0, 7)}</code>
+                <code className="px-1 py-0.5 bg-muted rounded text-xs">{commitHistory.sha.substring(0, 10)}</code>
               )}
             </div>
           </div>
