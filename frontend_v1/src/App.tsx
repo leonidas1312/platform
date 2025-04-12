@@ -9,6 +9,7 @@ import QubotProblems from "./pages/QubotProblems";
 import Community from "./pages/Community";
 import Documentation from "./pages/Documentation";
 import BlogsPage from "./pages/Blogs";
+import BlogDetails from "./pages/BlogDetails";
 import NotFound from "./pages/NotFound";
 import AuthPage from "./pages/AuthPage";
 import Profile from "./pages/Profile";
@@ -33,6 +34,7 @@ const App = () => (
               <Route path="/qubot-problems" element={<QubotProblems />} />
               <Route path="/community" element={<Community />} />
               <Route path="/blogs" element={<BlogsPage />} />
+              <Route path="/blogs/:id" element={<BlogDetails />} />
               <Route path="/docs" element={<Documentation />} />
               <Route path="/auth" element={<AuthPage />} />
               <Route path="/profile" element={<Profile />} />

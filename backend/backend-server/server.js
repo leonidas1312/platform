@@ -1052,7 +1052,7 @@ app.get("/api/community/posts", async (req, res) => {
         }
       } catch (err) {
         // If we fail to get Gitea user, fallback to minimal data
-        authorData = { login: p.author_username, full_name: p.author_username }
+        authorData = { id: 0, login: p.author_username, full_name: p.author_username, avatar_url: "", email: "" }
       }
 
       augmentedPosts.push({
@@ -1065,21 +1065,13 @@ app.get("/api/community/posts", async (req, res) => {
         isLiked: false,           // to keep it simple for now
         isReposted: false,
         isBookmarked: false,
-        author: authorData
-          ? {
+        author: {
               id: authorData.id,
               login: authorData.login,
-              full_name: authorData.full_name || authorData.login,
+              full_name: authorData.full_name,
               avatar_url: authorData.avatar_url,
-              email: authorData.email || "",
+              email: authorData.email,
             }
-          : {
-              id: 0,
-              login: p.author_username,
-              full_name: p.author_username,
-              avatar_url: "",
-              email: "",
-            },
       })
     }
 
@@ -1145,6 +1137,165 @@ app.post("/api/toggleStar/:owner/:repo", async (req, res) => {
     return res.status(toggleRes.status).json({ message: "Toggled star." })
   } catch (err) {
     console.error("Error modifying files:", err)
+    return res.status(500).json({ message: "Internal server error" })
+  }
+})
+
+
+// Create a new blog
+app.post("/api/blogs", async (req, res) => {
+  try {
+    const token = req.headers.authorization?.split(" ")[1]; // Get token from header
+    if (! token) {
+      return res.status(401).json({ message: "Unrecognised request." })
+    }
+    
+    let content = req.body
+
+    if (!content) {
+      return res.status(400).json({ message: "Content is required" })
+    }
+
+    // 1) Get user info from Gitea to know who is creating the blog
+    const userRes = await fetch(`${GITEA_URL}/api/v1/user`, {
+      headers: { Authorization: `token ${token}` },
+    })
+
+    if (!userRes.ok) {
+      const userErr = await userRes.json()
+      return res.status(userRes.status).json({
+        message: userErr.message || "Failed to fetch user info from Gitea",
+      })
+    }
+
+    const giteaUser = await userRes.json()
+    const authorUsername = giteaUser.login
+
+    content.author_username = authorUsername
+    console.log("this is my test:",  content)
+    // 2) Insert the blog into the "blogs" table
+    const [newBlog] = await knex("blogs")
+      .insert(content)
+      .returning("id")
+
+    // 3) Fetch the newly inserted blog row
+    const insertedBlog = await knex("blogs").where({ id: newBlog.id }).first()
+
+    return res.status(201).json(insertedBlog)
+  } catch (error) {
+    console.error("Error creating blog:", error)
+    return res.status(500).json({ message: "Internal server error" })
+  }
+})
+
+
+// Get all blogs
+app.get("/api/blogs", async (req, res) => {
+  try {
+    // 1) Fetch all blogs from DB, sorted by newest first
+    let blogs = await knex("blogs")
+      .select("*")
+      .orderBy("created_at", "desc")
+
+    // We'll map each blog to an object that includes { ...blog, author: {...} }
+    const augmentedBlogs = []
+    for (const blog of blogs) {
+      let authorData = null
+      try {
+        const userRes = await fetch(`${GITEA_URL}/api/v1/users/${blog.author_username}`)
+        if (userRes.ok) {
+          authorData = await userRes.json()
+        }
+      } catch (err) {
+        // If we fail to get Gitea user, fallback to minimal data
+        authorData = { id: 0, login: blog.author_username, full_name: blog.author_username, avatar_url: "", email: "" }
+      }
+
+      augmentedBlogs.push({
+        id: blog.id,
+        title: blog.title,
+        summary: blog.summary,
+        content: blog.content,
+        category: blog.category,
+        image_url: blog.image_url,
+        optimizer_name: blog.optimizer_name,
+        optimizer_url: blog.optimizer_url,
+        problem_name: blog.problem_name,
+        problem_description: blog.problem_description,
+        tags: JSON.parse(blog.tags),
+        created_at: blog.created_at,
+        likes: blog.likes_count,
+        comments: blog.comments_count,
+        reposts: blog.reposts_count,
+        isLiked: false,           // to keep it simple for now
+        isReposted: false,
+        isBookmarked: false,
+        author: {
+              id: authorData.id,
+              login: authorData.login,
+              full_name: authorData.full_name,
+              avatar_url: authorData.avatar_url,
+              email: authorData.email,
+            }
+      })
+    }
+
+    // 3) Return the array
+    return res.json(augmentedBlogs)
+  } catch (error) {
+    console.error("Error fetching blogs:", error)
+    return res.status(500).json({ message: "Internal server error" })
+  }
+})
+
+
+// Get all blogs
+app.get("/api/blogs/:blogId", async (req, res) => {
+  const { blogId } = req.params
+  try {
+    // 1) Fetch all blogs from DB, sorted by newest first
+    const blog = await knex("blogs").where({ id: blogId }).first();
+    
+    let authorData = null
+    try {
+      const userRes = await fetch(`${GITEA_URL}/api/v1/users/${blog.author_username}`)
+      if (userRes.ok) {
+        authorData = await userRes.json()
+      }
+    } catch (err) {
+      // If we fail to get Gitea user, fallback to minimal data
+      authorData = { id: 0, login: blog.author_username, full_name: blog.author_username, avatar_url: "", email: "" }
+    }
+    // 3) Return the array
+    return res.json({
+      id: blog.id,
+      title: blog.title,
+      summary: blog.summary,
+      content: blog.content,
+      category: blog.category,
+      image_url: blog.image_url,
+      optimizer_name: blog.optimizer_name,
+      optimizer_url: blog.optimizer_url,
+      problem_name: blog.problem_name,
+      problem_description: blog.problem_description,
+      tags: JSON.parse(blog.tags),
+      created_at: blog.created_at,
+      likes: blog.likes_count,
+      comments: blog.comments_count,
+      reposts: blog.reposts_count,
+      isLiked: false,           // to keep it simple for now
+      isReposted: false,
+      isBookmarked: false,
+      author: {
+            id: authorData.id,
+            login: authorData.login,
+            full_name: authorData.full_name,
+            avatar_url: authorData.avatar_url,
+            email: authorData.email,
+          }
+    })
+  } catch (error) {
+    console.error("Error fetching blogs:", error)
     return res.status(500).json({ message: "Internal server error" })
   }
 })

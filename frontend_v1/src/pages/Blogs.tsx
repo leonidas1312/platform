@@ -116,7 +116,7 @@ const BlogsPage = () => {
   // Fetch current user data
   const fetchCurrentUser = async (token: string) => {
     try {
-      const response = await fetch("/api/profile", {
+      const response = await fetch("http://localhost:4000/api/profile", {
         headers: {
           Authorization: `token ${token}`,
         },
@@ -150,7 +150,7 @@ const BlogsPage = () => {
 
       // Fetch blogs from the API
       // This endpoint would need to be implemented on the server
-      const response = await fetch("/api/blogs", { headers })
+      const response = await fetch("http://localhost:4000/api/blogs", { headers })
 
       if (!response.ok) {
         throw new Error("Failed to fetch blogs")
@@ -287,7 +287,7 @@ const BlogsPage = () => {
       const token = localStorage.getItem("gitea_token")
 
       // Call API to like the blog
-      const response = await fetch(`/api/blogs/${blogId}/like`, {
+      const response = await fetch(`http://localhost:4000/api/blogs/${blogId}/like`, {
         method: "POST",
         headers: {
           Authorization: `token ${token}`,
@@ -330,7 +330,7 @@ const BlogsPage = () => {
     }
 
     // Validate required fields
-    if (!newBlog.title || !newBlog.content || !newBlog.category) {
+    if (!newBlog.title || !newBlog.content || !newBlog.summary || !newBlog.category) {
       toast({
         title: "Required fields missing",
         description: "Please fill in all required fields.",
@@ -351,23 +351,15 @@ const BlogsPage = () => {
         summary: newBlog.summary,
         category: newBlog.category,
         image_url: newBlog.imageUrl,
-        tags: newBlog.tags,
-        optimizer: newBlog.optimizerName
-          ? {
-              name: newBlog.optimizerName,
-              repo_url: newBlog.optimizerRepo,
-            }
-          : undefined,
-        problem: newBlog.problemName
-          ? {
-              name: newBlog.problemName,
-              description: newBlog.problemDescription,
-            }
-          : undefined,
+        tags: JSON.stringify(newBlog.tags),
+        optimizer_name: newBlog.optimizerName,
+        optimizer_url: newBlog.optimizerRepo,
+        problem_name: newBlog.problemName,
+        problem_description: newBlog.problemDescription,
       }
 
       // Call API to create blog
-      const response = await fetch("/api/blogs", {
+      const response = await fetch("http://localhost:4000/api/blogs", {
         method: "POST",
         headers: {
           Authorization: `token ${token}`,
