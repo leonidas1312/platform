@@ -530,7 +530,12 @@ app.post("/api/create-repo", async (req, res) => {
 app.get("/api/repos/:owner/:repoName", async (req, res) => {
   const { owner, repoName } = req.params
   try {
-    const repoRes = await fetch(`${GITEA_URL}/api/v1/repos/${owner}/${repoName}`)
+    const token = req.headers.authorization?.split(" ")[1]; // Get token from header
+    const repoRes = await fetch(`${GITEA_URL}/api/v1/repos/${owner}/${repoName}`, {
+      headers: {
+        ...(token && { Authorization: `token ${token}` })
+      }
+  })
     if (!repoRes.ok) {
       const errData = await repoRes.json()
       return res.status(repoRes.status).json({
@@ -1086,7 +1091,32 @@ app.get("/api/community/posts", async (req, res) => {
   }
 })
 
-// Modify multiple files in a repository (POST)
+// Wether or not the active user is starring the repo
+app.get("/api/hasStar/:owner/:repo", async (req, res) => {
+  const { owner, repo } = req.params
+  const token = req.headers.authorization?.split(" ")[1]; // Get token from header
+  if (! token) {
+    return res.status(401).json({ message: "Unrecognised request." })
+  }
+
+  try {
+    const checkStarUrl = `${GITEA_URL}/api/v1/user/starred/${owner}/${repo}`
+    const starredRes = await fetch(checkStarUrl, {
+      method: "GET",
+      headers: {
+        Authorization: `token ${token}`,
+      },
+    });
+
+    const isStarred = await starredRes.status === 204;
+    return res.json({starred: isStarred})
+  } catch (err) {
+    console.error("Error modifying files:", err)
+    return res.status(500).json({ message: "Internal server error" })
+  }
+})
+
+// Toggle starred state of repo
 app.post("/api/toggleStar/:owner/:repo", async (req, res) => {
   const { owner, repo } = req.params
   const token = req.headers.authorization?.split(" ")[1]; // Get token from header
@@ -1095,7 +1125,6 @@ app.post("/api/toggleStar/:owner/:repo", async (req, res) => {
   }
 
   try {
-    // 4) Use the Gitea token to fetch the user's Gitea profile
     const checkStarUrl = `${GITEA_URL}/api/v1/user/starred/${owner}/${repo}`
     const starredRes = await fetch(checkStarUrl, {
       method: "GET",
@@ -1113,9 +1142,7 @@ app.post("/api/toggleStar/:owner/:repo", async (req, res) => {
       },
     });
     
-    
     return res.status(toggleRes.status).json({ message: "Toggled star." })
-
   } catch (err) {
     console.error("Error modifying files:", err)
     return res.status(500).json({ message: "Internal server error" })

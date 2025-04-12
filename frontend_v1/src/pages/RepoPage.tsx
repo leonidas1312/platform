@@ -93,6 +93,8 @@ export default function RepoPage() {
   // File search dialog state
   const [showFileSearchDialog, setShowFileSearchDialog] = useState(false)
   const [allRepoFiles, setAllRepoFiles] = useState<any[]>([])
+  
+  const [hasRepoStarred, setHasRepoStarred] = useState(false)
 
   // Dummy data for Other Qubots tab
   const otherQubots = [
@@ -190,7 +192,14 @@ export default function RepoPage() {
       setActiveTab("files")
     }
 
-    fetch(`http://localhost:4000/api/repos/${owner}/${repoName}`)
+    const token = getUserToken()
+    
+    fetch(`http://localhost:4000/api/repos/${owner}/${repoName}`,
+    {
+      headers: {
+        ...(token && { Authorization: `token ${token}` })
+      },
+    })
       .then((res) => {
         if (!res.ok) {
           return res.json().then((data) => {
@@ -268,6 +277,20 @@ export default function RepoPage() {
     setReadme(data.readme)
     setConfig(data.config)
     setFiles(enhanceFilesWithCommitData(data.files))
+    
+    const token = getUserToken()
+    if (token !== "")
+    {
+      const resStar = await fetch(`http://localhost:4000/api/hasStar/${owner}/${repoName}`,{
+          headers: {
+            Authorization: `token ${token}`,
+          },
+        },
+      )
+      const starJson = await resStar.json()
+      console.log("starjson:", starJson)
+      setHasRepoStarred(starJson.starred)
+    }
   }
 
   // Load file content
@@ -340,18 +363,17 @@ export default function RepoPage() {
           },
         },
       )
-
       if (starRes.ok) {
-        console.log("starRes OK")
+        reloadRepoData()
       } else {
-        console.log(`Error starRes, status: ${starRes.status}`)
+        console.log(`Error toggling star state: ${starRes.status}`)
       }
     } catch (err) {
       console.error("Error toggling star state:", err)
     } 
-    // finally {
-    //   setEditorLoading(false)
-    // }
+    finally {
+      setEditorLoading(false)
+    }
   }
 
   const handleSaveQubotCard = async (formData: any) => {
@@ -823,8 +845,8 @@ export default function RepoPage() {
             <div className="flex gap-2 items-center ml-auto">
               <Button 
                 onClick={() => {toggleStar()}} variant="outline" size="sm" className="h-8">
-                <Star className="mr-1 h-4 w-4" />
-                TsiaoStarr
+                <Star className={`mr-1 h-4 w-4 ${hasRepoStarred ? "fill-current" : ""}`} />
+                {hasRepoStarred ? "Unstar" : "Star"}
                 <Badge variant="secondary" className="ml-1 rounded-sm px-1">
                   {repo.stars_count}
                 </Badge>
