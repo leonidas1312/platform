@@ -37,7 +37,7 @@ const AuthPage = () => {
             localStorage.setItem("gitea_token", data.token);
           }
           toast({ title: "Success!", description: "Login successful!" });
-          navigate("/profile");
+          navigate(`/u/${username}`);
         } else {
           toast({
             title: "Success!",

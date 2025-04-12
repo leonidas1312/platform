@@ -25,26 +25,17 @@ const Footer = () => {
               <span className="font-medium text-lg tracking-tight">Rastion</span>
             </Link>
             <p className="text-sm text-foreground/70 mb-6 max-w-md">
-              AI Platform is your gateway to cutting-edge artificial intelligence. Access, deploy, and customize state-of-the-art models for various AI tasks.
+              The open source community for optimization.
             </p>
             <div className="flex items-center gap-4">
               <a 
-                href="https://github.com" 
+                href="https://github.com/leonidas1312/qubots" 
                 target="_blank" 
                 rel="noopener noreferrer"
                 className="p-2 rounded-full bg-secondary hover:bg-secondary/80 transition-colors"
                 aria-label="GitHub"
               >
                 <Github size={18} />
-              </a>
-              <a 
-                href="https://twitter.com" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="p-2 rounded-full bg-secondary hover:bg-secondary/80 transition-colors"
-                aria-label="Twitter"
-              >
-                <Twitter size={18} />
               </a>
               <a 
                 href="https://linkedin.com" 
@@ -54,15 +45,6 @@ const Footer = () => {
                 aria-label="LinkedIn"
               >
                 <Linkedin size={18} />
-              </a>
-              <a 
-                href="https://youtube.com" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="p-2 rounded-full bg-secondary hover:bg-secondary/80 transition-colors"
-                aria-label="YouTube"
-              >
-                <Youtube size={18} />
               </a>
             </div>
           </motion.div>
@@ -76,48 +58,21 @@ const Footer = () => {
             <h3 className="font-semibold mb-4">Platform</h3>
             <ul className="space-y-2">
               <li>
-                <Link to="/models" className="text-sm text-foreground/70 hover:text-primary transition-colors">Models</Link>
+                <Link to="/qubots" className="text-sm text-foreground/70 hover:text-primary transition-colors">Qubots</Link>
               </li>
               <li>
-                <Link to="/datasets" className="text-sm text-foreground/70 hover:text-primary transition-colors">Datasets</Link>
+                <Link to="/blogs" className="text-sm text-foreground/70 hover:text-primary transition-colors">Blogs</Link>
               </li>
               <li>
-                <Link to="/spaces" className="text-sm text-foreground/70 hover:text-primary transition-colors">Spaces</Link>
+                <Link to="/community" className="text-sm text-foreground/70 hover:text-primary transition-colors">Community</Link>
               </li>
               <li>
                 <Link to="/docs" className="text-sm text-foreground/70 hover:text-primary transition-colors">Documentation</Link>
               </li>
-              <li>
-                <Link to="/pricing" className="text-sm text-foreground/70 hover:text-primary transition-colors">Pricing</Link>
-              </li>
             </ul>
           </motion.div>
 
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.5, delay: 0.2 }}
-          >
-            <h3 className="font-semibold mb-4">Company</h3>
-            <ul className="space-y-2">
-              <li>
-                <Link to="/about" className="text-sm text-foreground/70 hover:text-primary transition-colors">About</Link>
-              </li>
-              <li>
-                <Link to="/blog" className="text-sm text-foreground/70 hover:text-primary transition-colors">Blog</Link>
-              </li>
-              <li>
-                <Link to="/careers" className="text-sm text-foreground/70 hover:text-primary transition-colors">Careers</Link>
-              </li>
-              <li>
-                <Link to="/contact" className="text-sm text-foreground/70 hover:text-primary transition-colors">Contact</Link>
-              </li>
-              <li>
-                <Link to="/privacy" className="text-sm text-foreground/70 hover:text-primary transition-colors">Privacy</Link>
-              </li>
-            </ul>
-          </motion.div>
+          
         </div>
 
         <motion.div
@@ -128,19 +83,9 @@ const Footer = () => {
           className="mt-12 pt-8 border-t border-border flex flex-col md:flex-row justify-between items-center gap-4"
         >
           <p className="text-sm text-foreground/60">
-            © {new Date().getFullYear()} AI Platform. All rights reserved.
+            © {new Date().getFullYear()} Rastion. All rights reserved.
           </p>
-          <div className="flex items-center gap-6">
-            <Link to="/terms" className="text-sm text-foreground/60 hover:text-primary transition-colors">
-              Terms
-            </Link>
-            <Link to="/privacy" className="text-sm text-foreground/60 hover:text-primary transition-colors">
-              Privacy
-            </Link>
-            <Link to="/cookies" className="text-sm text-foreground/60 hover:text-primary transition-colors">
-              Cookies
-            </Link>
-          </div>
+          
         </motion.div>
       </div>
     </footer>
