@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import { ChevronRight } from "lucide-react";
+import CodeFlowHero from "./CodeFlowHero";
 
 const Hero = () => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -107,13 +108,13 @@ print("Cost:", cost)`;
             className="flex flex-col sm:flex-row items-center justify-center gap-4"
           >
             <a
-              href="#models"
+              href="qubots"
               className="px-6 py-3 rounded-full bg-primary text-primary-foreground font-medium transition-all hover:bg-primary/90 hover:shadow-lg hover:shadow-primary/20 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:ring-offset-2 w-full sm:w-auto"
             >
-              Explore optimizers
+              Explore qubots
             </a>
             <a
-              href="#how-it-works"
+              href="docs"
               className="px-6 py-3 rounded-full border border-border bg-card hover:bg-secondary transition-colors flex items-center justify-center gap-2 font-medium w-full sm:w-auto"
             >
               How it works
@@ -122,32 +123,8 @@ print("Cost:", cost)`;
           </motion.div>
         </motion.div>
 
-        {/* Code Window / Monitor Section */}
-        <motion.div
-          initial={{ opacity: 0, y: 40 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.7, delay: 0.6 }}
-          className="mt-16 md:mt-24 max-w-5xl mx-auto relative"
-        >
-          <div className="relative w-full aspect-[25/9] rounded-lg overflow-hidden shadow-2xl shadow-primary/10">
-            {/* Top bar with circles */}
-            <div className="absolute inset-0 bg-secondary/30 flex flex-col">
-              <div className="w-full h-10 flex items-center px-4 gap-2">
-                <div className="w-3 h-3 rounded-full bg-red-400"></div>
-                <div className="w-3 h-3 rounded-full bg-yellow-400"></div>
-                <div className="w-3 h-3 rounded-full bg-green-400"></div>
-              </div>
-            </div>
-            {/* Code snippet window */}
-            <div className="absolute inset-0 p-4 mt-10 overflow-auto">
-              <pre className="rounded-md bg-gray-900 p-4 overflow-auto font-mono text-sm text-white">
-                <code>{codeSnippet}</code>
-              </pre>
-            </div>
-          </div>
+        <CodeFlowHero />
           
-          
-        </motion.div>
       </div>
     </div>
   );

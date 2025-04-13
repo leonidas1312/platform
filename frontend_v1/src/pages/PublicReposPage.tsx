@@ -105,7 +105,7 @@ export default function PublicReposPage() {
   // 1) Fetch repos from server
   useEffect(() => {
     setLoading(true)
-    fetch(`http://localhost:4000/api/public-repos?limit=12&page=${page}&sort=${sortBy}`)
+    fetch(`http://localhost:4000/api/public-repos?limit=2000&page=${page}&sort=${sortBy}`)
       .then((res) => {
         if (!res.ok) {
           return res.json().then((data) => {
@@ -116,10 +116,10 @@ export default function PublicReposPage() {
       })
       .then((result: SearchResult) => {
         setRepos(result.data || [])
-        // Calculate total pages based on total_count and limit (12)
+        // Calculate total pages based on total_count and limit (20)
         // Add a fallback for when total_count is missing or invalid
         const count = typeof result.total_count === "number" ? result.total_count : result.data?.length || 0
-        setTotalPages(Math.max(1, Math.ceil(count / 12)))
+        setTotalPages(Math.max(1, Math.ceil(count / 20)))
         setLoading(false)
       })
       .catch((err) => {
@@ -147,8 +147,7 @@ export default function PublicReposPage() {
 
   // 2) Example filter panel logic
   // For demonstration, we define some keywords for user to toggle
-  const availableKeywords = ["Optimization", "Machine Learning", "Quantum", "Algorithm", "Neural Network"]
-  const availableLanguages = ["Python", "JavaScript", "TypeScript", "C++", "Java", "Go", "Rust"]
+  const availableKeywords = ["Optimization", "Vehicle routing", "Quantum", "Scheduling", "Mathematical"]
 
   const toggleKeyword = (kw: string) => {
     setSelectedKeywords((prev) => (prev.includes(kw) ? prev.filter((k) => k !== kw) : [...prev, kw]))
@@ -353,8 +352,8 @@ export default function PublicReposPage() {
             {/* Header with integrated search and filters */}
             <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
               <div>
-                <h1 className="text-2xl font-bold tracking-tight">Explore Repositories</h1>
-                <p className="text-sm text-muted-foreground">Discover public repositories from the community</p>
+                <h1 className="text-2xl font-bold tracking-tight">Explore Qubots</h1>
+                <p className="text-sm text-muted-foreground">Discover public qubot repositories from the community</p>
               </div>
 
               <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
@@ -394,25 +393,6 @@ export default function PublicReposPage() {
                               onClick={() => toggleKeyword(kw)}
                             >
                               {kw}
-                            </Badge>
-                          ))}
-                        </div>
-                      </div>
-
-                      <div className="mb-4">
-                        <h3 className="text-sm font-medium mb-2">Languages</h3>
-                        <div className="flex flex-wrap gap-1">
-                          {availableLanguages.map((lang) => (
-                            <Badge
-                              key={lang}
-                              variant={selectedLanguages.includes(lang) ? "default" : "outline"}
-                              className="cursor-pointer hover:bg-primary/90 transition-colors"
-                              onClick={() => toggleLanguage(lang)}
-                            >
-                              <span
-                                className={`w-2 h-2 rounded-full ${languageColors[lang] || languageColors.default} mr-1`}
-                              ></span>
-                              {lang}
                             </Badge>
                           ))}
                         </div>

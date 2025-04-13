@@ -67,7 +67,6 @@ export default function EditProfileModal({ isOpen, onClose, user, onSave }: Edit
             </Avatar>
             <div>
               <p className="font-medium">@{user?.login}</p>
-              <p className="text-sm text-muted-foreground">Avatar can be changed in account settings</p>
             </div>
           </div>
 
@@ -144,19 +143,7 @@ export default function EditProfileModal({ isOpen, onClose, user, onSave }: Edit
               />
             </div>
 
-            <div className="space-y-2 md:col-span-2">
-              <Label htmlFor="visibility">Profile Visibility</Label>
-              <Select value={formData.visibility} onValueChange={(value) => handleSelectChange("visibility", value)}>
-                <SelectTrigger id="visibility">
-                  <SelectValue placeholder="Select visibility" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="public">Public</SelectItem>
-                  <SelectItem value="limited">Limited</SelectItem>
-                  <SelectItem value="private">Private</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+            
           </div>
 
           <DialogFooter>

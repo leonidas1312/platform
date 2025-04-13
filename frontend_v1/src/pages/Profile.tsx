@@ -337,11 +337,7 @@ const Profile = () => {
                   )}
                 </div>
 
-                <div className="mt-6 w-full">
-                  <Button onClick={handleOpenModal} className="w-full">
-                    Edit Profile
-                  </Button>
-                </div>
+                
               </div>
 
               {/* Stats Card */}

@@ -27,6 +27,7 @@ import { toast } from "@/components/ui/use-toast"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { AlertCircle } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { Label } from "@/components/ui/label"
 
 interface BlogAuthor {
   name: string
@@ -45,6 +46,7 @@ interface BlogProblem {
   description: string
 }
 
+// Update the BlogPost interface to reflect the new structure
 interface BlogPost {
   id: string
   title: string
@@ -57,9 +59,7 @@ interface BlogPost {
   category: string
   readTime: number
   likes: number
-  comments: number
-  optimizer?: BlogOptimizer
-  problem?: BlogProblem
+  qubotRepos: string[] // New field to replace optimizer and problem
 }
 
 // Available categories for blog posts
@@ -71,6 +71,7 @@ const categories = [
   "Supply Chain Optimization",
   "Machine Learning Optimization",
   "Scheduling Optimization",
+  "Other",
 ]
 
 const BlogsPage = () => {
@@ -88,7 +89,7 @@ const BlogsPage = () => {
   const [activeTab, setActiveTab] = useState("all")
   const [currentUser, setCurrentUser] = useState<any>(null)
 
-  // Form state for new blog
+  // Update the newBlog state to include qubotRepos instead of optimizer/problem details
   const [newBlog, setNewBlog] = useState({
     title: "",
     summary: "",
@@ -96,12 +97,11 @@ const BlogsPage = () => {
     category: "",
     imageUrl: "",
     tags: [] as string[],
-    optimizerName: "",
-    optimizerRepo: "",
-    problemName: "",
-    problemDescription: "",
+    qubotRepos: [] as string[], // New field for Qubot repositories
+    readTime: 5, // Default read time in minutes
   })
   const [tagInput, setTagInput] = useState("")
+  const [qubotRepoInput, setQubotRepoInput] = useState("") // New state for Qubot repo input
 
   // Check if user is authenticated and get user data
   useEffect(() => {
@@ -176,19 +176,7 @@ const BlogsPage = () => {
         category: blog.category,
         readTime: blog.read_time || Math.ceil(blog.content.length / 1000),
         likes: blog.likes || 0,
-        comments: blog.comments || 0,
-        optimizer: blog.optimizer
-          ? {
-              name: blog.optimizer.name,
-              repoUrl: blog.optimizer.repo_url,
-            }
-          : undefined,
-        problem: blog.problem
-          ? {
-              name: blog.problem.name,
-              description: blog.problem.description,
-            }
-          : undefined,
+        qubotRepos: blog.qubot_repos || [],
       }))
 
       setBlogs(formattedBlogs)
@@ -273,6 +261,180 @@ const BlogsPage = () => {
     }))
   }
 
+  // Replace the handleCreateBlog function to include the new structure
+  const handleCreateBlog = async (e: React.FormEvent) => {
+    e.preventDefault()
+
+    if (!isAuthenticated) {
+      toast({
+        title: "Authentication required",
+        description: "Please log in to create a blog post.",
+        variant: "destructive",
+      })
+      navigate("/auth")
+      return
+    }
+
+    // Validate required fields
+    if (!newBlog.title || !newBlog.content || !newBlog.category) {
+      toast({
+        title: "Required fields missing",
+        description: "Please fill in all required fields.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setIsSubmitting(true)
+
+    try {
+      const token = localStorage.getItem("gitea_token")
+
+      // Prepare blog data for API
+      const blogData = {
+        title: newBlog.title,
+        content: newBlog.content,
+        summary: newBlog.summary,
+        category: newBlog.category,
+        image_url: newBlog.imageUrl,
+        tags: newBlog.tags,
+        read_time: newBlog.readTime,
+        qubot_repos: newBlog.qubotRepos,
+      }
+
+      // Call API to create blog
+      const response = await fetch("http://localhost:4000/api/blogs", {
+        method: "POST",
+        headers: {
+          Authorization: `token ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(blogData),
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to create blog post")
+      }
+
+      const createdBlog = await response.json()
+
+      // Reset form
+      setNewBlog({
+        title: "",
+        summary: "",
+        content: "",
+        category: "",
+        imageUrl: "",
+        tags: [],
+        qubotRepos: [],
+        readTime: 5,
+      })
+
+      setShowCreateDialog(false)
+
+      // Refresh blogs to include the new one
+      fetchBlogs()
+
+      toast({
+        title: "Blog post created!",
+        description: "Your blog post has been published successfully.",
+      })
+    } catch (error) {
+      console.error("Error creating blog:", error)
+      toast({
+        title: "Error",
+        description: "Failed to create blog post. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  // Add a function to handle adding Qubot repositories
+  const handleAddQubotRepo = () => {
+    if (qubotRepoInput.trim() && !newBlog.qubotRepos.includes(qubotRepoInput.trim())) {
+      setNewBlog((prev) => ({
+        ...prev,
+        qubotRepos: [...prev.qubotRepos, qubotRepoInput.trim()],
+      }))
+      setQubotRepoInput("")
+    }
+  }
+
+  // Add a function to remove Qubot repositories
+  const removeQubotRepo = (repo: string) => {
+    setNewBlog((prev) => ({
+      ...prev,
+      qubotRepos: prev.qubotRepos.filter((r) => r !== repo),
+    }))
+  }
+
+  // Replace the PostCard component to show Qubot repos and remove comments/sharing
+  const PostCard = ({ post, onLike, formatDate }) => {
+    return (
+      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
+        <Card className="overflow-hidden hover:border-primary/30 transition-all">
+          <CardHeader className="pb-3 pt-4">
+            <div className="flex justify-between items-start">
+              <div className="flex items-center gap-3">
+                <Avatar>
+                  <AvatarImage src={post.author.avatar_url || "/placeholder.svg"} alt={post.author.full_name} />
+                  <AvatarFallback>{post.author.full_name.charAt(0)}</AvatarFallback>
+                </Avatar>
+                <div>
+                  <div className="flex items-center gap-1">
+                    <h3 className="font-medium text-base">{post.author.full_name}</h3>
+                    <span className="text-xs text-muted-foreground">@{post.author.login}</span>
+                  </div>
+                  <div className="text-xs text-foreground/60">{formatDate(post.created_at)}</div>
+                </div>
+              </div>
+              <div className="flex items-center text-muted-foreground text-sm">
+                <Clock className="h-3 w-3 mr-1" />
+                <span>{post.readTime} min read</span>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="pb-3">
+            <p className="text-base font-medium mb-3">{post.title}</p>
+
+            {/* Display Qubot repositories as clickable links */}
+            {post.qubotRepos && post.qubotRepos.length > 0 && (
+              <div className="flex flex-wrap gap-2 mb-3">
+                <span className="text-xs font-medium text-muted-foreground">Qubots used:</span>
+                {post.qubotRepos.map((repo, index) => (
+                  <Button
+                    key={index}
+                    variant="link"
+                    className="h-auto p-0 text-xs text-primary"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      navigate(`/${repo}`)
+                    }}
+                  >
+                    {repo}
+                  </Button>
+                ))}
+              </div>
+            )}
+          </CardContent>
+          <CardFooter className="flex justify-between py-3 border-t">
+            <Button
+              variant="ghost"
+              size="sm"
+              className={`flex items-center gap-1.5 h-8 ${post.isLiked ? "text-red-500" : ""}`}
+              onClick={() => onLike(post.id)}
+            >
+              <Heart size={16} className={post.isLiked ? "fill-current" : ""} />
+              <span>{post.likes}</span>
+            </Button>
+          </CardFooter>
+        </Card>
+      </motion.div>
+    )
+  }
+
   const handleLikeBlog = async (blogId: string) => {
     if (!isAuthenticated) {
       toast({
@@ -316,99 +478,6 @@ const BlogsPage = () => {
     }
   }
 
-  const handleCreateBlog = async (e: React.FormEvent) => {
-    e.preventDefault()
-
-    if (!isAuthenticated) {
-      toast({
-        title: "Authentication required",
-        description: "Please log in to create a blog post.",
-        variant: "destructive",
-      })
-      navigate("/auth")
-      return
-    }
-
-    // Validate required fields
-    if (!newBlog.title || !newBlog.content || !newBlog.summary || !newBlog.category) {
-      toast({
-        title: "Required fields missing",
-        description: "Please fill in all required fields.",
-        variant: "destructive",
-      })
-      return
-    }
-
-    setIsSubmitting(true)
-
-    try {
-      const token = localStorage.getItem("gitea_token")
-
-      // Prepare blog data for API
-      const blogData = {
-        title: newBlog.title,
-        content: newBlog.content,
-        summary: newBlog.summary,
-        category: newBlog.category,
-        image_url: newBlog.imageUrl,
-        tags: JSON.stringify(newBlog.tags),
-        optimizer_name: newBlog.optimizerName,
-        optimizer_url: newBlog.optimizerRepo,
-        problem_name: newBlog.problemName,
-        problem_description: newBlog.problemDescription,
-      }
-
-      // Call API to create blog
-      const response = await fetch("http://localhost:4000/api/blogs", {
-        method: "POST",
-        headers: {
-          Authorization: `token ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(blogData),
-      })
-
-      if (!response.ok) {
-        throw new Error("Failed to create blog post")
-      }
-
-      const createdBlog = await response.json()
-
-      // Reset form
-      setNewBlog({
-        title: "",
-        summary: "",
-        content: "",
-        category: "",
-        imageUrl: "",
-        tags: [],
-        optimizerName: "",
-        optimizerRepo: "",
-        problemName: "",
-        problemDescription: "",
-      })
-
-      setShowCreateDialog(false)
-
-      // Refresh blogs to include the new one
-      fetchBlogs()
-
-      toast({
-        title: "Blog post created!",
-        description: "Your blog post has been published successfully.",
-      })
-    } catch (error) {
-      console.error("Error creating blog:", error)
-      toast({
-        title: "Error",
-        description: "Failed to create blog post. Please try again.",
-        variant: "destructive",
-      })
-    } finally {
-      setIsSubmitting(false)
-    }
-  }
-
   // Animation variants
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -439,10 +508,9 @@ const BlogsPage = () => {
             transition={{ duration: 0.5 }}
             className="mb-12 text-center"
           >
-            <h1 className="text-4xl font-bold tracking-tight mb-3">Optimization Use Cases</h1>
+            <h1 className="text-4xl font-bold tracking-tight mb-3">Discover stories</h1>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              Explore real-world applications of optimization algorithms solving complex problems. Learn from the
-              community and share your own optimization success stories.
+              Learn from the community and share your own optimization stories.
             </p>
           </motion.div>
 
@@ -480,7 +548,7 @@ const BlogsPage = () => {
             <div className="w-full md:w-auto">
               {isAuthenticated ? (
                 <Button onClick={() => setShowCreateDialog(true)} className="w-full md:w-auto">
-                  Share Your Use Case
+                  New blog
                 </Button>
               ) : (
                 <Button onClick={() => navigate("/auth")} variant="outline" className="w-full md:w-auto">
@@ -509,7 +577,7 @@ const BlogsPage = () => {
           {/* Tabs */}
           <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-8">
             <TabsList className="grid w-full max-w-md mx-auto grid-cols-3">
-              <TabsTrigger value="all">All Posts</TabsTrigger>
+              <TabsTrigger value="all">All</TabsTrigger>
               <TabsTrigger value="popular">Most Popular</TabsTrigger>
               <TabsTrigger value="recent">Recent</TabsTrigger>
             </TabsList>
@@ -560,7 +628,7 @@ const BlogsPage = () => {
                       <CardTitle className="line-clamp-2">{blog.title}</CardTitle>
                       <CardDescription className="flex items-center gap-2">
                         <Avatar className="h-6 w-6">
-                          <AvatarImage src={blog.author.avatar} alt={blog.author.name} />
+                          <AvatarImage src={blog.author.avatar || "/placeholder.svg"} alt={blog.author.name} />
                           <AvatarFallback>{blog.author.name.substring(0, 2)}</AvatarFallback>
                         </Avatar>
                         <span>{blog.author.name}</span>
@@ -571,18 +639,11 @@ const BlogsPage = () => {
                     <CardContent className="flex-grow">
                       <p className="text-sm text-muted-foreground line-clamp-3 mb-4">{blog.summary}</p>
 
-                      {(blog.optimizer || blog.problem) && (
+                      {blog.qubotRepos && (
                         <div className="mt-2 space-y-2 text-sm">
-                          {blog.optimizer && (
+                          {blog.qubotRepos && (
                             <div className="flex items-start gap-2">
-                              <span className="font-medium min-w-[80px]">Optimizer:</span>
-                              <span className="text-primary">{blog.optimizer.name}</span>
-                            </div>
-                          )}
-                          {blog.problem && (
-                            <div className="flex items-start gap-2">
-                              <span className="font-medium min-w-[80px]">Problem:</span>
-                              <span>{blog.problem.name}</span>
+                              <span className="text-primary">{blog.qubotRepos}</span>
                             </div>
                           )}
                         </div>
@@ -614,13 +675,7 @@ const BlogsPage = () => {
                             <Heart className={`h-4 w-4 mr-1 ${blog.likes > 0 ? "fill-primary text-primary" : ""}`} />
                             <span>{blog.likes}</span>
                           </Button>
-                          <Button variant="ghost" size="sm" className="h-8 px-2">
-                            <MessageSquare className="h-4 w-4 mr-1" />
-                            <span>{blog.comments}</span>
-                          </Button>
-                          <Button variant="ghost" size="sm" className="h-8 px-2">
-                            <Share2 className="h-4 w-4" />
-                          </Button>
+                          
                         </div>
                         <Button
                           variant="ghost"
@@ -670,10 +725,10 @@ const BlogsPage = () => {
       <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
         <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Share Your Optimization Use Case</DialogTitle>
+            <DialogTitle>Share your optimization use case</DialogTitle>
             <DialogDescription>
-              Share your experience solving optimization problems with the community. Describe your approach, the
-              optimizer you used, and the results you achieved.
+              Share your experience solving optimization problems with the community. Describe your approach, the qubots
+              you used, and the results you achieved.
             </DialogDescription>
           </DialogHeader>
 
@@ -694,21 +749,6 @@ const BlogsPage = () => {
               </div>
 
               <div className="space-y-2 md:col-span-2">
-                <label htmlFor="summary" className="block text-sm font-medium">
-                  Summary <span className="text-destructive">*</span>
-                </label>
-                <Textarea
-                  id="summary"
-                  name="summary"
-                  value={newBlog.summary}
-                  onChange={handleInputChange}
-                  placeholder="A brief summary of your use case (1-2 sentences)"
-                  required
-                  className="resize-none h-20"
-                />
-              </div>
-
-              <div className="space-y-2 md:col-span-2">
                 <label htmlFor="content" className="block text-sm font-medium">
                   Content <span className="text-destructive">*</span>
                 </label>
@@ -717,7 +757,7 @@ const BlogsPage = () => {
                   name="content"
                   value={newBlog.content}
                   onChange={handleInputChange}
-                  placeholder="Describe your optimization approach, challenges, and results in detail..."
+                  placeholder="Describe your optimization approach, challenges, and results"
                   required
                   className="min-h-[200px]"
                 />
@@ -759,110 +799,72 @@ const BlogsPage = () => {
               </div>
             </div>
 
+            {/* Replace the Technical Details and Problem Details sections in the form with Qubots Used */}
             <Separator className="my-4" />
 
             <div className="space-y-4">
-              <h4 className="font-medium">Optimizer Details</h4>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <label htmlFor="optimizerName" className="block text-sm font-medium">
-                    Optimizer Name
-                  </label>
+              <h4 className="font-medium">Qubots Used</h4>
+              <div className="space-y-2">
+                <Label className="block text-sm font-medium">Add Qubot Repositories</Label>
+                <div className="flex items-center">
                   <Input
-                    id="optimizerName"
-                    name="optimizerName"
-                    value={newBlog.optimizerName}
-                    onChange={handleInputChange}
-                    placeholder="E.g., QuAnneal v2.1"
+                    type="text"
+                    value={qubotRepoInput}
+                    onChange={(e) => setQubotRepoInput(e.target.value)}
+                    className="flex-grow rounded-r-none"
+                    placeholder="username/repository"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault()
+                        handleAddQubotRepo()
+                      }
+                    }}
                   />
+                  <Button type="button" variant="secondary" onClick={handleAddQubotRepo} className="rounded-l-none">
+                    Add
+                  </Button>
                 </div>
+                <p className="text-xs text-muted-foreground">
+                  Format: username/repository (e.g., user123/TSP_solver)
+                </p>
 
-                <div className="space-y-2">
-                  <label htmlFor="optimizerRepo" className="block text-sm font-medium">
-                    Repository URL
-                  </label>
-                  <Input
-                    id="optimizerRepo"
-                    name="optimizerRepo"
-                    value={newBlog.optimizerRepo}
-                    onChange={handleInputChange}
-                    placeholder="E.g., /username/repo-name"
-                  />
-                </div>
+                {newBlog.qubotRepos.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {newBlog.qubotRepos.map((repo) => (
+                      <Badge key={repo} variant="secondary" className="flex items-center gap-1 cursor-pointer">
+                        <span className="text-xs">{repo}</span>
+                        <button
+                          type="button"
+                          onClick={() => removeQubotRepo(repo)}
+                          className="text-xs hover:text-destructive"
+                        >
+                          ×
+                        </button>
+                      </Badge>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
 
             <Separator className="my-4" />
 
-            <div className="space-y-4">
-              <h4 className="font-medium">Problem Details</h4>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <label htmlFor="problemName" className="block text-sm font-medium">
-                    Problem Name
-                  </label>
-                  <Input
-                    id="problemName"
-                    name="problemName"
-                    value={newBlog.problemName}
-                    onChange={handleInputChange}
-                    placeholder="E.g., TSP-50"
-                  />
-                </div>
-
-                <div className="space-y-2 md:col-span-2">
-                  <label htmlFor="problemDescription" className="block text-sm font-medium">
-                    Problem Description
-                  </label>
-                  <Textarea
-                    id="problemDescription"
-                    name="problemDescription"
-                    value={newBlog.problemDescription}
-                    onChange={handleInputChange}
-                    placeholder="Brief description of the optimization problem"
-                    className="resize-none h-20"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <Separator className="my-4" />
-
+            {/* Add Read Time input */}
             <div className="space-y-2">
-              <label className="block text-sm font-medium">Tags</label>
-              <div className="flex items-center">
-                <Input
-                  type="text"
-                  value={tagInput}
-                  onChange={handleTagInputChange}
-                  className="flex-grow rounded-r-none"
-                  placeholder="Add a tag and press Enter"
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault()
-                      addTag()
-                    }
-                  }}
-                />
-                <Button type="button" variant="secondary" onClick={addTag} className="rounded-l-none">
-                  Add
-                </Button>
-              </div>
-
-              {newBlog.tags.length > 0 && (
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {newBlog.tags.map((tag) => (
-                    <Badge key={tag} variant="secondary" className="flex items-center gap-1 cursor-pointer">
-                      <span className="text-xs">{tag}</span>
-                      <button type="button" onClick={() => removeTag(tag)} className="text-xs hover:text-destructive">
-                        ×
-                      </button>
-                    </Badge>
-                  ))}
-                </div>
-              )}
+              <Label htmlFor="readTime" className="block text-sm font-medium">
+                Minutes to Read
+              </Label>
+              <Input
+                id="readTime"
+                name="readTime"
+                type="number"
+                min="1"
+                max="60"
+                value={newBlog.readTime}
+                onChange={(e) => setNewBlog((prev) => ({ ...prev, readTime: Number.parseInt(e.target.value) || 5 }))}
+                className="w-full md:w-1/4"
+              />
+              <p className="text-xs text-muted-foreground">Estimated time to read this article in minutes</p>
             </div>
 
             <DialogFooter className="pt-4">
@@ -893,4 +895,3 @@ const BlogsPage = () => {
 }
 
 export default BlogsPage
-

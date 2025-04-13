@@ -613,19 +613,16 @@ const Community = () => {
               {/* Feed tabs */}
               <Tabs defaultValue="feed" value={activeTab} onValueChange={setActiveTab} className="w-full">
                 <div className="flex justify-between items-center mb-4">
-                  <TabsList className="grid grid-cols-3">
-                    <TabsTrigger value="feed" className="flex items-center gap-1.5">
-                      <Sparkles size={16} />
-                      <span>For You</span>
+                  <TabsList className="grid grid-cols-2">
+                    <TabsTrigger value="latest" className="flex items-center gap-1.5">
+                      <Clock size={16} />
+                      <span>Latest</span>
                     </TabsTrigger>
                     <TabsTrigger value="trending" className="flex items-center gap-1.5">
                       <TrendingUp size={16} />
                       <span>Trending</span>
                     </TabsTrigger>
-                    <TabsTrigger value="latest" className="flex items-center gap-1.5">
-                      <Clock size={16} />
-                      <span>Latest</span>
-                    </TabsTrigger>
+                    
                   </TabsList>
 
                   <div className="relative">
@@ -820,11 +817,7 @@ const Community = () => {
                   <p className="text-sm">• Cite sources when applicable</p>
                   <p className="text-sm">• Keep discussions on topic</p>
                 </CardContent>
-                <CardFooter>
-                  <Button variant="ghost" size="sm" className="w-full">
-                    Read Full Guidelines
-                  </Button>
-                </CardFooter>
+                
               </Card>
             </div>
           </div>

@@ -224,12 +224,7 @@ const SettingsPage = () => {
                       >
                         API Tokens
                       </TabsTrigger>
-                      <TabsTrigger
-                        value="security"
-                        className="justify-start px-4 py-2 data-[state=active]:bg-muted rounded-none"
-                      >
-                        Security
-                      </TabsTrigger>
+                      
                     </TabsList>
                   </Tabs>
                 </CardContent>
@@ -244,8 +239,8 @@ const SettingsPage = () => {
                     <CardHeader>
                       <div className="flex items-center justify-between">
                         <div>
-                          <CardTitle className="text-2xl">API Tokens</CardTitle>
-                          <CardDescription>Manage your personal access tokens for API access</CardDescription>
+                          <CardTitle className="text-2xl">Rastion API Tokens</CardTitle>
+                          <CardDescription>Manage your personal access tokens for Rastion API access</CardDescription>
                         </div>
                         <Button
                           onClick={() => {

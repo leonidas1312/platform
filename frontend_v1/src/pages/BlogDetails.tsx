@@ -574,20 +574,9 @@ const BlogDetailPage = () => {
                   <Heart className={`h-5 w-5 ${hasLiked ? "fill-primary text-primary" : ""}`} />
                   <span>{blog.likes}</span>
                 </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="flex items-center gap-2"
-                  onClick={() => document.getElementById("comments-section")?.scrollIntoView({ behavior: "smooth" })}
-                >
-                  <MessageSquare className="h-5 w-5" />
-                  <span>{blog.comments}</span>
-                </Button>
+                
               </div>
-              <Button variant="ghost" size="sm" className="flex items-center gap-2" onClick={handleShare}>
-                <Share2 className="h-5 w-5" />
-                <span>Share</span>
-              </Button>
+              
             </div>
 
             {/* Author info */}
@@ -610,116 +599,7 @@ const BlogDetailPage = () => {
               </div>
             </div>
 
-            {/* Comments section */}
-            <div id="comments-section" className="mb-8">
-              <h3 className="text-2xl font-bold mb-6">Comments ({blog.comments})</h3>
-
-              {/* Comment form */}
-              <div className="mb-8">
-                <Textarea
-                  placeholder={isAuthenticated ? "Add your comment..." : "Please log in to comment"}
-                  value={newComment}
-                  onChange={(e) => setNewComment(e.target.value)}
-                  disabled={!isAuthenticated || isSubmittingComment}
-                  className="mb-3 min-h-[100px]"
-                />
-                <div className="flex justify-end">
-                  <Button
-                    onClick={handleSubmitComment}
-                    disabled={!isAuthenticated || isSubmittingComment || !newComment.trim()}
-                  >
-                    {isSubmittingComment ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Submitting...
-                      </>
-                    ) : (
-                      <>
-                        <Send className="mr-2 h-4 w-4" />
-                        Post Comment
-                      </>
-                    )}
-                  </Button>
-                </div>
-              </div>
-
-              {/* Comments list */}
-              {comments.length > 0 ? (
-                <div className="space-y-4">
-                  {comments.map((comment) => (
-                    <Card key={comment.id}>
-                      <CardHeader className="pb-2">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <Avatar className="h-8 w-8">
-                              <AvatarImage
-                                src={comment.author.avatar || "/placeholder.svg"}
-                                alt={comment.author.name}
-                              />
-                              <AvatarFallback>{comment.author.name.substring(0, 2)}</AvatarFallback>
-                            </Avatar>
-                            <div>
-                              <CardTitle className="text-base">{comment.author.name}</CardTitle>
-                              <CardDescription className="text-xs">
-                                {new Date(comment.date).toLocaleDateString()}
-                              </CardDescription>
-                            </div>
-                          </div>
-                        </div>
-                      </CardHeader>
-                      <CardContent>
-                        <p>{comment.content}</p>
-                      </CardContent>
-                      <CardFooter className="pt-0">
-                        <Button variant="ghost" size="sm" className="h-8 px-2">
-                          <Heart className="h-4 w-4 mr-1" />
-                          <span>{comment.likes}</span>
-                        </Button>
-                      </CardFooter>
-                    </Card>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-8 bg-muted/30 rounded-lg">
-                  <MessageSquare className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
-                  <h3 className="text-lg font-medium">No comments yet</h3>
-                  <p className="text-muted-foreground mt-1 mb-4">Be the first to share your thoughts!</p>
-                </div>
-              )}
-            </div>
-
-            {/* Related blogs */}
-            {relatedBlogs.length > 0 && (
-              <div className="mb-8">
-                <h3 className="text-2xl font-bold mb-6">Related Posts</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  {relatedBlogs.map((relatedBlog) => (
-                    <Card key={relatedBlog.id} className="h-full flex flex-col hover:shadow-md transition-shadow">
-                      <CardHeader className="pb-2">
-                        <CardTitle className="text-base line-clamp-2">{relatedBlog.title}</CardTitle>
-                        <CardDescription className="flex items-center gap-1 text-xs">
-                          <Calendar className="h-3 w-3" />
-                          {new Date(relatedBlog.date).toLocaleDateString()}
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent className="flex-grow">
-                        <p className="text-sm text-muted-foreground line-clamp-3">{relatedBlog.summary}</p>
-                      </CardContent>
-                      <CardFooter className="pt-0">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="ml-auto"
-                          onClick={() => navigate(`/blogs/${relatedBlog.id}`)}
-                        >
-                          Read more
-                        </Button>
-                      </CardFooter>
-                    </Card>
-                  ))}
-                </div>
-              </div>
-            )}
+            
           </article>
         </div>
       </main>
