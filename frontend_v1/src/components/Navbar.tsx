@@ -147,7 +147,7 @@ const Navbar = () => {
               <Cpu className="w-4 h-4 text-purple-500" />
               Qubots
             </Button>
-
+            {/*
             <Button
               variant="ghost"
               size="sm"
@@ -167,6 +167,8 @@ const Navbar = () => {
               <MessageSquare className="w-4 h-4 text-blue-500" />
               Community
             </Button>
+            */}
+            
 
             <Button
               variant="ghost"
@@ -176,6 +178,26 @@ const Navbar = () => {
             >
               <GraduationCap className="w-4 h-4 text-amber-500" />
               Documentation
+            </Button>
+
+            <Button
+              variant="ghost"
+              size="sm"
+              className={`h-9 gap-1 px-3 ${location.pathname === "/leaderboard" ? "bg-muted" : ""}`}
+              onClick={() => navigate("/leaderboard")}
+            >
+              <Rocket className="w-4 h-4 text-amber-500" />
+              Leaderboard
+            </Button>
+
+            <Button
+              variant="ghost"
+              size="sm"
+              className={`h-9 gap-1 px-3 ${location.pathname === "/beta-testing" ? "bg-muted" : ""}`}
+              onClick={() => navigate("/beta-testing")}
+            >
+              <Lightbulb className="w-4 h-4 text-amber-500" />
+              Beta testing
             </Button>
           </motion.nav>
 

@@ -18,6 +18,8 @@ import PublicReposPage from "./pages/PublicReposPage";
 import RepoPage from "./pages/RepoPage";
 import { ThemeProvider } from "./components/ThemeContext";
 import SettingsPage from "./pages/SettingsPage";
+import BetaSignupPage from "./pages/BetaSignUp";
+import LeaderboardPage from "./pages/Leaderboard";
 
 const queryClient = new QueryClient();
 
@@ -40,7 +42,9 @@ const App = () => (
               <Route path="/auth" element={<AuthPage />} />
               <Route path="/email-verify" element={<EmailVerify />} />
               <Route path="/qubots" element={<PublicReposPage />} />
-              
+              <Route path="/beta-testing" element={<BetaSignupPage />} />
+              <Route path="/leaderboard" element={<LeaderboardPage />} />
+
 
               {/* Profile page with username in URL */}
               <Route path="/u/:username" element={<Profile />} />
