@@ -86,6 +86,8 @@ const languageColors: Record<string, string> = {
 }
 
 export default function PublicReposPage() {
+  const PAGE_SIZE = 25
+
   const [repos, setRepos] = useState<GiteaRepo[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
@@ -102,10 +104,15 @@ export default function PublicReposPage() {
 
   const navigate = useNavigate()
 
-  // 1) Fetch repos from server
+  // Declare result here to avoid the error
+  const [result, setResult] = useState<SearchResult | null>(null)
+
+  // total_count if you want to show “of Z”
+  const [totalCount, setTotalCount] = useState(0)
+
   useEffect(() => {
     setLoading(true)
-    fetch(`http://localhost:4000/api/public-repos?limit=2000&page=${page}&sort=${sortBy}`)
+    fetch(`http://localhost:4000/api/public-repos?limit=${PAGE_SIZE}&page=${page}&sort=${sortBy}`)
       .then((res) => {
         if (!res.ok) {
           return res.json().then((data) => {
@@ -116,10 +123,7 @@ export default function PublicReposPage() {
       })
       .then((result: SearchResult) => {
         setRepos(result.data || [])
-        // Calculate total pages based on total_count and limit (20)
-        // Add a fallback for when total_count is missing or invalid
-        const count = typeof result.total_count === "number" ? result.total_count : result.data?.length || 0
-        setTotalPages(Math.max(1, Math.ceil(count / 20)))
+        setTotalCount(result.total_count)
         setLoading(false)
       })
       .catch((err) => {
@@ -128,8 +132,20 @@ export default function PublicReposPage() {
       })
   }, [page, sortBy])
 
-  const handlePrevPage = () => setPage((prev) => Math.max(prev - 1, 1))
-  const handleNextPage = () => setPage((prev) => Math.min(prev + 1, totalPages))
+
+  // Add a useEffect to reset to page 1 when sorting changes
+  // Add this after the existing useEffect hooks
+  useEffect(() => {
+    // Reset to page 1 when sort criteria changes
+    setPage(1)
+  }, [sortBy])
+
+  // navigation handlers
+  const handlePrevPage = () => setPage((p) => Math.max(p - 1, 1))
+  const hasNextPage    = repos.length === PAGE_SIZE
+  const handleNextPage = () => {
+    if (hasNextPage) setPage((p) => p + 1)
+  }
 
   const handleRepoClick = (repo: GiteaRepo) => {
     // Suppose we have a route /repo/:owner/:repoName
@@ -239,10 +255,6 @@ export default function PublicReposPage() {
             </div>
           </CardHeader>
           <CardContent className="px-4 pb-4">
-            <p className="text-xs text-muted-foreground line-clamp-2 min-h-[32px]">
-              {repo.description || "No description provided"}
-            </p>
-
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-3 text-xs text-muted-foreground">
               {repo.language && (
                 <div className="flex items-center gap-1">
@@ -411,9 +423,14 @@ export default function PublicReposPage() {
                 </DropdownMenu>
 
                 <Select value={sortBy} onValueChange={setSortBy}>
-                  <SelectTrigger className="w-[160px] h-9">
+                  <SelectTrigger className="w-[180px] h-9">
                     <SlidersHorizontal className="h-4 w-4 mr-2" />
-                    <SelectValue placeholder="Sort by" />
+                    <SelectValue placeholder="Sort by">
+                      {sortBy === "updated" && "Recently Updated"}
+                      {sortBy === "stars" && "Most Stars"}
+                      {sortBy === "forks" && "Most Forks"}
+                      {sortBy === "created" && "Newest"}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="updated">Recently Updated</SelectItem>
@@ -513,18 +530,18 @@ export default function PublicReposPage() {
               </Tabs>
             )}
 
-            {/* Pagination */}
+            {/* ——— Pagination ——— */}
             {filteredRepos.length > 0 && (
               <div className="flex items-center justify-between mt-6">
                 <div className="text-sm text-muted-foreground">
-                  Page {page} of {totalPages || 1}
+                  Showing {(page - 1) * PAGE_SIZE + 1} to {(page - 1) * PAGE_SIZE + filteredRepos.length} of {totalCount} repositories
                 </div>
                 <div className="flex items-center gap-2">
                   <Button variant="outline" size="sm" onClick={handlePrevPage} disabled={page === 1}>
                     <ChevronLeft className="h-4 w-4 mr-1" />
                     Previous
                   </Button>
-                  <Button variant="outline" size="sm" onClick={handleNextPage} disabled={page >= (totalPages || 1)}>
+                  <Button variant="outline" size="sm" onClick={handleNextPage} disabled={!hasNextPage}>
                     Next
                     <ChevronRight className="h-4 w-4 ml-1" />
                   </Button>

@@ -1,37 +1,36 @@
 "use client"
 
+import type React from "react"
+
 import { useState, useEffect, useRef } from "react"
 import { Link, useLocation, useNavigate } from "react-router-dom"
-import { motion, AnimatePresence } from "framer-motion"
-import {
-  Menu,
-  X,
-  User,
-  Settings,
-  LogOut,
-  Cpu,
-  Lightbulb,
-  Rocket,
-  BookMarked,
-  MessageSquare,
-  GraduationCap,
-} from "lucide-react"
+import { motion } from "framer-motion"
+import { User, Settings, LogOut, Cpu, Lightbulb, Rocket, GraduationCap } from "lucide-react"
 import { ModeToggle } from "./ModeToggle"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
-import { Separator } from "@/components/ui/separator"
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { toast } from "@/components/ui/use-toast"
-
-
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Loader2, Plus } from "lucide-react"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter
+} from "@/components/ui/dialog"
 const Navbar = () => {
   const location = useLocation()
   const navigate = useNavigate()
@@ -42,6 +41,13 @@ const Navbar = () => {
   const [isSearchExpanded, setIsSearchExpanded] = useState(false)
   const [notifications, setNotifications] = useState<any[]>([])
 
+  // Add this state variable in the Navbar component after the other state variables
+  const [showCreateRepoDialog, setShowCreateRepoDialog] = useState(false)
+  const [repoName, setRepoName] = useState("")
+  const [repoDescription, setRepoDescription] = useState("")
+  const [license, setLicense] = useState("")
+  const [isPrivate, setIsPrivate] = useState(false)
+  const [isCreatingRepo, setIsCreatingRepo] = useState(false)
 
   // User state – if null, not logged in.
   const [user, setUser] = useState<any>(null)
@@ -102,6 +108,74 @@ const Navbar = () => {
       title: "Logged out",
       description: "You have been successfully logged out.",
     })
+  }
+
+  // Add this function before the return statement
+  const handleCreateRepo = async (e: React.FormEvent) => {
+    e.preventDefault()
+
+    if (!repoName.trim()) {
+      toast({
+        title: "Error",
+        description: "Repository name is required",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setIsCreatingRepo(true)
+
+    try {
+      const token = localStorage.getItem("gitea_token")
+      if (!token) {
+        throw new Error("Authentication required")
+      }
+
+      const response = await fetch("http://localhost:4000/api/create-repo", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `token ${token}`,
+        },
+        body: JSON.stringify({
+          name: repoName,
+          description: repoDescription,
+          license: license,
+          isPrivate: isPrivate,
+        }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.message || "Failed to create repository")
+      }
+
+      const data = await response.json()
+
+      toast({
+        title: "Success",
+        description: "Qubot repository created successfully!",
+      })
+
+      setShowCreateRepoDialog(false)
+      
+      // Reset form fields
+      setRepoName("")
+      setRepoDescription("")
+      setLicense("")
+      setIsPrivate(false)
+      
+      // Navigate to the new repository
+      navigate(`/${user.login}/${repoName}`)
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to create repository",
+        variant: "destructive",
+      })
+    } finally {
+      setIsCreatingRepo(false)
+    }
   }
 
   
@@ -238,6 +312,11 @@ const Navbar = () => {
                       <User className="mr-2 h-4 w-4 text-indigo-500" />
                       <span>Profile</span>
                     </DropdownMenuItem>
+                    {/* In the DropdownMenuGroup section, add this after the Profile item: */}
+                    <DropdownMenuItem onClick={() => setShowCreateRepoDialog(true)}>
+                      <Plus className="mr-2 h-4 w-4 text-green-500" />
+                      <span>Create Qubot</span>
+                    </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => navigate(`/u/${user.login}/settings`)}>
                       <Settings className="mr-2 h-4 w-4 text-gray-500" />
                       <span>Settings</span>
@@ -263,10 +342,61 @@ const Navbar = () => {
         </div>
       </div>
 
-      
-      
-    </header>
-  )
-}
+      {/* Create Repository Dialog */}
+      <Dialog open={showCreateRepoDialog} onOpenChange={setShowCreateRepoDialog}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Create a new Qubot repository</DialogTitle>
+            <DialogDescription>
+              A Qubot repository contains your python files for an optimization problem or algorithm.
+            </DialogDescription>
+          </DialogHeader>
 
-export default Navbar
+          <form onSubmit={handleCreateRepo} className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="repo-name" className="text-sm font-medium">
+                Repository name <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="repo-name"
+                value={repoName}
+                onChange={(e) => setRepoName(e.target.value)}
+                placeholder="myTSPqubot"
+                required
+              />
+            </div>
+
+            
+
+              
+
+            
+
+            <DialogFooter className="pt-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setShowCreateRepoDialog(false)}
+                disabled={isCreatingRepo}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={isCreatingRepo}>
+                {isCreatingRepo ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Creating...
+                  </>
+                ) : (
+                  "Create repository"
+                )}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </header>
+  );
+};
+
+export default Navbar;

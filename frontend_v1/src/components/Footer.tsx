@@ -61,14 +61,15 @@ const Footer = () => {
                 <Link to="/qubots" className="text-sm text-foreground/70 hover:text-primary transition-colors">Qubots</Link>
               </li>
               <li>
-                <Link to="/blogs" className="text-sm text-foreground/70 hover:text-primary transition-colors">Blogs</Link>
-              </li>
-              <li>
-                <Link to="/community" className="text-sm text-foreground/70 hover:text-primary transition-colors">Community</Link>
-              </li>
-              <li>
                 <Link to="/docs" className="text-sm text-foreground/70 hover:text-primary transition-colors">Documentation</Link>
               </li>
+              <li>
+                <Link to="/leaderboard" className="text-sm text-foreground/70 hover:text-primary transition-colors">Leaderboard</Link>
+              </li>
+              <li>
+                <Link to="/beta-testing" className="text-sm text-foreground/70 hover:text-primary transition-colors">Beta testing</Link>
+              </li>
+              
             </ul>
           </motion.div>
 

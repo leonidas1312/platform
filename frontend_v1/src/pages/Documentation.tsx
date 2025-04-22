@@ -1,13 +1,36 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useNavigate, useLocation } from "react-router-dom"
 import { motion } from "framer-motion"
 import Layout from "@/components/Layout"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Search, FileText, Code, BookOpen, Cpu, Lightbulb, ArrowRight, ChevronRight, Home, Menu, X } from "lucide-react"
+import katex from "katex"
+import renderMathInElement from "katex/contrib/auto-render"
+import {
+  Search,
+  FileText,
+  Code,
+  BookOpen,
+  Cpu,
+  Lightbulb,
+  ArrowRight,
+  ChevronRight,
+  Home,
+  Menu,
+  X,
+  Copy,
+  Terminal,
+  Info,
+  AlertCircle,
+  Maximize2,
+  Minimize2,
+} from "lucide-react"
+import { useToast } from "@/components/ui/use-toast"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { cn } from "@/lib/utils"
 
 // Documentation structure
 const documentationStructure = [
@@ -514,6 +537,80 @@ For more examples and tutorials, check out the other documentation pages.
   },
 }
 
+// Component for rendering a code window
+const CodeWindow = ({ language, code, title }) => {
+  const { toast } = useToast()
+  const [isExpanded, setIsExpanded] = useState(false)
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(code)
+    toast({
+      title: "Code copied",
+      description: "Code snippet copied to clipboard",
+    })
+  }
+
+  return (
+    <div
+      className={cn(
+        "my-6 rounded-lg overflow-hidden border border-border shadow-md transition-all",
+        isExpanded ? "fixed inset-10 z-50 flex flex-col" : "relative",
+      )}
+    >
+      <div className="bg-muted/80 px-4 py-2 flex items-center justify-between border-b">
+        <div className="flex items-center">
+          <Terminal className="h-4 w-4 mr-2 text-primary" />
+          <span className="text-sm font-medium">{title || language}</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleCopy}>
+            <Copy className="h-4 w-4" />
+          </Button>
+          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setIsExpanded(!isExpanded)}>
+            {isExpanded ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+          </Button>
+        </div>
+      </div>
+      <div className={cn("bg-muted/30 overflow-auto", isExpanded ? "flex-grow" : "")}>
+        <pre className="p-4 text-sm">
+          <code>{code}</code>
+        </pre>
+      </div>
+    </div>
+  )
+}
+
+// Component for rendering a note or warning box
+const InfoBox = ({ type, children }) => {
+  return (
+    <div
+      className={cn(
+        "my-6 p-4 rounded-lg border",
+        type === "warning"
+          ? "bg-amber-50 border-amber-200 dark:bg-amber-950/20 dark:border-amber-800/30"
+          : "bg-blue-50 border-blue-200 dark:bg-blue-950/20 dark:border-blue-800/30",
+      )}
+    >
+      <div className="flex items-center gap-2 mb-2">
+        {type === "warning" ? (
+          <AlertCircle className="h-5 w-5 text-amber-500" />
+        ) : (
+          <Info className="h-5 w-5 text-blue-500" />
+        )}
+        <h3
+          className={cn(
+            "font-medium",
+            type === "warning" ? "text-amber-700 dark:text-amber-400" : "text-blue-700 dark:text-blue-400",
+          )}
+        >
+          {type === "warning" ? "Warning" : "Note"}
+        </h3>
+      </div>
+      <div className="text-sm">{children}</div>
+    </div>
+  )
+}
+
 const DocumentationPage = () => {
   const navigate = useNavigate()
   const location = useLocation()
@@ -521,6 +618,29 @@ const DocumentationPage = () => {
   const [currentDoc, setCurrentDoc] = useState("introduction")
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [searchResults, setSearchResults] = useState<Array<{ slug: string; title: string; section: string }>>([])
+  const contentRef = useRef<HTMLDivElement>(null)
+
+  // Load KaTeX for LaTeX rendering
+  useEffect(() => {
+    // inject CSS only:
+    const link = document.createElement("link")
+    link.rel = "stylesheet"
+    link.href = "https://cdn.jsdelivr.net/npm/katex@0.16.0/dist/katex.min.css"
+    document.head.appendChild(link)
+  
+    if (contentRef.current) {
+      renderMathInElement(contentRef.current, {
+        delimiters: [
+          { left: "$$", right: "$$", display: true },
+          { left: "$",  right: "$",  display: false },
+        ],
+      })
+    }
+  
+    return () => {
+      document.head.removeChild(link)
+    }
+  }, [currentDoc])
 
   // Extract the slug from the URL if present
   useEffect(() => {
@@ -592,64 +712,204 @@ const DocumentationPage = () => {
     }
   }
 
-  // Process markdown content to handle code blocks
+  // Process content to render different elements
   const processContent = (content: string) => {
-    // Split content by code blocks
-    const parts = content.split(/```(\w+)?\n/)
+    // First, split the content by headers to preserve the structure
+    const headerRegex = /^(#{1,6})\s+(.+)$/gm
+    const sections = content.split(headerRegex)
 
-    return parts.map((part, index) => {
-      if (index % 3 === 0) {
-        // Regular text content
-        return <div key={index} dangerouslySetInnerHTML={{ __html: markdownToHtml(part) }} />
-      } else if (index % 3 === 1) {
-        // Language identifier
-        return null
-      } else {
-        // Code block content
-        const language = parts[index - 1] || "text"
-        return (
-          <div key={index} className="my-4 rounded-md overflow-hidden">
-            <div className="bg-muted px-4 py-2 text-sm font-medium border-b">{language}</div>
-            <pre className="p-4 bg-muted/50 overflow-x-auto">
-              <code>{part}</code>
-            </pre>
-          </div>
+    const result = []
+    let index = 0
+
+    // Process each section
+    while (index < sections.length) {
+      if (index === 0 && sections[index]) {
+        // This is content before the first header
+        result.push(processSection(sections[index]))
+        index++
+      } else if (index + 2 < sections.length) {
+        // This is a header followed by content
+        const headerLevel = sections[index].length
+        const headerText = sections[index + 1]
+        const sectionContent = sections[index + 2]
+
+        // Create an ID for the header
+        const headerId = headerText
+          .toLowerCase()
+          .replace(/\s+/g, "-")
+          .replace(/[^\w-]/g, "")
+
+        // Add the header
+        result.push(
+          <div key={`header-${index}`} className="group">
+            {renderHeader(headerLevel, headerText, headerId)}
+            {processSection(sectionContent)}
+          </div>,
         )
+
+        index += 3
+      } else {
+        // Handle any remaining content
+        if (sections[index]) {
+          result.push(processSection(sections[index]))
+        }
+        index++
       }
-    })
+    }
+
+    return result
   }
 
-  // Simple markdown to HTML converter
-  const markdownToHtml = (markdown: string) => {
-    let html = markdown
+  // Process a section of content (between headers)
+  const processSection = (content: string) => {
+    // Process code blocks
+    const codeBlockRegex = /```(\w+)?\n([\s\S]*?)```/g
+    const parts = []
+    let lastIndex = 0
+    let match
 
-    // Headers
-    html = html.replace(/^# (.*$)/gm, '<h1 class="text-3xl font-bold mt-8 mb-4">$1</h1>')
-    html = html.replace(/^## (.*$)/gm, '<h2 class="text-2xl font-bold mt-6 mb-3">$1</h2>')
-    html = html.replace(/^### (.*$)/gm, '<h3 class="text-xl font-bold mt-5 mb-2">$1</h3>')
+    while ((match = codeBlockRegex.exec(content)) !== null) {
+      // Add text before the code block
+      if (match.index > lastIndex) {
+        parts.push(processText(content.substring(lastIndex, match.index)))
+      }
 
-    // Bold and italic
-    html = html.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
-    html = html.replace(/\*(.*?)\*/g, "<em>$1</em>")
+      // Add the code block
+      const language = match[1] || "text"
+      const code = match[2]
+      parts.push(
+        <CodeWindow
+          key={`code-${match.index}`}
+          language={language}
+          code={code}
+          title={`${language.charAt(0).toUpperCase() + language.slice(1)} Code`}
+        />,
+      )
 
-    // Lists
-    html = html.replace(/^\s*\d+\.\s+(.*$)/gm, '<li class="ml-6 list-decimal mb-1">$1</li>')
-    html = html.replace(/^\s*-\s+(.*$)/gm, '<li class="ml-6 list-disc mb-1">$1</li>')
+      lastIndex = match.index + match[0].length
+    }
 
-    // Links
-    html = html.replace(/\[(.*?)\]$$(.*?)$$/g, '<a href="$2" class="text-primary hover:underline">$1</a>')
+    // Add any remaining text
+    if (lastIndex < content.length) {
+      parts.push(processText(content.substring(lastIndex)))
+    }
 
-    // Blockquotes
-    html = html.replace(
-      /^>\s+(.*$)/gm,
-      '<blockquote class="border-l-4 border-primary pl-4 italic my-4">$1</blockquote>',
+    return <div key={`section-${Math.random()}`}>{parts}</div>
+  }
+
+  // Process text content (paragraphs, lists, etc.)
+  const processText = (text: string) => {
+    // Process blockquotes
+    text = text.replace(
+      /^>\s+(.*?)$/gm,
+      '<blockquote class="border-l-4 border-primary/60 pl-4 py-2 my-4 bg-primary/5 rounded-r-md italic">$1</blockquote>',
     )
 
-    // Paragraphs
-    html = html.replace(/^(?!<[a-z])/gm, '<p class="mb-4">')
-    html = html.replace(/^(?!<\/[a-z])/gm, "</p>")
+    // Process lists
+    text = text.replace(/^\s*-\s+(.*?)$/gm, '<li class="ml-6 list-disc mb-2">$1</li>')
+    text = text.replace(/^\s*\d+\.\s+(.*?)$/gm, '<li class="ml-6 list-decimal mb-2">$1</li>')
 
-    return html
+    // Wrap lists in ul/ol tags
+    text = text.replace(/(<li class="ml-6 list-disc mb-2">.*?<\/li>)+/gs, '<ul class="my-4">$&</ul>')
+    text = text.replace(/(<li class="ml-6 list-decimal mb-2">.*?<\/li>)+/gs, '<ol class="my-4">$&</ol>')
+
+    // Process bold and italic
+    text = text.replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold">$1</strong>')
+    text = text.replace(/\*(.*?)\*/g, '<em class="italic">$1</em>')
+
+    // Process inline code
+    text = text.replace(/`([^`]+)`/g, '<code class="px-1.5 py-0.5 bg-muted rounded text-sm font-mono">$1</code>')
+
+    // Process links
+    text = text.replace(/\[(.*?)\]$$(.*?)$$/g, '<a href="$2" class="text-primary hover:underline font-medium">$1</a>')
+
+    // Process paragraphs (any text not already in a tag)
+    text = text.replace(/^(?!<[a-z])(.*?)$/gm, (match, p1) =>
+      p1.trim() ? `<p class="mb-4 leading-relaxed">${p1}</p>` : "",
+    )
+
+    return <div dangerouslySetInnerHTML={{ __html: text }} />
+  }
+
+  // Render a header with the appropriate level
+  const renderHeader = (level: number, text: string, id: string) => {
+    const HeaderTag = `h${level}` as keyof JSX.IntrinsicElements
+    const fontSize = level === 1 ? "text-3xl" : level === 2 ? "text-2xl" : "text-xl"
+    const margin = level === 1 ? "mt-8 mb-4" : level === 2 ? "mt-6 mb-3" : "mt-5 mb-2"
+
+    return (
+      <HeaderTag id={id} className={`${fontSize} font-bold ${margin} flex items-center group`}>
+        <a
+          href={`#${id}`}
+          className="absolute -ml-8 pr-2 opacity-0 group-hover:opacity-100 transition-opacity"
+          aria-hidden="true"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="text-muted-foreground"
+          >
+            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+          </svg>
+        </a>
+        {text}
+      </HeaderTag>
+    )
+  }
+
+  // Render the table of contents
+  const renderTableOfContents = () => {
+    const headingRegex = /^(#{1,3})\s+(.+)$/gm
+    const headings = []
+    let match
+
+    while ((match = headingRegex.exec(currentDocContent.content)) !== null) {
+      const level = match[1].length
+      const text = match[2]
+      const id = text
+        .toLowerCase()
+        .replace(/\s+/g, "-")
+        .replace(/[^\w-]/g, "")
+
+      headings.push({ level, text, id })
+    }
+
+    if (headings.length < 3) return null
+
+    return (
+      <div className="bg-muted/30 rounded-lg p-4 border border-border/40 mb-6">
+        <h3 className="text-sm font-medium mb-2 flex items-center">
+          <FileText className="h-4 w-4 mr-2 text-primary" />
+          Table of Contents
+        </h3>
+        <div className="space-y-1">
+          {headings.map((heading, index) => (
+            <a
+              key={index}
+              href={`#${heading.id}`}
+              className={`flex items-center text-sm hover:text-primary transition-colors ${
+                heading.level === 1
+                  ? "font-medium"
+                  : heading.level === 2
+                    ? "pl-4 text-muted-foreground"
+                    : "pl-8 text-muted-foreground text-xs"
+              }`}
+            >
+              <ChevronRight className="h-3 w-3 mr-1 text-primary/70" />
+              {heading.text}
+            </a>
+          ))}
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -791,8 +1051,24 @@ const DocumentationPage = () => {
                   <p className="text-muted-foreground">{currentDocContent.description}</p>
                 </div>
 
-                <Card>
-                  <CardContent className="p-6">
+                {/* Document Window */}
+                <Card className="border border-border/60 shadow-md overflow-hidden">
+                  <div className="bg-muted/80 px-4 py-2 border-b flex items-center justify-between">
+                    <div className="flex items-center">
+                      <FileText className="h-4 w-4 mr-2 text-primary" />
+                      <span className="font-medium">{currentDocContent.title}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Tabs defaultValue="preview" className="w-[200px]">
+                        <TabsList className="grid w-full grid-cols-2">
+                          <TabsTrigger value="preview">Preview</TabsTrigger>
+                          <TabsTrigger value="source">Source</TabsTrigger>
+                        </TabsList>
+                      </Tabs>
+                    </div>
+                  </div>
+                  <CardContent className="p-6 max-h-[calc(100vh-300px)] overflow-auto" ref={contentRef}>
+                    {renderTableOfContents()}
                     <div className="prose prose-sm md:prose max-w-none dark:prose-invert">
                       {processContent(currentDocContent.content)}
                     </div>
@@ -846,7 +1122,6 @@ const DocumentationPage = () => {
 // Helper functions to get previous and next docs
 function getPreviousDoc(currentSlug: string): string | null {
   let prevSlug: string | null = null
-  const found = false
 
   // Flatten the documentation structure
   const allDocs: string[] = []

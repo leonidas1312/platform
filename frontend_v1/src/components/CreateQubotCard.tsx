@@ -58,7 +58,7 @@ export default function QubotCardForm({ initialData, onSave, onCancel }: QubotCa
     <Card className="w-full">
       <CardHeader>
         <CardTitle>Qubot Card</CardTitle>
-        <CardDescription>Configure your optimization problem or solution</CardDescription>
+        <CardDescription>Here you can add useful information about the qubot repository.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
         <div className="space-y-4">
@@ -75,15 +75,7 @@ export default function QubotCardForm({ initialData, onSave, onCancel }: QubotCa
             </Select>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="problem_name">Name</Label>
-            <Input
-              id="problem_name"
-              value={formData.problem_name}
-              onChange={(e) => handleInputChange("problem_name", e.target.value)}
-              placeholder="Name of your optimization problem"
-            />
-          </div>
+          
 
           <div className="space-y-2">
             <Label htmlFor="description">Description</Label>
@@ -91,7 +83,7 @@ export default function QubotCardForm({ initialData, onSave, onCancel }: QubotCa
               id="description"
               value={formData.description}
               onChange={(e) => handleInputChange("description", e.target.value)}
-              placeholder="A short description of this Qubot card"
+              placeholder="Describe what optimization problem or algorithm this qubot repository contains"
               rows={3}
             />
           </div>

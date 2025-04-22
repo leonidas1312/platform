@@ -17,7 +17,7 @@ const pythonSnippets = [
 # TSP developed from the Rastion team
 problem = AutoProblem.from_repo("Rastion/traveling_salesman_problem")`,
     description:
-      "Import pre-built optimization problems and optimization algorithms directly from the Rastion repository. No need to define the structure yourself.",
+      "Import pre-built optimization problems and optimization algorithms directly from the Rastion community. No need to define the structure yourself.",
   },
   {
     title: "3. Connect your qubots",

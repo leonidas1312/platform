@@ -49,6 +49,7 @@
         "express-session": "^1.18.1",
         "framer-motion": "^12.4.10",
         "input-otp": "^1.2.4",
+        "katex": "^0.16.22",
         "lucide-react": "^0.462.0",
         "next-themes": "^0.3.0",
         "react": "^18.3.1",

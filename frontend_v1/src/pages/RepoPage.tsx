@@ -9,7 +9,24 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
-import { Book, Code, Copy, FileText, GitBranch, Loader2, Star, MoreVertical, GitFork, Plus, Trash2 } from "lucide-react"
+import {
+  Book,
+  Code,
+  Copy,
+  FileText,
+  GitBranch,
+  Loader2,
+  Star,
+  MoreVertical,
+  GitFork,
+  Plus,
+  Trash2,
+  Database,
+  Zap,
+  User,
+  ExternalLink,
+  Tag,
+} from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import {
@@ -97,28 +114,23 @@ export default function RepoPage() {
   // File search dialog state
   const [showFileSearchDialog, setShowFileSearchDialog] = useState(false)
   const [allRepoFiles, setAllRepoFiles] = useState<any[]>([])
-  
+
   const [hasRepoStarred, setHasRepoStarred] = useState(false)
 
-  // Dummy data for Other Qubots tab
-  const otherQubots = [
-    { id: 1, title: "Optimizer A", description: "Optimize your workflow with A." },
-    { id: 2, title: "Optimizer B", description: "Improve performance with B." },
-    { id: 3, title: "Optimizer C", description: "Advanced techniques with C." },
-  ]
-
   // New state variables for connections
-  const [connections, setConnections] = useState<Array<{
-    repoPath: string;
-    description: string;
-    codeSnippet: string;
-  }>>([])
+  const [connections, setConnections] = useState<
+    Array<{
+      repoPath: string
+      description: string
+      codeSnippet: string
+    }>
+  >([])
   const [showConnectionDialog, setShowConnectionDialog] = useState(false)
   const [editingConnectionIndex, setEditingConnectionIndex] = useState<number | null>(null)
   const [connectionForm, setConnectionForm] = useState({
     repoPath: "",
     description: "",
-    codeSnippet: ""
+    codeSnippet: "",
   })
 
   // Parse the URL to determine current path, branch, and file
@@ -203,11 +215,10 @@ export default function RepoPage() {
     }
 
     const token = getUserToken()
-    
-    fetch(`http://localhost:4000/api/repos/${owner}/${repoName}`,
-    {
+
+    fetch(`http://localhost:4000/api/repos/${owner}/${repoName}`, {
       headers: {
-        ...(token && { Authorization: `token ${token}` })
+        ...(token && { Authorization: `token ${token}` }),
       },
     })
       .then((res) => {
@@ -289,16 +300,14 @@ export default function RepoPage() {
     setReadme(data.readme)
     setConfig(data.config)
     setFiles(enhanceFilesWithCommitData(data.files))
-    
+
     const token = getUserToken()
-    if (token !== "")
-    {
-      const resStar = await fetch(`http://localhost:4000/api/hasStar/${owner}/${repoName}`,{
-          headers: {
-            Authorization: `token ${token}`,
-          },
+    if (token !== "") {
+      const resStar = await fetch(`http://localhost:4000/api/hasStar/${owner}/${repoName}`, {
+        headers: {
+          Authorization: `token ${token}`,
         },
-      )
+      })
       const starJson = await resStar.json()
       console.log("starjson:", starJson)
       setHasRepoStarred(starJson.starred)
@@ -379,8 +388,7 @@ export default function RepoPage() {
       }
     } catch (err) {
       console.error("Error toggling star state:", err)
-    }
-    finally {
+    } finally {
       setEditorLoading(false)
     }
   }
@@ -855,7 +863,7 @@ export default function RepoPage() {
     setConnectionForm({
       repoPath: connection.repoPath,
       description: connection.description,
-      codeSnippet: connection.codeSnippet
+      codeSnippet: connection.codeSnippet,
     })
     setEditingConnectionIndex(index)
     setShowConnectionDialog(true)
@@ -865,7 +873,7 @@ export default function RepoPage() {
     const updatedConnections = [...connections]
     updatedConnections.splice(index, 1)
     setConnections(updatedConnections)
-    
+
     // In a real app, you would save this to the backend
     toast({
       title: "Connection removed",
@@ -884,7 +892,7 @@ export default function RepoPage() {
     }
 
     const updatedConnections = [...connections]
-    
+
     if (editingConnectionIndex !== null) {
       // Edit existing connection
       updatedConnections[editingConnectionIndex] = connectionForm
@@ -892,22 +900,23 @@ export default function RepoPage() {
       // Add new connection
       updatedConnections.push(connectionForm)
     }
-    
+
     setConnections(updatedConnections)
     setShowConnectionDialog(false)
     setEditingConnectionIndex(null)
     setConnectionForm({
       repoPath: "",
       description: "",
-      codeSnippet: ""
+      codeSnippet: "",
     })
-    
+
     // In a real app, you would save this to the backend
     toast({
       title: editingConnectionIndex !== null ? "Connection updated" : "Connection added",
-      description: editingConnectionIndex !== null 
-        ? "The repository connection has been updated" 
-        : "The repository connection has been added",
+      description:
+        editingConnectionIndex !== null
+          ? "The repository connection has been updated"
+          : "The repository connection has been added",
     })
   }
 
@@ -963,11 +972,11 @@ export default function RepoPage() {
   return (
     <Layout>
       <div className="container mx-auto px-4 py-8 mt-32 bg-background text-foreground">
-        {/* Repository Header */}
-        <div className="flex flex-col space-y-4 mb-6">
+        {/* Repository Header with gradient background */}
+        <div className="flex flex-col space-y-4 mb-8 bg-gradient-to-r from-background via-background/80 to-primary/5 rounded-xl p-6 border border-border/40 shadow-sm">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Book className="h-5 w-5 text-muted-foreground" />
+              <Book className="h-5 w-5 text-primary" />
               <button
                 onClick={() => navigate(`/u/${repo.owner.login}`)}
                 className="text-muted-foreground hover:text-primary hover:underline transition-colors"
@@ -984,7 +993,7 @@ export default function RepoPage() {
               >
                 {repo.name}
               </button>
-              <Badge variant="outline" className="ml-2">
+              <Badge variant="outline" className="ml-2 bg-background/80 backdrop-blur-sm">
                 {repo.private ? "Private" : "Public"}
               </Badge>
             </div>
@@ -992,12 +1001,18 @@ export default function RepoPage() {
 
           <div className="flex flex-wrap items-start justify-between gap-4">
             {/* Show Qubot description under repo name if available */}
-            <p className="text-muted-foreground max-w">
+            <p className="text-muted-foreground max-w-6xl">
               {config?.description || repo.description || "No description provided."}
             </p>
             <div className="flex gap-2 items-center ml-auto">
-              <Button 
-                onClick={() => {toggleStar()}} variant="outline" size="sm" className="h-8">
+              <Button
+                onClick={() => {
+                  toggleStar()
+                }}
+                variant="outline"
+                size="sm"
+                className={`h-8 transition-all ${hasRepoStarred ? "bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800/30 dark:hover:bg-amber-900/50" : ""}`}
+              >
                 <Star className={`mr-1 h-4 w-4 ${hasRepoStarred ? "fill-current" : ""}`} />
                 {hasRepoStarred ? "Unstar" : "Star"}
                 <Badge variant="secondary" className="ml-1 rounded-sm px-1">
@@ -1103,39 +1118,85 @@ export default function RepoPage() {
           {/* Sidebar with Qubot Card */}
           <div className="lg:col-span-1 space-y-4">
             <div className="sticky top-24">
-              <Card>
-                <CardHeader className="pb-2">
+              <Card className="hover:shadow-md transition-all duration-300 border-border/60">
+                <CardHeader className="pb-2 bg-gradient-to-br from-background to-muted/30 border-b border-border/30">
                   <CardTitle className="text-lg flex items-center gap-2">
-                    <Code className="h-4 w-4" />
-                    {config?.problem_name || "Qubot"}
+                    
+                    {"Qubot card"}
                   </CardTitle>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="p-4">
                   {showCreateForm ? (
                     <div className="text-center py-4">
                       <p className="text-sm text-muted-foreground mb-4">
-                        You're currently editing the Qubot Card in the main panel.
+                        You're currently editing the Qubot card in the main panel.
                       </p>
                     </div>
                   ) : config ? (
                     <div className="space-y-4">
+                      {/* Type badge with improved styling */}
                       <div className="flex items-center gap-2">
-                        <Badge variant={config.type === "problem" ? "default" : "secondary"}>{config.type}</Badge>
+                        <Badge
+                          variant="outline"
+                          className={`px-3 py-1 text-sm font-medium border-none text-white ${
+                            config.type === "problem"
+                              ? "bg-gradient-to-r from-blue-500 to-cyan-500"
+                              : "bg-gradient-to-r from-orange-500 to-red-500"
+                          }`}
+                        >
+                          
+                          {config.type.charAt(0).toUpperCase() + config.type.slice(1)}
+                        </Badge>
                       </div>
-                      {config.keywords && config.keywords.length > 0 && (
-                        <div className="flex flex-wrap gap-1 mt-2">
-                          {config.keywords.slice(0, 10).map((keyword: string) => (
-                            <Badge key={keyword} variant="outline" className="text-xs">
-                              {keyword}
-                            </Badge>
-                          ))}
-                          {config.keywords.length > 10 && (
-                            <Badge variant="outline" className="text-xs">
-                              +{config.keywords.length - 3} more
-                            </Badge>
+
+                      {/* Metadata section with improved styling */}
+                      {(config.creator || config.problem_name || config.link_to_arxiv) && (
+                        <div className="space-y-2 bg-muted/20 rounded-md p-3 border border-border/40">
+                          
+
+                          
+                          {config.link_to_arxiv && (
+                            <div className="flex items-start gap-2">
+                              <ExternalLink className="h-4 w-4 text-primary mt-0.5" />
+                              <div>
+                                <span className="text-xs text-muted-foreground">arXiv Link</span>
+                                <a
+                                  href={config.link_to_arxiv}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-sm font-medium text-primary hover:underline block"
+                                >
+                                  View Paper
+                                </a>
+                              </div>
+                            </div>
                           )}
                         </div>
                       )}
+
+                      {/* Keywords with improved styling */}
+                      {config.keywords && config.keywords.length > 0 && (
+                        <div className="space-y-1.5">
+                          <div className="flex items-center gap-1.5">
+                            <Tag className="h-3.5 w-3.5 text-primary" />
+                            <span className="text-xs font-medium text-muted-foreground">Keywords</span>
+                          </div>
+                          <div className="flex flex-wrap gap-1.5 mt-1 bg-muted/20 p-2 rounded-md border border-border/40">
+                            {config.keywords.slice(0, 20).map((keyword: string) => (
+                              <Badge
+                                key={keyword}
+                                variant="outline"
+                                className="text-xs bg-background hover:bg-primary/5 transition-colors border-primary/20"
+                              >
+                                {keyword}
+                              </Badge>
+                            ))}
+                            
+                          </div>
+                        </div>
+                      )}
+
+                      
                     </div>
                   ) : (
                     <div className="text-center py-4">
@@ -1147,6 +1208,7 @@ export default function RepoPage() {
                           navigate(`/${owner}/${repoName}`)
                         }}
                         size="sm"
+                        className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary"
                       >
                         Create Qubot Card
                       </Button>
@@ -1157,27 +1219,41 @@ export default function RepoPage() {
 
               {/* Use with qubots button */}
               {config && (
-                <Card className="mt-4">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm">Use with qubots library</CardTitle>
+                <Card className="mt-4 hover:shadow-md transition-all duration-300 border-border/60">
+                  <CardHeader className="pb-2 bg-gradient-to-br from-background to-muted/30 border-b border-border/30">
+                    <CardTitle className="text-sm flex items-center gap-2">
+                      <Code className="h-3.5 w-3.5 text-primary" />
+                      Use with qubots library
+                    </CardTitle>
                   </CardHeader>
-                  <CardContent>
+                  <CardContent className="p-4">
                     {/* Snippet block based on config.type */}
-                    <div className="bg-muted rounded-md p-2 text-xs font-mono overflow-x-auto">
-                      <code>
-                        pip install qubots
-                        <br />
+                    <div className="bg-muted/20 rounded-md p-2 text-xs font-mono overflow-x-auto border border-border/40">
+                      <code className="text-primary">
+                        
                         {config.type === "problem" ? (
                           <>
-                            from qubots import AutoProblem
+                            <span className="text-blue-500 dark:text-blue-400">from</span>{" "}
+                            <span className="text-green-600 dark:text-green-400">qubots</span>{" "}
+                            <span className="text-blue-500 dark:text-blue-400">import</span> AutoProblem
                             <br />
-                            problem = AutoProblem.from_repo("{repo.owner.login}/{repo.name}")
+                            problem = AutoProblem.from_repo(
+                            <span className="text-amber-600 dark:text-amber-400">
+                              "{repo.owner.login}/{repo.name}"
+                            </span>
+                            )
                           </>
                         ) : (
                           <>
-                            from qubots import AutoOptimizer
+                            <span className="text-blue-500 dark:text-blue-400">from</span>{" "}
+                            <span className="text-green-600 dark:text-green-400">qubots</span>{" "}
+                            <span className="text-blue-500 dark:text-blue-400">import</span> AutoOptimizer
                             <br />
-                            optimizer = AutoOptimizer.from_repo("{repo.owner.login}/{repo.name}")
+                            optimizer = AutoOptimizer.from_repo(
+                            <span className="text-amber-600 dark:text-amber-400">
+                              "{repo.owner.login}/{repo.name}"
+                            </span>
+                            )
                           </>
                         )}
                       </code>
@@ -1185,9 +1261,9 @@ export default function RepoPage() {
 
                     {/* Copy button */}
                     <Button
-                      variant="ghost"
+                      variant="outline"
                       size="sm"
-                      className="w-full mt-2 h-7 text-xs"
+                      className="w-full mt-3 h-8 text-xs border-primary/20 hover:bg-primary/5 hover:text-primary transition-colors"
                       onClick={() => {
                         const snippet =
                           config.type === "problem"
@@ -1228,24 +1304,24 @@ export default function RepoPage() {
                 <TabsList className="h-10 bg-transparent">
                   <TabsTrigger
                     value="qubot"
-                    className="data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none"
+                    className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none transition-colors"
                   >
                     <Code className="mr-2 h-4 w-4" />
                     Readme
                   </TabsTrigger>
                   <TabsTrigger
                     value="files"
-                    className="data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none"
+                    className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none transition-colors"
                   >
                     <FileText className="mr-2 h-4 w-4" />
                     Files
                   </TabsTrigger>
                   <TabsTrigger
                     value="others"
-                    className="data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none"
+                    className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none transition-colors"
                   >
                     <GitBranch className="mr-2 h-4 w-4" />
-                    Connects to
+                    Qubot connections
                   </TabsTrigger>
                 </TabsList>
               </div>
@@ -1313,15 +1389,13 @@ export default function RepoPage() {
                 <Card>
                   <CardHeader>
                     <div className="flex items-center justify-between">
-                      <CardTitle>Repository Connections</CardTitle>
+                      <CardTitle>Qubot Connections</CardTitle>
                       <Button size="sm" onClick={() => setShowConnectionDialog(true)}>
                         <Plus className="h-4 w-4 mr-2" />
                         Add Connection
                       </Button>
                     </div>
-                    <CardDescription>
-                      Connect your repository with other Qubot repositories to extend functionality
-                    </CardDescription>
+                    <CardDescription>Connect your repository with other Qubot repositories</CardDescription>
                   </CardHeader>
                   <CardContent>
                     {connections.length === 0 ? (
@@ -1329,9 +1403,12 @@ export default function RepoPage() {
                         <GitBranch className="h-12 w-12 text-muted-foreground opacity-50 mx-auto mb-4" />
                         <h3 className="text-lg font-medium">No connections yet</h3>
                         <p className="text-muted-foreground mt-1 mb-4">
-                          Connect your repository with other Qubot repositories to extend functionality
+                          Connect your repository with other Qubot repositories
                         </p>
-                        <Button onClick={() => setShowConnectionDialog(true)}>
+                        <Button
+                          onClick={() => setShowConnectionDialog(true)}
+                          className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary"
+                        >
                           <Plus className="h-4 w-4 mr-2" />
                           Add First Connection
                         </Button>
@@ -1344,7 +1421,12 @@ export default function RepoPage() {
                               <div>
                                 <h3 className="font-medium flex items-center gap-2">
                                   <GitBranch className="h-4 w-4 text-primary" />
-                                  <span>{connection.repoPath}</span>
+                                  <button
+                                    onClick={() => navigate(`/${connection.repoPath}`)}
+                                    className="text-primary hover:underline"
+                                  >
+                                    {connection.repoPath}
+                                  </button>
                                 </h3>
                                 {connection.description && (
                                   <p className="text-sm text-muted-foreground mt-1">{connection.description}</p>
@@ -1404,17 +1486,20 @@ export default function RepoPage() {
       />
 
       {/* Connection Dialog */}
-      <Dialog open={showConnectionDialog} onOpenChange={(open) => {
-        if (!open) {
-          setEditingConnectionIndex(null)
-          setConnectionForm({
-            repoPath: "",
-            description: "",
-            codeSnippet: ""
-          })
-        }
-        setShowConnectionDialog(open)
-      }}>
+      <Dialog
+        open={showConnectionDialog}
+        onOpenChange={(open) => {
+          if (!open) {
+            setEditingConnectionIndex(null)
+            setConnectionForm({
+              repoPath: "",
+              description: "",
+              codeSnippet: "",
+            })
+          }
+          setShowConnectionDialog(open)
+        }}
+      >
         <DialogContent className="sm:max-w-[600px]">
           <DialogHeader>
             <DialogTitle>
@@ -1424,49 +1509,51 @@ export default function RepoPage() {
               Connect your repository with another Qubot repository to extend functionality
             </DialogDescription>
           </DialogHeader>
-          
+
           <div className="grid gap-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="repoPath">Repository Path <span className="text-destructive">*</span></Label>
-              <Input 
-                id="repoPath" 
-                placeholder="owner/repository-name" 
+              <Label htmlFor="repoPath">
+                Repository Path <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="repoPath"
+                placeholder="owner/repository-name"
                 value={connectionForm.repoPath}
-                onChange={(e) => setConnectionForm({...connectionForm, repoPath: e.target.value})}
+                onChange={(e) => setConnectionForm({ ...connectionForm, repoPath: e.target.value })}
               />
               <p className="text-xs text-muted-foreground">
                 Format: username/repository-name (e.g., papaflesas/VRP_solver)
               </p>
             </div>
-            
+
             <div className="space-y-2">
               <Label htmlFor="description">Description</Label>
-              <Input 
-                id="description" 
-                placeholder="Brief description of how this connection is used" 
+              <Input
+                id="description"
+                placeholder="Brief description of how this connection is used"
                 value={connectionForm.description}
-                onChange={(e) => setConnectionForm({...connectionForm, description: e.target.value})}
+                onChange={(e) => setConnectionForm({ ...connectionForm, description: e.target.value })}
               />
             </div>
-            
+
             <div className="space-y-2">
-              <Label htmlFor="codeSnippet">Code Snippet <span className="text-destructive">*</span></Label>
-              <Textarea 
-                id="codeSnippet" 
+              <Label htmlFor="codeSnippet">
+                Code Snippet <span className="text-destructive">*</span>
+              </Label>
+              <Textarea
+                id="codeSnippet"
                 placeholder="# Python code to connect to this repository
 from qubots import AutoProblem
-problem = AutoProblem.from_repo('owner/repo-name')" 
+problem = AutoProblem.from_repo('owner/repo-name')"
                 value={connectionForm.codeSnippet}
-                onChange={(e) => setConnectionForm({...connectionForm, codeSnippet: e.target.value})}
+                onChange={(e) => setConnectionForm({ ...connectionForm, codeSnippet: e.target.value })}
                 className="font-mono text-sm"
                 rows={6}
               />
-              <p className="text-xs text-muted-foreground">
-                Add the code that shows how to connect to this repository
-              </p>
+              <p className="text-xs text-muted-foreground">Add the code that shows how to connect to this repository</p>
             </div>
           </div>
-          
+
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowConnectionDialog(false)}>
               Cancel
