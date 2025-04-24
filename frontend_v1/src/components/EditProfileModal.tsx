@@ -1,6 +1,8 @@
+"use client"
+
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useRef } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -8,7 +10,8 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { User, Mail, MapPin, Globe, FileText } from "lucide-react"
+import { User, Mail, MapPin, Globe, FileText, Upload, Camera, Loader2 } from "lucide-react"
+import { toast } from "@/components/ui/use-toast"
 
 interface EditProfileModalProps {
   isOpen: boolean
@@ -28,6 +31,9 @@ export default function EditProfileModal({ isOpen, onClose, user, onSave }: Edit
   })
 
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false)
+  const [previewAvatar, setPreviewAvatar] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
@@ -51,6 +57,101 @@ export default function EditProfileModal({ isOpen, onClose, user, onSave }: Edit
     }
   }
 
+  const handleAvatarClick = () => {
+    fileInputRef.current?.click()
+  }
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    // Check file size (max 2MB)
+    if (file.size > 2 * 1024 * 1024) {
+      toast({
+        title: "File too large",
+        description: "Avatar image must be less than 2MB",
+        variant: "destructive",
+      })
+      return
+    }
+
+    // Check file type
+    if (!file.type.startsWith("image/")) {
+      toast({
+        title: "Invalid file type",
+        description: "Please select an image file",
+        variant: "destructive",
+      })
+      return
+    }
+
+    // Create preview
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      setPreviewAvatar(e.target?.result as string)
+    }
+    reader.readAsDataURL(file)
+
+    // Upload avatar
+    await uploadAvatar(file)
+  }
+
+  const uploadAvatar = async (file: File) => {
+    setIsUploadingAvatar(true)
+    try {
+      // Convert file to base64
+      const base64Image = await fileToBase64(file)
+
+      // Get token
+      const token = localStorage.getItem("gitea_token")
+      if (!token) {
+        throw new Error("Authentication required")
+      }
+
+      // Make API call to update avatar
+      const response = await fetch("http://localhost:4000/api/update-avatar", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `token ${token}`,
+        },
+        body: JSON.stringify({
+          image: base64Image.split(",")[1], // Remove data URL prefix
+        }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.message || "Failed to update avatar")
+      }
+
+      toast({
+        title: "Success",
+        description: "Avatar updated successfully",
+      })
+    } catch (error: any) {
+      console.error("Error updating avatar:", error)
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update avatar",
+        variant: "destructive",
+      })
+      // Reset preview on error
+      setPreviewAvatar(null)
+    } finally {
+      setIsUploadingAvatar(false)
+    }
+  }
+
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.readAsDataURL(file)
+      reader.onload = () => resolve(reader.result as string)
+      reader.onerror = (error) => reject(error)
+    })
+  }
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[500px]">
@@ -59,14 +160,50 @@ export default function EditProfileModal({ isOpen, onClose, user, onSave }: Edit
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-6 py-4">
-          {/* Avatar Preview */}
-          <div className="flex items-center gap-4">
-            <Avatar className="w-16 h-16 border-2 border-muted">
-              <AvatarImage src={user?.avatar_url} alt={user?.login} />
-              <AvatarFallback>{user?.login?.substring(0, 2).toUpperCase()}</AvatarFallback>
-            </Avatar>
-            <div>
+          {/* Avatar Preview with Upload Option */}
+          <div className="flex flex-col items-center gap-4">
+            <div className="relative group">
+              <Avatar className="w-24 h-24 border-2 border-muted cursor-pointer" onClick={handleAvatarClick}>
+                {previewAvatar ? (
+                  <AvatarImage src={previewAvatar || "/placeholder.svg"} alt={user?.login} />
+                ) : (
+                  <AvatarImage src={user?.avatar_url || "/placeholder.svg"} alt={user?.login} />
+                )}
+                <AvatarFallback>{user?.login?.substring(0, 2).toUpperCase()}</AvatarFallback>
+
+                {/* Overlay for hover effect */}
+                <div className="absolute inset-0 bg-black/50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                  {isUploadingAvatar ? (
+                    <Loader2 className="h-6 w-6 text-white animate-spin" />
+                  ) : (
+                    <Camera className="h-6 w-6 text-white" />
+                  )}
+                </div>
+              </Avatar>
+
+              <input
+                type="file"
+                ref={fileInputRef}
+                className="hidden"
+                accept="image/*"
+                onChange={handleFileChange}
+                disabled={isUploadingAvatar}
+              />
+            </div>
+
+            <div className="text-center">
               <p className="font-medium">@{user?.login}</p>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="text-xs text-muted-foreground"
+                onClick={handleAvatarClick}
+                disabled={isUploadingAvatar}
+              >
+                <Upload className="h-3 w-3 mr-1" />
+                {isUploadingAvatar ? "Uploading..." : "Change avatar"}
+              </Button>
             </div>
           </div>
 
@@ -147,10 +284,10 @@ export default function EditProfileModal({ isOpen, onClose, user, onSave }: Edit
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
+            <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting || isUploadingAvatar}>
               Cancel
             </Button>
-            <Button type="submit" disabled={isSubmitting}>
+            <Button type="submit" disabled={isSubmitting || isUploadingAvatar}>
               {isSubmitting ? "Saving..." : "Save Changes"}
             </Button>
           </DialogFooter>
@@ -159,4 +296,3 @@ export default function EditProfileModal({ isOpen, onClose, user, onSave }: Edit
     </Dialog>
   )
 }
-

@@ -1430,13 +1430,13 @@ export default function RepoPage() {
                 <Card>
                   <CardHeader>
                     <div className="flex items-center justify-between">
-                      <CardTitle>Qubot Connections</CardTitle>
+                      <CardTitle>Qubot connections</CardTitle>
                       <Button size="sm" onClick={() => setShowConnectionDialog(true)}>
                         <Plus className="h-4 w-4 mr-2" />
                         Add Connection
                       </Button>
                     </div>
-                    <CardDescription>Connect your repository with other Qubot repositories</CardDescription>
+                    <CardDescription>Connect your repository with other qubot repositories</CardDescription>
                   </CardHeader>
                   <CardContent>
                     {connections.length === 0 ? (
@@ -1558,7 +1558,7 @@ export default function RepoPage() {
               </Label>
               <Input
                 id="repoPath"
-                placeholder="owner/repository-name"
+                placeholder="some_username/repo-name"
                 value={connectionForm.repoPath}
                 onChange={(e) => setConnectionForm({ ...connectionForm, repoPath: e.target.value })}
               />
@@ -1583,9 +1583,13 @@ export default function RepoPage() {
               </Label>
               <Textarea
                 id="codeSnippet"
-                placeholder="# Python code to connect to this repository
-from qubots import AutoProblem
-problem = AutoProblem.from_repo('owner/repo-name')"
+                placeholder="from qubots.auto_problem import AutoProblem                           
+                from qubots.auto_optimizer import AutoOptimizer                                                                           
+                problem = AutoProblem.from_repo('some_username/repo-name')
+
+                optimizer = AutoOptimizer.from_repo('my_username/my-repo-name')
+
+                solution, cost_value = optimizer.optimize(problem)"
                 value={connectionForm.codeSnippet}
                 onChange={(e) => setConnectionForm({ ...connectionForm, codeSnippet: e.target.value })}
                 className="font-mono text-sm"

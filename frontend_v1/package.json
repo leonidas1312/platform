@@ -47,6 +47,7 @@
         "date-fns": "^3.6.0",
         "embla-carousel-react": "^8.3.0",
         "express-session": "^1.18.1",
+        "form-data": "^4.0.2",
         "framer-motion": "^12.4.10",
         "input-otp": "^1.2.4",
         "katex": "^0.16.22",

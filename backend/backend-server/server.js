@@ -5,11 +5,12 @@ const cors = require("cors")
 const crypto = require("crypto")
 const knex = require("knex")(require("./DB_postgres/knexfile").production)
 const nodemailer = require("nodemailer")
+const FormData = require('form-data')
 require("dotenv").config()
 
 const app = express()
 app.use(express.json())
-
+app.use(express.urlencoded({ limit: "1mb", extended: true }))
 app.use(cors({
   origin: (origin, callback) => {
       if (!origin) return callback(null, true)
@@ -441,44 +442,225 @@ app.get("/api/user-repos", async (req, res) => {
   }
 })
 
-// This route lists all public repos in Gitea
+// API endpoint for searching public repositories with filtering and sorting
 app.get("/api/public-repos", async (req, res) => {
-  const { page = 1, limit = 10, q = "" } = req.query
-
   try {
-    // 1) Construct query to Gitea's search
-    //    For example: GET /api/v1/repos/search?private=false&limit=10&page=1&q=someSearch
-    const searchUrl = new URL(`${GITEA_URL}/api/v1/repos/search`)
-    searchUrl.searchParams.set("private", "false")
-    searchUrl.searchParams.set("limit", limit)
-    searchUrl.searchParams.set("page", page)
-    if (q) {
-      searchUrl.searchParams.set("q", q) // optional search by name
+    const {
+      q = "",                    // Search query
+      page = 1,                  // Page number
+      limit = 25,                // Items per page
+      sort = "updated",          // Sort field (updated, stars, forks, created)
+      order = "desc",            // Sort order (asc, desc)
+      languages = "",            // Comma-separated list of languages
+      keywords = "",             // Comma-separated list of keywords
+      search_usernames = false   // Whether to search in usernames as well
+    } = req.query;
+
+    // Get auth token if available (for accessing private repos the user has access to)
+    const authHeader = req.headers.authorization;
+    const headers = {};
+    if (authHeader) {
+      headers.Authorization = authHeader;
     }
 
-    // 2) Make the request to Gitea
-    const giteaRes = await fetch(searchUrl, {
-      headers: {
-        "Content-Type": "application/json",
-        // For strictly public repos, you may not need a token.
-        // If Gitea requires a token to see these, add an admin or user token:
-        // 'Authorization': `token ${ADMIN_TOKEN}`
-      },
+    // Build query parameters for Gitea API
+    const repoParams = new URLSearchParams({
+      q,
+      page,
+      limit,
+      sort: mapSortField(sort),
+      order: sort === "alpha" ? "asc" : "desc", // alpha is sorted asc by default, others desc
+      includeDesc: "true"
+    });
+
+    // Fetch repositories from Gitea API
+    const repoResponse = await fetch(`${GITEA_URL}/api/v1/repos/search?${repoParams.toString()}`, { headers });
+    
+    if (!repoResponse.ok) {
+      throw new Error(`Failed to fetch repositories: ${repoResponse.status} ${repoResponse.statusText}`);
+    }
+    
+    const repoData = await repoResponse.json();
+    let repos = repoData.data || [];
+    
+    // If searching usernames is enabled and there's a search query
+    let users = [];
+    if (search_usernames === "true" && q) {
+      // Search for users
+      const userParams = new URLSearchParams({
+        q,
+        page,
+        limit
+      });
+      
+      const userResponse = await fetch(`${GITEA_URL}/api/v1/users/search?${userParams.toString()}`, { headers });
+      
+      if (userResponse.ok) {
+        const userData = await userResponse.json();
+        users = userData.data || [];
+        
+        // If users are found, fetch their repositories
+        if (users.length > 0) {
+          const userRepos = [];
+          
+          // For each user, fetch their repositories
+          // Note: In a production environment, you might want to limit this to avoid too many requests
+          for (const user of users.slice(0, 5)) { // Limit to first 5 users to avoid too many requests
+            const userRepoResponse = await fetch(`${GITEA_URL}/api/v1/users/${user.login}/repos`, { headers });
+            
+            if (userRepoResponse.ok) {
+              const userRepoData = await userRepoResponse.json();
+              userRepos.push(...userRepoData);
+            }
+          }
+          
+          // Add user repositories to the results
+          repos = [...repos, ...userRepos.filter(repo => 
+            // Avoid duplicates
+            !repos.some(r => r.id === repo.id)
+          )];
+        }
+      }
+    }
+    
+    // Apply language filtering if specified
+    if (languages) {
+      const languageList = languages.split(',').map(lang => lang.trim().toLowerCase());
+      repos = repos.filter(repo => 
+        repo.language && languageList.includes(repo.language.toLowerCase())
+      );
+    }
+    
+    // Apply keyword filtering if specified
+    if (keywords) {
+      const keywordList = keywords.split(',').map(kw => kw.trim().toLowerCase());
+      repos = repos.filter(repo => {
+        // Check if any keyword is in the description or name
+        const description = (repo.description || "").toLowerCase();
+        const name = repo.name.toLowerCase();
+        return keywordList.some(kw => description.includes(kw) || name.includes(kw));
+      });
+    }
+    
+    // Apply sorting (in case we've added repos from user search)
+    repos = sortRepositories(repos, sort);
+    
+    // Apply pagination to the combined and filtered results
+    const startIndex = (Number.parseInt(page) - 1) * Number.parseInt(limit);
+    const endIndex = startIndex + Number.parseInt(limit);
+    const paginatedRepos = repos.slice(startIndex, endIndex);
+    
+    // Return the results
+    res.json({
+      data: paginatedRepos,
+      total_count: repos.length,
+      page: Number.parseInt(page),
+      limit: Number.parseInt(limit)
+    });
+    
+  } catch (error) {
+    console.error("Error searching repositories:", error);
+    res.status(500).json({ message: "Failed to search repositories", error: error.message });
+  }
+});
+
+// Helper function to map frontend sort fields to Gitea API sort fields
+function mapSortField(sort) {
+  switch (sort) {
+    case "updated": return "updated";
+    case "stars": return "stars";
+    case "forks": return "forks";
+    case "created": return "created";
+    default: return "updated";
+  }
+}
+
+// Helper function to sort repositories
+function sortRepositories(repos, sortBy) {
+  switch (sortBy) {
+    case "updated":
+      return repos.sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
+    case "stars":
+      return repos.sort((a, b) => (b.stars_count || 0) - (a.stars_count || 0));
+    case "forks":
+      return repos.sort((a, b) => (b.forks_count || 0) - (a.forks_count || 0));
+    case "created":
+      return repos.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    default:
+      return repos;
+  }
+}
+
+
+
+// Add this endpoint to handle avatar updates
+app.post("/api/update-avatar", async (req, res) => {
+  const authHeader = req.headers.authorization
+  if (!authHeader) {
+    return res.status(401).json({ message: "Missing authorization header" })
+  }
+
+  const userToken = req.headers.authorization?.split(" ")[1]; // Get token from header
+  if (!userToken) {
+    return res.status(401).json({ message: "Unrecognized request." })
+  }
+
+  const { image } = req.body
+
+  if (!image) {
+    return res.status(400).json({ message: "Image data is required" })
+  }
+
+  try {
+    // First, get the current user to verify the token and get the username
+    const userResponse = await fetch(`${GITEA_URL}/api/v1/user`, {
+      headers: { Authorization: `token ${userToken}` },
     })
 
-    if (!giteaRes.ok) {
-      const errData = await giteaRes.json()
-      return res.status(giteaRes.status).json({
-        message: errData.message || "Failed to fetch public repos from Gitea.",
+    if (!userResponse.ok) {
+      const errData = await userResponse.json()
+      return res.status(userResponse.status).json({
+        message: errData.message || "Failed to authenticate user",
       })
     }
 
-    // 3) Gitea's response includes { data: [...], total_count, ok }
-    const result = await giteaRes.json()
+    const userData = await userResponse.json()
+    const username = userData.login
 
-    return res.json(result)
+    // Create a FormData instance
+    const form = new FormData()
+
+    // You may need to convert the image to a Buffer if it's base64 encoded
+    // If the image is base64, decode it first
+    const imageBuffer = Buffer.from(image, 'base64')
+
+    // Append the image to the FormData instance
+    form.append('avatar', imageBuffer, {
+      filename: 'avatar.png', // Change filename to match your use case
+      contentType: 'image/png', // Set the correct content type based on your image type
+    })
+
+    // Now update the avatar using the Gitea API with multipart/form-data
+    const avatarResponse = await fetch(`${GITEA_URL}/api/v1/user/avatar`, {
+      method: 'POST',
+      headers: {
+        Authorization: `token ${userToken}`,
+        ...form.getHeaders(),
+      },
+      body: form,
+    })
+
+    if (!avatarResponse.ok) {
+      const errData = await avatarResponse.json()
+      return res.status(avatarResponse.status).json({
+        message: errData.message || "Failed to update avatar",
+      })
+    }
+
+    // Return success
+    res.status(200).json({ message: "Avatar updated successfully" })
   } catch (error) {
-    console.error("Error fetching public repos:", error)
+    console.error("Error updating avatar:", error)
     res.status(500).json({ message: "Internal server error" })
   }
 })

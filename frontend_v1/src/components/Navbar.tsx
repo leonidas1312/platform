@@ -5,7 +5,7 @@ import type React from "react"
 import { useState, useEffect, useRef } from "react"
 import { Link, useLocation, useNavigate } from "react-router-dom"
 import { motion } from "framer-motion"
-import { User, Settings, LogOut, Cpu, Lightbulb, Rocket, GraduationCap } from "lucide-react"
+import { User, Settings, LogOut, Cpu, Lightbulb, Rocket, GraduationCap, FolderGit } from "lucide-react"
 import { ModeToggle } from "./ModeToggle"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
@@ -17,6 +17,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+
 import { toast } from "@/components/ui/use-toast"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -346,7 +347,13 @@ const Navbar = () => {
       <Dialog open={showCreateRepoDialog} onOpenChange={setShowCreateRepoDialog}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
-            <DialogTitle>Create a new Qubot repository</DialogTitle>
+            <DialogTitle className="text-xl flex items-center gap-2">
+              <div className="p-1.5 rounded-full bg-primary/10">
+                <FolderGit className="h-5 w-5 text-primary" />
+              </div>
+              Create a new Qubot repository
+            </DialogTitle>
+            
             <DialogDescription>
               A Qubot repository contains your python files for an optimization problem or algorithm.
             </DialogDescription>
@@ -364,6 +371,9 @@ const Navbar = () => {
                 placeholder="myTSPqubot"
                 required
               />
+              <p className="text-xs text-muted-foreground">
+                  Great repository names are short, memorable and easy to understand.
+              </p>
             </div>
 
             

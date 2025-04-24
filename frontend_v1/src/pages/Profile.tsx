@@ -154,28 +154,35 @@ const Profile = () => {
         return
       }
 
-      const patchResponse = await fetch("http://localhost:4000/api/profile", {
-        method: "PATCH",
-        headers: {
-          Authorization: `token ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(updatedData),
-      })
+      // Only send the PATCH request if there are profile fields to update
+      if (Object.keys(updatedData).length > 0) {
+        const patchResponse = await fetch("http://localhost:4000/api/profile", {
+          method: "PATCH",
+          headers: {
+            Authorization: `token ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(updatedData),
+        })
 
-      if (!patchResponse.ok) {
-        const errData = await patchResponse.json()
-        throw new Error(errData.message || "Failed to update profile")
+        if (!patchResponse.ok) {
+          const errData = await patchResponse.json()
+          throw new Error(errData.message || "Failed to update profile")
+        }
       }
 
+      // Always fetch the updated profile to get the latest avatar
       const getResponse = await fetch("http://localhost:4000/api/profile", {
         headers: { Authorization: `token ${token}` },
       })
+
       if (!getResponse.ok) {
         throw new Error("Failed to fetch updated profile")
       }
+
       const newUser = await getResponse.json()
 
+      // Update the user state with the new data
       setUser(newUser)
       toast({ title: "Success", description: "Profile updated successfully!" })
       setIsModalOpen(false)

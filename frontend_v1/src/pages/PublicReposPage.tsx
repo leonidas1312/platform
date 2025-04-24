@@ -98,21 +98,49 @@ export default function PublicReposPage() {
   const [showFilters, setShowFilters] = useState(false)
   const [sortBy, setSortBy] = useState<string>("updated")
 
-  // For local filtering:
+  // For server-side filtering:
   const [selectedKeywords, setSelectedKeywords] = useState<string[]>([])
   const [selectedLanguages, setSelectedLanguages] = useState<string[]>([])
+  const [searchInUsernames, setSearchInUsernames] = useState(true) // Default to true to search in usernames
 
   const navigate = useNavigate()
 
   // Declare result here to avoid the error
   const [result, setResult] = useState<SearchResult | null>(null)
 
-  // total_count if you want to show “of Z”
+  // total_count if you want to show "of Z"
   const [totalCount, setTotalCount] = useState(0)
 
   useEffect(() => {
     setLoading(true)
-    fetch(`http://localhost:4000/api/public-repos?limit=${PAGE_SIZE}&page=${page}&sort=${sortBy}`)
+
+    // Build query parameters for the API request
+    const queryParams = new URLSearchParams({
+      limit: PAGE_SIZE.toString(),
+      page: page.toString(),
+      sort: sortBy,
+    })
+
+    // Add search query if present
+    if (searchQuery.trim()) {
+      queryParams.append("q", searchQuery)
+      // Add parameter to indicate we want to search in usernames as well
+      if (searchInUsernames) {
+        queryParams.append("search_usernames", "true")
+      }
+    }
+
+    // Add keyword filters if present
+    if (selectedKeywords.length > 0) {
+      queryParams.append("keywords", selectedKeywords.join(","))
+    }
+
+    // Add language filters if present
+    if (selectedLanguages.length > 0) {
+      queryParams.append("languages", selectedLanguages.join(","))
+    }
+
+    fetch(`http://localhost:4000/api/public-repos?${queryParams.toString()}`)
       .then((res) => {
         if (!res.ok) {
           return res.json().then((data) => {
@@ -124,27 +152,27 @@ export default function PublicReposPage() {
       .then((result: SearchResult) => {
         setRepos(result.data || [])
         setTotalCount(result.total_count)
+        setTotalPages(Math.ceil(result.total_count / PAGE_SIZE))
         setLoading(false)
       })
       .catch((err) => {
         setError(err.message || "Unknown error")
         setLoading(false)
       })
-  }, [page, sortBy])
+  }, [page, sortBy, searchQuery, selectedKeywords, selectedLanguages, searchInUsernames])
 
-
-  // Add a useEffect to reset to page 1 when sorting changes
-  // Add this after the existing useEffect hooks
+  // Add a useEffect to reset to page 1 when sorting or filtering changes
   useEffect(() => {
-    // Reset to page 1 when sort criteria changes
     setPage(1)
-  }, [sortBy])
+  }, [searchQuery, selectedKeywords, selectedLanguages, sortBy, searchInUsernames])
 
   // navigation handlers
   const handlePrevPage = () => setPage((p) => Math.max(p - 1, 1))
-  const hasNextPage    = repos.length === PAGE_SIZE
+  const hasNextPage = page < totalPages
   const handleNextPage = () => {
-    if (hasNextPage) setPage((p) => p + 1)
+    if (hasNextPage) {
+      setPage((p) => p + 1)
+    }
   }
 
   const handleRepoClick = (repo: GiteaRepo) => {
@@ -156,14 +184,17 @@ export default function PublicReposPage() {
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
-    // In a real app, you would call the API with the search query
-    // For now, we'll just filter the existing repos
-    console.log("Searching for:", searchQuery)
+    // Reset to page 1 when searching
+    setPage(1)
+    // The search will be triggered by the useEffect due to searchQuery dependency
   }
 
   // 2) Example filter panel logic
   // For demonstration, we define some keywords for user to toggle
   const availableKeywords = ["Optimization", "Vehicle routing", "Quantum", "Scheduling", "Mathematical"]
+
+  // Available languages for filtering
+  const availableLanguages = ["JavaScript", "TypeScript", "Python", "Java", "Go", "C++", "Ruby"]
 
   const toggleKeyword = (kw: string) => {
     setSelectedKeywords((prev) => (prev.includes(kw) ? prev.filter((k) => k !== kw) : [...prev, kw]))
@@ -176,37 +207,16 @@ export default function PublicReposPage() {
   const clearFilters = () => {
     setSelectedKeywords([])
     setSelectedLanguages([])
+    setSearchQuery("")
+    // The page will be reset to 1 by the useEffect that watches these dependencies
+    // A new search will be triggered automatically
   }
 
-  // 3) Local filtering in the frontend
-  // (Alternatively, pass `selectedKeywords` to your API for server-side filtering.)
-  const filteredRepos = repos.filter((repo) => {
-    // Filter by search query
-    if (
-      searchQuery &&
-      !repo.full_name.toLowerCase().includes(searchQuery.toLowerCase()) &&
-      !(repo.description || "").toLowerCase().includes(searchQuery.toLowerCase())
-    ) {
-      return false
-    }
-
-    // Filter by keywords
-    if (selectedKeywords.length > 0) {
-      const desc = (repo.description || "").toLowerCase()
-      if (!selectedKeywords.some((kw) => desc.includes(kw.toLowerCase()))) {
-        return false
-      }
-    }
-
-    // Filter by language
-    if (selectedLanguages.length > 0 && repo.language) {
-      if (!selectedLanguages.includes(repo.language)) {
-        return false
-      }
-    }
-
-    return true
-  })
+  const handleApplyFilters = () => {
+    // Reset to page 1 when applying filters
+    setPage(1)
+    // The filters will be applied by the useEffect due to dependencies
+  }
 
   if (error) {
     return (
@@ -227,7 +237,7 @@ export default function PublicReposPage() {
   // Function to render repository grid
   const renderRepositoryGrid = () => (
     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-      {filteredRepos.map((repo) => (
+      {repos.map((repo) => (
         <Card
           key={repo.id}
           className="overflow-hidden hover:shadow-md transition-shadow cursor-pointer h-full"
@@ -291,7 +301,7 @@ export default function PublicReposPage() {
   // Function to render repository list
   const renderRepositoryList = () => (
     <div className="space-y-2">
-      {filteredRepos.map((repo) => (
+      {repos.map((repo) => (
         <Card
           key={repo.id}
           className="overflow-hidden hover:shadow-md transition-shadow cursor-pointer"
@@ -373,7 +383,7 @@ export default function PublicReposPage() {
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
                     type="search"
-                    placeholder="Search repositories..."
+                    placeholder="Search repositories and users..."
                     className="pl-10 h-9"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
@@ -410,11 +420,32 @@ export default function PublicReposPage() {
                         </div>
                       </div>
 
+                      <div className="mb-4">
+                        <h3 className="text-sm font-medium mb-2">Languages</h3>
+                        <div className="flex flex-wrap gap-1">
+                          {availableLanguages.map((lang) => (
+                            <Badge
+                              key={lang}
+                              variant={selectedLanguages.includes(lang) ? "default" : "outline"}
+                              className="cursor-pointer hover:bg-primary/90 transition-colors"
+                              onClick={() => toggleLanguage(lang)}
+                            >
+                              <span
+                                className={`w-2 h-2 rounded-full mr-1 ${
+                                  languageColors[lang] || languageColors.default
+                                }`}
+                              ></span>
+                              {lang}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+
                       <div className="flex justify-between pt-2 border-t">
                         <Button variant="ghost" size="sm" onClick={clearFilters} className="h-8">
                           Clear All
                         </Button>
-                        <Button size="sm" className="h-8">
+                        <Button size="sm" className="h-8" onClick={handleApplyFilters}>
                           Apply Filters
                         </Button>
                       </div>
@@ -429,14 +460,12 @@ export default function PublicReposPage() {
                       {sortBy === "updated" && "Recently Updated"}
                       {sortBy === "stars" && "Most Stars"}
                       {sortBy === "forks" && "Most Forks"}
-                      {sortBy === "created" && "Newest"}
                     </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="updated">Recently Updated</SelectItem>
                     <SelectItem value="stars">Most Stars</SelectItem>
                     <SelectItem value="forks">Most Forks</SelectItem>
-                    <SelectItem value="created">Newest</SelectItem>
                   </SelectContent>
                 </Select>
 
@@ -510,7 +539,7 @@ export default function PublicReposPage() {
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
                 <span className="ml-2 text-muted-foreground">Loading repositories...</span>
               </div>
-            ) : filteredRepos.length === 0 ? (
+            ) : repos.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-16 text-center">
                 <FolderGit className="h-16 w-16 text-muted-foreground/50 mb-4" />
                 <h3 className="text-lg font-medium">No repositories found</h3>
@@ -531,17 +560,18 @@ export default function PublicReposPage() {
             )}
 
             {/* ——— Pagination ——— */}
-            {filteredRepos.length > 0 && (
+            {repos.length > 0 && (
               <div className="flex items-center justify-between mt-6">
                 <div className="text-sm text-muted-foreground">
-                  Showing {(page - 1) * PAGE_SIZE + 1} to {(page - 1) * PAGE_SIZE + filteredRepos.length} of {totalCount} repositories
+                  Showing {(page - 1) * PAGE_SIZE + 1} to {(page - 1) * PAGE_SIZE + repos.length} of {totalCount}{" "}
+                  repositories
                 </div>
                 <div className="flex items-center gap-2">
                   <Button variant="outline" size="sm" onClick={handlePrevPage} disabled={page === 1}>
                     <ChevronLeft className="h-4 w-4 mr-1" />
                     Previous
                   </Button>
-                  <Button variant="outline" size="sm" onClick={handleNextPage} disabled={!hasNextPage}>
+                  <Button variant="outline" size="sm" onClick={handleNextPage} disabled={page >= totalPages}>
                     Next
                     <ChevronRight className="h-4 w-4 ml-1" />
                   </Button>
