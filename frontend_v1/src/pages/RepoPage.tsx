@@ -21,9 +21,6 @@ import {
   GitFork,
   Plus,
   Trash2,
-  Database,
-  Zap,
-  User,
   ExternalLink,
   Tag,
 } from "lucide-react"
@@ -132,6 +129,11 @@ export default function RepoPage() {
     description: "",
     codeSnippet: "",
   })
+
+  // Add a new state variable for the delete repository dialog
+  const [showDeleteRepoDialog, setShowDeleteRepoDialog] = useState(false)
+  const [deleteRepoConfirmation, setDeleteRepoConfirmation] = useState("")
+  const [isDeletingRepo, setIsDeletingRepo] = useState(false)
 
   // Parse the URL to determine current path, branch, and file
   useEffect(() => {
@@ -602,6 +604,47 @@ export default function RepoPage() {
     }
   }
 
+  // Add this function to handle repository deletion
+  const handleDeleteRepository = async () => {
+    if (!owner || !repoName) return
+    if (deleteRepoConfirmation !== `${owner}/${repoName}`) return
+
+    setIsDeletingRepo(true)
+    try {
+      const token = getUserToken()
+      const response = await fetch(`http://localhost:4000/api/repos/${owner}/${repoName}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `token ${token}`,
+        },
+      })
+
+      if (!response.ok) {
+        const errData = await response.json()
+        throw new Error(errData.message || "Failed to delete repository")
+      }
+
+      toast({
+        title: "Success",
+        description: "Repository deleted successfully",
+      })
+
+      // Navigate to the user's profile page
+      navigate(`/u/${owner}`)
+    } catch (err: any) {
+      console.error("Error deleting repository:", err)
+      toast({
+        title: "Error",
+        description: err.message || "Failed to delete repository",
+        variant: "destructive",
+      })
+    } finally {
+      setIsDeletingRepo(false)
+      setShowDeleteRepoDialog(false)
+      setDeleteRepoConfirmation("")
+    }
+  }
+
   // Handle path navigation
   const handlePathNavigation = (path: string) => {
     const branch = currentBranch || repo?.default_branch || "main"
@@ -1046,6 +1089,13 @@ export default function RepoPage() {
                         Edit Qubot Card
                       </DropdownMenuItem>
                     )}
+                    <DropdownMenuItem
+                      onClick={() => setShowDeleteRepoDialog(true)}
+                      className="text-destructive focus:text-destructive"
+                    >
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      Delete Repository
+                    </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
 
@@ -1120,10 +1170,7 @@ export default function RepoPage() {
             <div className="sticky top-24">
               <Card className="hover:shadow-md transition-all duration-300 border-border/60">
                 <CardHeader className="pb-2 bg-gradient-to-br from-background to-muted/30 border-b border-border/30">
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    
-                    {"Qubot card"}
-                  </CardTitle>
+                  <CardTitle className="text-lg flex items-center gap-2">{"Qubot card"}</CardTitle>
                 </CardHeader>
                 <CardContent className="p-4">
                   {showCreateForm ? (
@@ -1144,7 +1191,6 @@ export default function RepoPage() {
                               : "bg-gradient-to-r from-orange-500 to-red-500"
                           }`}
                         >
-                          
                           {config.type.charAt(0).toUpperCase() + config.type.slice(1)}
                         </Badge>
                       </div>
@@ -1152,9 +1198,8 @@ export default function RepoPage() {
                       {/* Metadata section with improved styling */}
                       {(config.creator || config.problem_name || config.link_to_arxiv) && (
                         <div className="space-y-2 bg-muted/20 rounded-md p-3 border border-border/40">
-                          
+                          {/* Creator */}
 
-                          
                           {config.link_to_arxiv && (
                             <div className="flex items-start gap-2">
                               <ExternalLink className="h-4 w-4 text-primary mt-0.5" />
@@ -1191,12 +1236,9 @@ export default function RepoPage() {
                                 {keyword}
                               </Badge>
                             ))}
-                            
                           </div>
                         </div>
                       )}
-
-                      
                     </div>
                   ) : (
                     <div className="text-center py-4">
@@ -1230,7 +1272,6 @@ export default function RepoPage() {
                     {/* Snippet block based on config.type */}
                     <div className="bg-muted/20 rounded-md p-2 text-xs font-mono overflow-x-auto border border-border/40">
                       <code className="text-primary">
-                        
                         {config.type === "problem" ? (
                           <>
                             <span className="text-blue-500 dark:text-blue-400">from</span>{" "}
@@ -1560,6 +1601,55 @@ problem = AutoProblem.from_repo('owner/repo-name')"
             </Button>
             <Button onClick={handleSaveConnection}>
               {editingConnectionIndex !== null ? "Update Connection" : "Add Connection"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Repository Dialog */}
+      <Dialog open={showDeleteRepoDialog} onOpenChange={setShowDeleteRepoDialog}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle className="text-destructive">Delete Repository</DialogTitle>
+            <DialogDescription>
+              This action cannot be undone. This will permanently delete the repository, wiki, issues, comments,
+              packages, secrets, workflow runs, and remove all collaborator associations.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <div className="rounded-md bg-destructive/10 p-4 mb-4 border border-destructive/30">
+              <p className="text-sm text-destructive font-medium">
+                Please type{" "}
+                <span className="font-bold">
+                  {owner}/{repoName}
+                </span>{" "}
+                to confirm.
+              </p>
+            </div>
+            <Input
+              value={deleteRepoConfirmation}
+              onChange={(e) => setDeleteRepoConfirmation(e.target.value)}
+              placeholder={`${owner}/${repoName}`}
+              className="w-full"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowDeleteRepoDialog(false)} disabled={isDeletingRepo}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteRepository}
+              disabled={deleteRepoConfirmation !== `${owner}/${repoName}` || isDeletingRepo}
+            >
+              {isDeletingRepo ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                "Delete Repository"
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

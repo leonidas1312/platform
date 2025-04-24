@@ -1,14 +1,14 @@
 "use client"
 
+import type React from "react"
+
 import { useState, useEffect, useRef } from "react"
 import { useNavigate, useLocation } from "react-router-dom"
-import { motion } from "framer-motion"
+import { motion, AnimatePresence } from "framer-motion"
 import Layout from "@/components/Layout"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import katex from "katex"
-import renderMathInElement from "katex/contrib/auto-render"
 import {
   Search,
   FileText,
@@ -27,11 +27,13 @@ import {
   AlertCircle,
   Maximize2,
   Minimize2,
+  ChevronDown,
 } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { cn } from "@/lib/utils"
-
+import katex from "katex"
+import renderMathInElement from "katex/contrib/auto-render"
 // Documentation structure
 const documentationStructure = [
   {
@@ -39,7 +41,6 @@ const documentationStructure = [
     icon: <Home className="h-4 w-4" />,
     items: [
       { title: "Introduction", slug: "introduction" },
-      { title: "Installation", slug: "installation" },
       { title: "Quick Start", slug: "quick-start" },
     ],
   },
@@ -87,21 +88,14 @@ const documentationStructure = [
 // Sample documentation content
 const documentationContent = {
   introduction: {
-    title: "Introduction to Qubots",
+    title: "Introduction",
     description: "Learn about the Qubots platform and how it can help you solve optimization problems.",
     content: `
-# Introduction to Qubots
-
 Qubots is a platform designed to help you solve complex optimization problems using quantum-inspired algorithms. Whether you're working on logistics, finance, manufacturing, or any other domain that involves optimization, Qubots provides the tools and infrastructure to model your problems and find high-quality solutions efficiently.
 
-## What is Qubots?
+## What is Rastion & qubots?
 
-Qubots is our platform for transforming classical optimization problems into formats suitable for quantum and quantum-inspired solvers. It provides:
-
-- Tools to convert optimization problems to QUBO format
-- Interfaces to various quantum and classical solvers
-- Pre-built templates for common optimization problems
-- Performance analysis and visualization tools
+Rastion is envisioned as an open-source optimization hub for sharing and running optimization problems and solvers. At its core is the open-source Qubots library, a “collaborative optimization framework” that wraps optimization problems and algorithms in a unified interface. This allows any compatible problem and solver to interact via a simple call, regardless of the underlying algorithm.
 
 ## Key Features
 
@@ -123,66 +117,6 @@ Qubots is designed for:
 ## Getting Started
 
 To get started with Qubots, check out the [Installation](/docs/installation) and [Quick Start](/docs/quick-start) guides.
-    `,
-  },
-  installation: {
-    title: "Installation",
-    description: "Learn how to install and set up Qubots on your system.",
-    content: `
-# Installation
-
-Getting Qubots up and running on your system is straightforward. Follow these steps to install the library and its dependencies.
-
-## System Requirements
-
-- Python 3.8 or higher
-- pip (Python package installer)
-- Optional: CUDA-compatible GPU for accelerated performance
-
-## Installing with pip
-
-The easiest way to install Qubots is using pip:
-
-\`\`\`bash
-pip install qubots
-\`\`\`
-
-This will install the core Qubots library and its required dependencies.
-
-## Installing with Optional Dependencies
-
-For additional features, you can install Qubots with optional dependencies:
-
-\`\`\`bash
-# For visualization support
-pip install qubots[viz]
-
-# For all optional dependencies
-pip install qubots[all]
-\`\`\`
-
-## Installing from Source
-
-To install the latest development version from source:
-
-\`\`\`bash
-git clone https://github.com/qubots/qubots.git
-cd qubots
-pip install -e .
-\`\`\`
-
-## Verifying Installation
-
-To verify that Qubots is installed correctly, run:
-
-\`\`\`python
-import qubots
-print(qubots.__version__)
-\`\`\`
-
-## Next Steps
-
-Now that you have Qubots installed, check out the [Quick Start](/docs/quick-start) guide to begin solving optimization problems.
     `,
   },
   "quick-start": {
@@ -538,7 +472,7 @@ For more examples and tutorials, check out the other documentation pages.
 }
 
 // Component for rendering a code window
-const CodeWindow = ({ language, code, title }) => {
+const CodeWindow = ({ language, code, title }: { language: string; code: string; title?: string }) => {
   const { toast } = useToast()
   const [isExpanded, setIsExpanded] = useState(false)
 
@@ -581,7 +515,7 @@ const CodeWindow = ({ language, code, title }) => {
 }
 
 // Component for rendering a note or warning box
-const InfoBox = ({ type, children }) => {
+const InfoBox = ({ type, children }: { type: "note" | "warning"; children: React.ReactNode }) => {
   return (
     <div
       className={cn(
@@ -611,7 +545,9 @@ const InfoBox = ({ type, children }) => {
   )
 }
 
-const DocumentationPage = () => {
+type DocumentationPageProps = {}
+
+const DocumentationPage: React.FC<DocumentationPageProps> = () => {
   const navigate = useNavigate()
   const location = useLocation()
   const [searchQuery, setSearchQuery] = useState("")
@@ -619,6 +555,8 @@ const DocumentationPage = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [searchResults, setSearchResults] = useState<Array<{ slug: string; title: string; section: string }>>([])
   const contentRef = useRef<HTMLDivElement>(null)
+  const [expandedDocs, setExpandedDocs] = useState<Record<string, boolean>>({})
+  const [docHeadings, setDocHeadings] = useState<Record<string, Array<{ id: string; text: string; level: number }>>>({})
 
   // Load KaTeX for LaTeX rendering
   useEffect(() => {
@@ -649,10 +587,40 @@ const DocumentationPage = () => {
 
     if (slug && documentationContent[slug]) {
       setCurrentDoc(slug)
+      // Auto-expand the current doc's TOC
+      setExpandedDocs((prev) => ({ ...prev, [slug]: true }))
     } else if (location.pathname === "/docs" || location.pathname === "/docs/") {
       setCurrentDoc("introduction")
+      // Auto-expand the introduction TOC
+      setExpandedDocs((prev) => ({ ...prev, introduction: true }))
     }
   }, [location])
+
+  // Extract headings from all docs
+  useEffect(() => {
+    const headings: Record<string, Array<{ id: string; text: string; level: number }>> = {}
+
+    Object.entries(documentationContent).forEach(([slug, doc]) => {
+      const headingRegex = /^(#{1,3})\s+(.+)$/gm
+      const docHeadings: Array<{ id: string; text: string; level: number }> = []
+      let match
+
+      while ((match = headingRegex.exec(doc.content)) !== null) {
+        const level = match[1].length
+        const text = match[2]
+        const id = text
+          .toLowerCase()
+          .replace(/\s+/g, "-")
+          .replace(/[^\w-]/g, "")
+
+        docHeadings.push({ id, text, level })
+      }
+
+      headings[slug] = docHeadings
+    })
+
+    setDocHeadings(headings)
+  }, [])
 
   // Handle search
   useEffect(() => {
@@ -695,6 +663,15 @@ const DocumentationPage = () => {
     setMobileMenuOpen(false)
     setSearchQuery("")
     setSearchResults([])
+
+    // Auto-expand the selected doc's TOC
+    setExpandedDocs((prev) => ({ ...prev, [slug]: true }))
+  }
+
+  // Toggle TOC expansion for a doc
+  const toggleDocExpansion = (slug: string, e: React.MouseEvent) => {
+    e.stopPropagation()
+    setExpandedDocs((prev) => ({ ...prev, [slug]: !prev[slug] }))
   }
 
   // Get the current documentation content
@@ -865,53 +842,6 @@ const DocumentationPage = () => {
     )
   }
 
-  // Render the table of contents
-  const renderTableOfContents = () => {
-    const headingRegex = /^(#{1,3})\s+(.+)$/gm
-    const headings = []
-    let match
-
-    while ((match = headingRegex.exec(currentDocContent.content)) !== null) {
-      const level = match[1].length
-      const text = match[2]
-      const id = text
-        .toLowerCase()
-        .replace(/\s+/g, "-")
-        .replace(/[^\w-]/g, "")
-
-      headings.push({ level, text, id })
-    }
-
-    if (headings.length < 3) return null
-
-    return (
-      <div className="bg-muted/30 rounded-lg p-4 border border-border/40 mb-6">
-        <h3 className="text-sm font-medium mb-2 flex items-center">
-          <FileText className="h-4 w-4 mr-2 text-primary" />
-          Table of Contents
-        </h3>
-        <div className="space-y-1">
-          {headings.map((heading, index) => (
-            <a
-              key={index}
-              href={`#${heading.id}`}
-              className={`flex items-center text-sm hover:text-primary transition-colors ${
-                heading.level === 1
-                  ? "font-medium"
-                  : heading.level === 2
-                    ? "pl-4 text-muted-foreground"
-                    : "pl-8 text-muted-foreground text-xs"
-              }`}
-            >
-              <ChevronRight className="h-3 w-3 mr-1 text-primary/70" />
-              {heading.text}
-            </a>
-          ))}
-        </div>
-      </div>
-    )
-  }
-
   return (
     <Layout>
       <div className="container mx-auto px-4 py-8 mt-24">
@@ -998,17 +928,76 @@ const DocumentationPage = () => {
                           <ul className="space-y-1">
                             {section.items.map((item) => (
                               <li key={item.slug}>
-                                <button
-                                  className={`w-full text-left px-3 py-1.5 rounded-md text-sm flex items-center ${
-                                    currentDoc === item.slug
-                                      ? "bg-primary/10 text-primary font-medium"
-                                      : "hover:bg-muted"
-                                  }`}
-                                  onClick={() => navigateToDoc(item.slug)}
-                                >
-                                  {currentDoc === item.slug && <ChevronRight className="h-3 w-3 mr-1 flex-shrink-0" />}
-                                  <span className={currentDoc === item.slug ? "ml-0" : "ml-4"}>{item.title}</span>
-                                </button>
+                                <div className="flex flex-col">
+                                  <button
+                                    className={`w-full text-left px-3 py-1.5 rounded-md text-sm flex items-center justify-between ${
+                                      currentDoc === item.slug
+                                        ? "bg-primary/10 text-primary font-medium"
+                                        : "hover:bg-muted"
+                                    }`}
+                                    onClick={() => navigateToDoc(item.slug)}
+                                  >
+                                    <div className="flex items-center">
+                                      {currentDoc === item.slug && (
+                                        <ChevronRight className="h-3 w-3 mr-1 flex-shrink-0" />
+                                      )}
+                                      <span className={currentDoc === item.slug ? "ml-0" : "ml-4"}>{item.title}</span>
+                                    </div>
+                                    {docHeadings[item.slug]?.length > 0 && (
+                                      <button
+                                        onClick={(e) => toggleDocExpansion(item.slug, e)}
+                                        className="p-1 rounded-md hover:bg-muted/50"
+                                      >
+                                        <ChevronDown
+                                          className={`h-4 w-4 transition-transform ${
+                                            expandedDocs[item.slug] ? "rotate-180" : ""
+                                          }`}
+                                        />
+                                      </button>
+                                    )}
+                                  </button>
+
+                                  {/* Table of Contents for this doc */}
+                                  <AnimatePresence>
+                                    {expandedDocs[item.slug] && docHeadings[item.slug]?.length > 0 && (
+                                      <motion.div
+                                        initial={{ height: 0, opacity: 0 }}
+                                        animate={{ height: "auto", opacity: 1 }}
+                                        exit={{ height: 0, opacity: 0 }}
+                                        transition={{ duration: 0.2 }}
+                                        className="overflow-hidden"
+                                      >
+                                        <div className="pl-6 pr-2 py-1 space-y-1">
+                                          {docHeadings[item.slug].map((heading, index) => (
+                                            <a
+                                              key={index}
+                                              href={`/docs/${item.slug}#${heading.id}`}
+                                              className={`flex items-center text-sm hover:text-primary transition-colors ${
+                                                heading.level === 1
+                                                  ? "font-medium"
+                                                  : heading.level === 2
+                                                    ? "pl-2 text-muted-foreground"
+                                                    : "pl-4 text-muted-foreground text-xs"
+                                              }`}
+                                              onClick={(e) => {
+                                                e.preventDefault()
+                                                navigateToDoc(item.slug)
+                                                setTimeout(() => {
+                                                  document.getElementById(heading.id)?.scrollIntoView({
+                                                    behavior: "smooth",
+                                                  })
+                                                }, 100)
+                                              }}
+                                            >
+                                              <ChevronRight className="h-3 w-3 mr-1 text-primary/70" />
+                                              {heading.text}
+                                            </a>
+                                          ))}
+                                        </div>
+                                      </motion.div>
+                                    )}
+                                  </AnimatePresence>
+                                </div>
                               </li>
                             ))}
                           </ul>
@@ -1047,8 +1036,7 @@ const DocumentationPage = () => {
                     <span>{currentSectionTitle}</span>
                   </div>
 
-                  <h1 className="text-3xl font-bold mb-2">{currentDocContent.title}</h1>
-                  <p className="text-muted-foreground">{currentDocContent.description}</p>
+                  
                 </div>
 
                 {/* Document Window */}
@@ -1058,17 +1046,9 @@ const DocumentationPage = () => {
                       <FileText className="h-4 w-4 mr-2 text-primary" />
                       <span className="font-medium">{currentDocContent.title}</span>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Tabs defaultValue="preview" className="w-[200px]">
-                        <TabsList className="grid w-full grid-cols-2">
-                          <TabsTrigger value="preview">Preview</TabsTrigger>
-                          <TabsTrigger value="source">Source</TabsTrigger>
-                        </TabsList>
-                      </Tabs>
-                    </div>
+                    
                   </div>
                   <CardContent className="p-6 max-h-[calc(100vh-300px)] overflow-auto" ref={contentRef}>
-                    {renderTableOfContents()}
                     <div className="prose prose-sm md:prose max-w-none dark:prose-invert">
                       {processContent(currentDocContent.content)}
                     </div>

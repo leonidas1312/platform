@@ -597,6 +597,41 @@ app.get("/api/repos/:owner/:repoName", async (req, res) => {
   }
 })
 
+// Delete repository from Gitea
+app.delete("/api/repos/:owner/:repoName", async (req, res) => {
+  const { owner, repoName } = req.params;
+
+  try {
+    const token = req.headers.authorization?.split(" ")[1]; // Get token from header
+
+    if (!token) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    // Call the Gitea API to delete the repository
+    const deleteRes = await fetch(`${GITEA_URL}/api/v1/repos/${owner}/${repoName}`, {
+      method: "DELETE",
+      headers: {
+        Authorization: `token ${token}`,
+      },
+    });
+
+    if (!deleteRes.ok) {
+      const errData = await deleteRes.json();
+      return res.status(deleteRes.status).json({
+        message: errData.message || "Failed to delete repository from Gitea.",
+      });
+    }
+
+    // If the repository is deleted successfully
+    return res.status(200).json({ message: "Repository deleted successfully" });
+  } catch (err) {
+    console.error("Error deleting repository:", err);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+
 // Get repository contents for a specific path
 app.get("/api/repos/:owner/:repoName/contents/:path(*)", async (req, res) => {
   const { owner, repoName, path } = req.params
