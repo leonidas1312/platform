@@ -5,12 +5,10 @@ const cors = require("cors")
 const crypto = require("crypto")
 const knex = require("knex")(require("./DB_postgres/knexfile").production)
 const nodemailer = require("nodemailer")
-const FormData = require('form-data')
 require("dotenv").config()
 
 const app = express()
 app.use(express.json())
-app.use(express.urlencoded({ limit: "1mb", extended: true }))
 app.use(cors({
   origin: (origin, callback) => {
       if (!origin) return callback(null, true)
@@ -595,75 +593,63 @@ function sortRepositories(repos, sortBy) {
 
 // Add this endpoint to handle avatar updates
 app.post("/api/update-avatar", async (req, res) => {
-  const authHeader = req.headers.authorization
+  const authHeader = req.headers.authorization;
   if (!authHeader) {
-    return res.status(401).json({ message: "Missing authorization header" })
+    return res.status(401).json({ message: "Missing authorization header" });
   }
 
-  const userToken = req.headers.authorization?.split(" ")[1]; // Get token from header
+  const userToken = authHeader.split(" ")[1]; // Get token from header
   if (!userToken) {
-    return res.status(401).json({ message: "Unrecognized request." })
+    return res.status(401).json({ message: "Unrecognized request." });
   }
 
-  const { image } = req.body
+  const { image } = req.body;
 
   if (!image) {
-    return res.status(400).json({ message: "Image data is required" })
+    return res.status(400).json({ message: "Image data is required" });
   }
 
   try {
     // First, get the current user to verify the token and get the username
     const userResponse = await fetch(`${GITEA_URL}/api/v1/user`, {
       headers: { Authorization: `token ${userToken}` },
-    })
+    });
 
     if (!userResponse.ok) {
-      const errData = await userResponse.json()
+      const errData = await userResponse.json();
       return res.status(userResponse.status).json({
         message: errData.message || "Failed to authenticate user",
-      })
+      });
     }
 
-    const userData = await userResponse.json()
-    const username = userData.login
+    const userData = await userResponse.json();
+    const username = userData.login;
 
-    // Create a FormData instance
-    const form = new FormData()
-
-    // You may need to convert the image to a Buffer if it's base64 encoded
-    // If the image is base64, decode it first
-    const imageBuffer = Buffer.from(image, 'base64')
-
-    // Append the image to the FormData instance
-    form.append('avatar', imageBuffer, {
-      filename: 'avatar.png', // Change filename to match your use case
-      contentType: 'image/png', // Set the correct content type based on your image type
-    })
-
-    // Now update the avatar using the Gitea API with multipart/form-data
+    // Send the base64-encoded image as JSON
     const avatarResponse = await fetch(`${GITEA_URL}/api/v1/user/avatar`, {
-      method: 'POST',
+      method: "POST",
       headers: {
+        "Content-Type": "application/json",
         Authorization: `token ${userToken}`,
-        ...form.getHeaders(),
       },
-      body: form,
-    })
+      body: JSON.stringify({ image }),
+    });
 
     if (!avatarResponse.ok) {
-      const errData = await avatarResponse.json()
+      const errData = await avatarResponse.json();
       return res.status(avatarResponse.status).json({
         message: errData.message || "Failed to update avatar",
-      })
+      });
     }
 
     // Return success
-    res.status(200).json({ message: "Avatar updated successfully" })
+    res.status(200).json({ message: "Avatar updated successfully" });
   } catch (error) {
-    console.error("Error updating avatar:", error)
-    res.status(500).json({ message: "Internal server error" })
+    console.error("Error updating avatar:", error);
+    res.status(500).json({ message: "Internal server error" });
   }
-})
+});
+
 
 // POST /api/create-repo
 app.post("/api/create-repo", async (req, res) => {

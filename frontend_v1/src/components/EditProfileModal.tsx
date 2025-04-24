@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { User, Mail, MapPin, Globe, FileText, Upload, Camera, Loader2 } from "lucide-react"
 import { toast } from "@/components/ui/use-toast"
@@ -34,6 +33,7 @@ export default function EditProfileModal({ isOpen, onClose, user, onSave }: Edit
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false)
   const [previewAvatar, setPreviewAvatar] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const [selectedAvatarFile, setSelectedAvatarFile] = useState<File | null>(null)
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
@@ -44,24 +44,7 @@ export default function EditProfileModal({ isOpen, onClose, user, onSave }: Edit
     setFormData((prev) => ({ ...prev, [name]: value }))
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsSubmitting(true)
-
-    try {
-      await onSave(formData)
-    } catch (error) {
-      console.error("Error saving profile:", error)
-    } finally {
-      setIsSubmitting(false)
-    }
-  }
-
-  const handleAvatarClick = () => {
-    fileInputRef.current?.click()
-  }
-
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
 
@@ -75,15 +58,18 @@ export default function EditProfileModal({ isOpen, onClose, user, onSave }: Edit
       return
     }
 
-    // Check file type
-    if (!file.type.startsWith("image/")) {
+    // Check file type - only allow PNG
+    if (file.type !== "image/png") {
       toast({
         title: "Invalid file type",
-        description: "Please select an image file",
+        description: "Please select a PNG image file only",
         variant: "destructive",
       })
       return
     }
+
+    // Store the file for later upload
+    setSelectedAvatarFile(file)
 
     // Create preview
     const reader = new FileReader()
@@ -91,56 +77,69 @@ export default function EditProfileModal({ isOpen, onClose, user, onSave }: Edit
       setPreviewAvatar(e.target?.result as string)
     }
     reader.readAsDataURL(file)
-
-    // Upload avatar
-    await uploadAvatar(file)
   }
 
-  const uploadAvatar = async (file: File) => {
-    setIsUploadingAvatar(true)
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setIsSubmitting(true)
+
     try {
-      // Convert file to base64
-      const base64Image = await fileToBase64(file)
+      // If there's a new avatar file, upload it first
+      if (selectedAvatarFile) {
+        setIsUploadingAvatar(true)
+        try {
+          // Convert file to base64
+          const base64Image = await fileToBase64(selectedAvatarFile)
 
-      // Get token
-      const token = localStorage.getItem("gitea_token")
-      if (!token) {
-        throw new Error("Authentication required")
+          // Get token
+          const token = localStorage.getItem("gitea_token")
+          if (!token) {
+            throw new Error("Authentication required")
+          }
+
+          // Make API call to update avatar
+          const response = await fetch("http://localhost:4000/api/update-avatar", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `token ${token}`,
+            },
+            body: JSON.stringify({
+              image: base64Image.split(",")[1], // Remove data URL prefix
+            }),
+          })
+
+          if (!response.ok) {
+            const errorData = await response.json()
+            throw new Error(errorData.message || "Failed to update avatar")
+          }
+        } catch (error: any) {
+          console.error("Error updating avatar:", error)
+          toast({
+            title: "Error",
+            description: error.message || "Failed to update avatar",
+            variant: "destructive",
+          })
+          // Don't return here, still try to save other profile data
+        } finally {
+          setIsUploadingAvatar(false)
+        }
       }
 
-      // Make API call to update avatar
-      const response = await fetch("http://localhost:4000/api/update-avatar", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `token ${token}`,
-        },
-        body: JSON.stringify({
-          image: base64Image.split(",")[1], // Remove data URL prefix
-        }),
-      })
+      // Save the rest of the profile data
+      await onSave(formData)
 
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.message || "Failed to update avatar")
-      }
-
-      toast({
-        title: "Success",
-        description: "Avatar updated successfully",
-      })
-    } catch (error: any) {
-      console.error("Error updating avatar:", error)
-      toast({
-        title: "Error",
-        description: error.message || "Failed to update avatar",
-        variant: "destructive",
-      })
-      // Reset preview on error
-      setPreviewAvatar(null)
+      // Reset avatar file state after successful save
+      setSelectedAvatarFile(null)
+    } catch (error) {
+      console.error("Error saving profile:", error)
     } finally {
-      setIsUploadingAvatar(false)
+      setIsSubmitting(false)
     }
+  }
+
+  const handleAvatarClick = () => {
+    fileInputRef.current?.click()
   }
 
   const fileToBase64 = (file: File): Promise<string> => {
@@ -181,16 +180,18 @@ export default function EditProfileModal({ isOpen, onClose, user, onSave }: Edit
                 </div>
               </Avatar>
 
+              {/* Update the input to only accept PNG files */}
               <input
                 type="file"
                 ref={fileInputRef}
                 className="hidden"
-                accept="image/*"
+                accept="image/png"
                 onChange={handleFileChange}
                 disabled={isUploadingAvatar}
               />
             </div>
 
+            {/* Add a message about PNG restriction in the text center div */}
             <div className="text-center">
               <p className="font-medium">@{user?.login}</p>
               <Button
@@ -204,6 +205,7 @@ export default function EditProfileModal({ isOpen, onClose, user, onSave }: Edit
                 <Upload className="h-3 w-3 mr-1" />
                 {isUploadingAvatar ? "Uploading..." : "Change avatar"}
               </Button>
+              <p className="text-xs text-muted-foreground mt-1">Only PNG files are accepted</p>
             </div>
           </div>
 
@@ -279,8 +281,6 @@ export default function EditProfileModal({ isOpen, onClose, user, onSave }: Edit
                 rows={4}
               />
             </div>
-
-            
           </div>
 
           <DialogFooter>

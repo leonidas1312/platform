@@ -14,7 +14,6 @@ import {
   ChevronLeft,
   ChevronRight,
   Clock,
-  Filter,
   FolderGit,
   GitFork,
   Loader2,
@@ -25,7 +24,6 @@ import {
   Users,
   X,
 } from "lucide-react"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 
 interface GiteaRepo {
   id: number
@@ -370,214 +368,306 @@ export default function PublicReposPage() {
     <Layout>
       <div className="min-h-screen bg-background pt-24 pb-12">
         <div className="container max-w-[1400px] mx-auto px-4">
-          <div className="flex flex-col space-y-4">
-            {/* Header with integrated search and filters */}
-            <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
-              <div>
-                <h1 className="text-2xl font-bold tracking-tight">Explore Qubots</h1>
-                <p className="text-sm text-muted-foreground">Discover public qubot repositories from the community</p>
-              </div>
+          {/* Page Header with Search */}
+          <div className="mb-8">
+            <h1 className="text-2xl font-bold tracking-tight mb-4">Explore qubots</h1>
+            <div className="relative w-full max-w-3xl">
+              <form onSubmit={handleSearch} className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                <Input
+                  type="search"
+                  placeholder="Search repositories and users..."
+                  className="pl-10 h-12 text-base"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </form>
+            </div>
+          </div>
 
-              <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
-                <form onSubmit={handleSearch} className="relative w-full md:w-64 lg:w-80">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    type="search"
-                    placeholder="Search repositories and users..."
-                    className="pl-10 h-9"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                  />
-                </form>
+          <div className="flex flex-col lg:flex-row gap-8">
+            {/* Sidebar with Filters */}
+            <div className="w-full lg:w-64 flex-shrink-0">
+              <div className="sticky top-24 space-y-6">
+                {/* Sort Options */}
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base flex items-center">
+                      <SlidersHorizontal className="h-4 w-4 mr-2" />
+                      Sort Options
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="pt-0">
+                    <Select value={sortBy} onValueChange={setSortBy}>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Sort by" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="updated">Recently Updated</SelectItem>
+                        <SelectItem value="stars">Most Stars</SelectItem>
+                        <SelectItem value="forks">Most Forks</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </CardContent>
+                </Card>
 
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="sm" className="h-9">
-                      <Filter className="h-4 w-4 mr-2" />
-                      Filters
-                      {(selectedKeywords.length > 0 || selectedLanguages.length > 0) && (
-                        <Badge variant="secondary" className="ml-2">
-                          {selectedKeywords.length + selectedLanguages.length}
+                
+
+                {/* Keywords Filter */}
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base flex items-center">
+                      <Tag className="h-4 w-4 mr-2" />
+                      Keywords
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="pt-0">
+                    <div className="flex flex-wrap gap-2">
+                      {availableKeywords.map((kw) => (
+                        <Badge
+                          key={kw}
+                          variant={selectedKeywords.includes(kw) ? "default" : "outline"}
+                          className="cursor-pointer hover:bg-primary/90 transition-colors"
+                          onClick={() => toggleKeyword(kw)}
+                        >
+                          {kw}
                         </Badge>
-                      )}
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent className="w-72">
-                    <div className="p-2">
-                      <div className="mb-4">
-                        <h3 className="text-sm font-medium mb-2">Keywords</h3>
-                        <div className="flex flex-wrap gap-1">
-                          {availableKeywords.map((kw) => (
-                            <Badge
-                              key={kw}
-                              variant={selectedKeywords.includes(kw) ? "default" : "outline"}
-                              className="cursor-pointer hover:bg-primary/90 transition-colors"
-                              onClick={() => toggleKeyword(kw)}
-                            >
-                              {kw}
-                            </Badge>
-                          ))}
-                        </div>
-                      </div>
-
-                      <div className="mb-4">
-                        <h3 className="text-sm font-medium mb-2">Languages</h3>
-                        <div className="flex flex-wrap gap-1">
-                          {availableLanguages.map((lang) => (
-                            <Badge
-                              key={lang}
-                              variant={selectedLanguages.includes(lang) ? "default" : "outline"}
-                              className="cursor-pointer hover:bg-primary/90 transition-colors"
-                              onClick={() => toggleLanguage(lang)}
-                            >
-                              <span
-                                className={`w-2 h-2 rounded-full mr-1 ${
-                                  languageColors[lang] || languageColors.default
-                                }`}
-                              ></span>
-                              {lang}
-                            </Badge>
-                          ))}
-                        </div>
-                      </div>
-
-                      <div className="flex justify-between pt-2 border-t">
-                        <Button variant="ghost" size="sm" onClick={clearFilters} className="h-8">
-                          Clear All
-                        </Button>
-                        <Button size="sm" className="h-8" onClick={handleApplyFilters}>
-                          Apply Filters
-                        </Button>
-                      </div>
+                      ))}
                     </div>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                  </CardContent>
+                </Card>
 
-                <Select value={sortBy} onValueChange={setSortBy}>
-                  <SelectTrigger className="w-[180px] h-9">
-                    <SlidersHorizontal className="h-4 w-4 mr-2" />
-                    <SelectValue placeholder="Sort by">
-                      {sortBy === "updated" && "Recently Updated"}
-                      {sortBy === "stars" && "Most Stars"}
-                      {sortBy === "forks" && "Most Forks"}
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="updated">Recently Updated</SelectItem>
-                    <SelectItem value="stars">Most Stars</SelectItem>
-                    <SelectItem value="forks">Most Forks</SelectItem>
-                  </SelectContent>
-                </Select>
+                
 
-                <Tabs
-                  value={activeView}
-                  onValueChange={(v) => setActiveView(v as "grid" | "list")}
-                  className="hidden md:block"
-                >
-                  <TabsList className="h-9">
-                    <TabsTrigger value="grid" className="px-3">
-                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <rect x="1" y="1" width="6" height="6" rx="1" stroke="currentColor" strokeWidth="1.5" />
-                        <rect x="9" y="1" width="6" height="6" rx="1" stroke="currentColor" strokeWidth="1.5" />
-                        <rect x="1" y="9" width="6" height="6" rx="1" stroke="currentColor" strokeWidth="1.5" />
-                        <rect x="9" y="9" width="6" height="6" rx="1" stroke="currentColor" strokeWidth="1.5" />
-                      </svg>
-                    </TabsTrigger>
-                    <TabsTrigger value="list" className="px-3">
-                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <rect x="1" y="2" width="14" height="2" rx="1" stroke="currentColor" strokeWidth="1.5" />
-                        <rect x="1" y="7" width="14" height="2" rx="1" stroke="currentColor" strokeWidth="1.5" />
-                        <rect x="1" y="12" width="14" height="2" rx="1" stroke="currentColor" strokeWidth="1.5" />
-                      </svg>
-                    </TabsTrigger>
-                  </TabsList>
-                </Tabs>
+                {/* Clear Filters Button */}
+                {(selectedKeywords.length > 0 || selectedLanguages.length > 0) && (
+                  <Button variant="outline" className="w-full" onClick={clearFilters}>
+                    <X className="h-4 w-4 mr-2" />
+                    Clear All Filters
+                  </Button>
+                )}
               </div>
             </div>
 
-            {/* Active Filters */}
-            {(selectedKeywords.length > 0 || selectedLanguages.length > 0) && (
-              <div className="flex flex-wrap items-center gap-2 py-2">
-                <span className="text-xs text-muted-foreground">Active filters:</span>
-                {selectedKeywords.map((keyword) => (
-                  <Badge key={keyword} variant="secondary" className="flex items-center gap-1 px-2 py-0 h-6">
-                    <Tag className="h-3 w-3" />
-                    {keyword}
-                    <X
-                      className="h-3 w-3 ml-1 cursor-pointer"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        toggleKeyword(keyword)
-                      }}
-                    />
-                  </Badge>
-                ))}
-                {selectedLanguages.map((language) => (
-                  <Badge key={language} variant="secondary" className="flex items-center gap-1 px-2 py-0 h-6">
-                    <span
-                      className={`w-2 h-2 rounded-full ${languageColors[language] || languageColors.default}`}
-                    ></span>
-                    {language}
-                    <X
-                      className="h-3 w-3 ml-1 cursor-pointer"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        toggleLanguage(language)
-                      }}
-                    />
-                  </Badge>
-                ))}
-                <Button variant="ghost" size="sm" className="h-6 text-xs px-2" onClick={clearFilters}>
-                  Clear all
-                </Button>
-              </div>
-            )}
-
-            {/* Repository Grid/List */}
-            {loading ? (
-              <div className="flex items-center justify-center py-32">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                <span className="ml-2 text-muted-foreground">Loading repositories...</span>
-              </div>
-            ) : repos.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-16 text-center">
-                <FolderGit className="h-16 w-16 text-muted-foreground/50 mb-4" />
-                <h3 className="text-lg font-medium">No repositories found</h3>
-                <p className="text-muted-foreground mt-1 mb-4 max-w-md">
-                  We couldn't find any repositories matching your criteria. Try adjusting your filters or search query.
-                </p>
-                <Button onClick={clearFilters}>Clear Filters</Button>
-              </div>
-            ) : (
-              <Tabs value={activeView} onValueChange={(v) => setActiveView(v as "grid" | "list")}>
-                <TabsContent value="grid" className="mt-0">
-                  {renderRepositoryGrid()}
-                </TabsContent>
-                <TabsContent value="list" className="mt-0">
-                  {renderRepositoryList()}
-                </TabsContent>
-              </Tabs>
-            )}
-
-            {/* ——— Pagination ——— */}
-            {repos.length > 0 && (
-              <div className="flex items-center justify-between mt-6">
-                <div className="text-sm text-muted-foreground">
-                  Showing {(page - 1) * PAGE_SIZE + 1} to {(page - 1) * PAGE_SIZE + repos.length} of {totalCount}{" "}
-                  repositories
+            {/* Main Content */}
+            <div className="flex-1">
+              {/* Active Filters */}
+              {(selectedKeywords.length > 0 || selectedLanguages.length > 0) && (
+                <div className="flex flex-wrap items-center gap-2 py-2 mb-4 bg-muted/30 px-4 rounded-lg">
+                  <span className="text-sm text-muted-foreground">Active filters:</span>
+                  {selectedKeywords.map((keyword) => (
+                    <Badge key={keyword} variant="secondary" className="flex items-center gap-1 px-2 py-0 h-6">
+                      <Tag className="h-3 w-3" />
+                      {keyword}
+                      <X
+                        className="h-3 w-3 ml-1 cursor-pointer"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          toggleKeyword(keyword)
+                        }}
+                      />
+                    </Badge>
+                  ))}
+                  {selectedLanguages.map((language) => (
+                    <Badge key={language} variant="secondary" className="flex items-center gap-1 px-2 py-0 h-6">
+                      <span
+                        className={`w-2 h-2 rounded-full ${languageColors[language] || languageColors.default}`}
+                      ></span>
+                      {language}
+                      <X
+                        className="h-3 w-3 ml-1 cursor-pointer"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          toggleLanguage(language)
+                        }}
+                      />
+                    </Badge>
+                  ))}
                 </div>
-                <div className="flex items-center gap-2">
-                  <Button variant="outline" size="sm" onClick={handlePrevPage} disabled={page === 1}>
-                    <ChevronLeft className="h-4 w-4 mr-1" />
-                    Previous
-                  </Button>
-                  <Button variant="outline" size="sm" onClick={handleNextPage} disabled={page >= totalPages}>
-                    Next
-                    <ChevronRight className="h-4 w-4 ml-1" />
-                  </Button>
+              )}
+
+              {/* Repository Grid/List */}
+              {loading ? (
+                <div className="flex items-center justify-center py-32">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                  <span className="ml-2 text-muted-foreground">Loading repositories...</span>
                 </div>
-              </div>
-            )}
+              ) : repos.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-16 text-center">
+                  <FolderGit className="h-16 w-16 text-muted-foreground/50 mb-4" />
+                  <h3 className="text-lg font-medium">No repositories found</h3>
+                  <p className="text-muted-foreground mt-1 mb-4 max-w-md">
+                    We couldn't find any repositories matching your criteria. Try adjusting your filters or search
+                    query.
+                  </p>
+                  <Button onClick={clearFilters}>Clear Filters</Button>
+                </div>
+              ) : (
+                <Tabs value={activeView} onValueChange={(v) => setActiveView(v as "grid" | "list")}>
+                  <TabsContent value="grid" className="mt-0">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {repos.map((repo) => (
+                        <Card
+                          key={repo.id}
+                          className="overflow-hidden hover:shadow-md transition-shadow cursor-pointer h-full"
+                          onClick={() => handleRepoClick(repo)}
+                        >
+                          <CardHeader className="pb-2 px-4 pt-4">
+                            <div className="flex items-start justify-between">
+                              <div className="flex items-center gap-2">
+                                {repo.owner?.avatar_url ? (
+                                  <img
+                                    src={repo.owner.avatar_url || "/placeholder.svg"}
+                                    alt={repo.owner.login}
+                                    className="w-8 h-8 rounded-full"
+                                  />
+                                ) : (
+                                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                                    <Users className="h-4 w-4 text-primary" />
+                                  </div>
+                                )}
+                                <div>
+                                  <CardTitle className="text-base font-medium">{repo.full_name}</CardTitle>
+                                  <p className="text-xs text-muted-foreground mt-1">
+                                    {repo.description
+                                      ? repo.description.length > 100
+                                        ? `${repo.description.substring(0, 100)}...`
+                                        : repo.description
+                                      : "No description provided"}
+                                  </p>
+                                </div>
+                              </div>
+                              <Badge
+                                variant={repo.private ? "outline" : "secondary"}
+                                className="text-xs px-2 h-6 ml-2 flex-shrink-0"
+                              >
+                                {repo.private ? "Private" : "Public"}
+                              </Badge>
+                            </div>
+                          </CardHeader>
+                          <CardContent className="px-4 pb-4">
+                            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mt-3 text-sm text-muted-foreground">
+                              {repo.language && (
+                                <div className="flex items-center gap-1">
+                                  <span
+                                    className={`w-2 h-2 rounded-full ${languageColors[repo.language] || languageColors.default}`}
+                                  ></span>
+                                  {repo.language}
+                                </div>
+                              )}
+
+                              <div className="flex items-center gap-1">
+                                <Star className="h-4 w-4" />
+                                {repo.stars_count}
+                              </div>
+
+                              {repo.forks_count !== undefined && (
+                                <div className="flex items-center gap-1">
+                                  <GitFork className="h-4 w-4" />
+                                  {repo.forks_count}
+                                </div>
+                              )}
+
+                              <div className="flex items-center gap-1 w-full mt-1">
+                                <Clock className="h-4 w-4 flex-shrink-0" />
+                                <span>{timeAgo(repo.updated_at)}</span>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  </TabsContent>
+                  <TabsContent value="list" className="mt-0">
+                    <div className="space-y-4">
+                      {repos.map((repo) => (
+                        <Card
+                          key={repo.id}
+                          className="overflow-hidden hover:shadow-md transition-shadow cursor-pointer"
+                          onClick={() => handleRepoClick(repo)}
+                        >
+                          <div className="p-4">
+                            <div className="flex items-start justify-between">
+                              <div className="flex items-start gap-3">
+                                {repo.owner?.avatar_url ? (
+                                  <img
+                                    src={repo.owner.avatar_url || "/placeholder.svg"}
+                                    alt={repo.owner.login}
+                                    className="w-10 h-10 rounded-full mt-1"
+                                  />
+                                ) : (
+                                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center mt-1">
+                                    <Users className="h-5 w-5 text-primary" />
+                                  </div>
+                                )}
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <h3 className="font-medium text-lg">{repo.full_name}</h3>
+                                    <Badge
+                                      variant={repo.private ? "outline" : "secondary"}
+                                      className="text-xs px-2 h-6"
+                                    >
+                                      {repo.private ? "Private" : "Public"}
+                                    </Badge>
+                                  </div>
+                                  <p className="text-sm text-muted-foreground mb-3">
+                                    {repo.description || "No description provided"}
+                                  </p>
+                                  <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
+                                    {repo.language && (
+                                      <div className="flex items-center gap-1">
+                                        <span
+                                          className={`w-2 h-2 rounded-full ${languageColors[repo.language] || languageColors.default}`}
+                                        ></span>
+                                        {repo.language}
+                                      </div>
+                                    )}
+                                    <div className="flex items-center gap-1">
+                                      <Star className="h-4 w-4" />
+                                      <span>{repo.stars_count}</span>
+                                    </div>
+                                    {repo.forks_count !== undefined && (
+                                      <div className="flex items-center gap-1">
+                                        <GitFork className="h-4 w-4" />
+                                        <span>{repo.forks_count}</span>
+                                      </div>
+                                    )}
+                                    <div className="flex items-center gap-1">
+                                      <Clock className="h-4 w-4" />
+                                      <span>{timeAgo(repo.updated_at)}</span>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </Card>
+                      ))}
+                    </div>
+                  </TabsContent>
+                </Tabs>
+              )}
+
+              {/* Pagination */}
+              {repos.length > 0 && (
+                <div className="flex items-center justify-between mt-8">
+                  <div className="text-sm text-muted-foreground">
+                    Showing {(page - 1) * PAGE_SIZE + 1} to {(page - 1) * PAGE_SIZE + repos.length} of {totalCount}{" "}
+                    repositories
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button variant="outline" size="sm" onClick={handlePrevPage} disabled={page === 1}>
+                      <ChevronLeft className="h-4 w-4 mr-1" />
+                      Previous
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={handleNextPage} disabled={page >= totalPages}>
+                      Next
+                      <ChevronRight className="h-4 w-4 ml-1" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
