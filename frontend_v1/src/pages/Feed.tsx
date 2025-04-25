@@ -31,7 +31,6 @@ interface TrendingUser {
   qubot_count: number
   latest_qubot?: {
     name: string
-    description: string
   }
 }
 
@@ -43,7 +42,6 @@ interface TopRepository {
     avatar_url: string
   }
   stars_count: number
-  description: string
 }
 
 interface FollowerActivity {
@@ -52,7 +50,6 @@ interface FollowerActivity {
   qubot: {
     id: number
     name: string
-    description: string
     stars_count: number
     created_at: string
     language: string
@@ -67,7 +64,6 @@ interface QubotActivity {
   qubot: {
     id: number
     name: string
-    description: string
     stars_count: number
     forks_count: number
     watchers_count: number
@@ -200,7 +196,6 @@ const Feed = () => {
           qubot: {
             id: repo.id,
             name: repo.name,
-            description: repo.description || "No description provided",
             stars_count: repo.stars_count || 0,
             forks_count: repo.forks_count || 0,
             watchers_count: repo.watchers_count || 0,
@@ -295,7 +290,6 @@ const Feed = () => {
             avatar_url: repo.owner.avatar_url,
           },
           stars_count: repo.stars_count || 0,
-          description: repo.description || "No description provided",
         }))
 
       setTopRepositories(topRepos)
@@ -423,7 +417,6 @@ const Feed = () => {
             userRepos.length > 0
               ? {
                   name: userRepos[0].name,
-                  description: userRepos[0].description || "No description provided",
                 }
               : undefined,
         })
@@ -555,7 +548,6 @@ const Feed = () => {
                 qubot: {
                   id: latestRepo.id,
                   name: latestRepo.name,
-                  description: latestRepo.description || "No description provided",
                   stars_count: latestRepo.stars_count || 0,
                   created_at: latestRepo.created_at,
                   language: latestRepo.language || "Unknown",
@@ -569,7 +561,6 @@ const Feed = () => {
                 qubot: {
                   id: Math.floor(Math.random() * 10000),
                   name: `sample-qubot-${followedUser.login}`,
-                  description: "This is a sample qubot for demonstration purposes",
                   stars_count: Math.floor(Math.random() * 50),
                   created_at: new Date().toISOString(),
                   language: ["Python", "JavaScript", "TypeScript", "Julia", "R"][Math.floor(Math.random() * 5)],
@@ -584,7 +575,6 @@ const Feed = () => {
               qubot: {
                 id: Math.floor(Math.random() * 10000),
                 name: `sample-qubot-${followedUser.login}`,
-                description: "This is a sample qubot for demonstration purposes",
                 stars_count: Math.floor(Math.random() * 50),
                 created_at: new Date().toISOString(),
                 language: ["Python", "JavaScript", "TypeScript", "Julia", "R"][Math.floor(Math.random() * 5)],
@@ -601,7 +591,6 @@ const Feed = () => {
             qubot: {
               id: Math.floor(Math.random() * 10000),
               name: `sample-qubot-${followedUser.login}`,
-              description: "This is a sample qubot for demonstration purposes",
               stars_count: Math.floor(Math.random() * 50),
               created_at: new Date().toISOString(),
               language: ["Python", "JavaScript", "TypeScript", "Julia", "R"][Math.floor(Math.random() * 5)],
@@ -694,7 +683,6 @@ const Feed = () => {
                   qubot: {
                     name: repo.name,
                     owner: repo.owner.login,
-                    description: repo.description,
                   },
                 },
               }))
@@ -724,7 +712,6 @@ const Feed = () => {
                   qubot: {
                     name: repo.name,
                     owner: repo.owner.login,
-                    description: repo.description,
                   },
                 },
               }))
@@ -847,7 +834,6 @@ const Feed = () => {
                       starred_repo: {
                         name: name,
                         owner: owner,
-                        description: "", // We don't have this in the activity record
                       },
                     },
                   }
@@ -870,7 +856,6 @@ const Feed = () => {
                 qubot: {
                   name: `sample-qubot-${networkUser.login}`,
                   owner: networkUser.login,
-                  description: "This is a sample qubot for demonstration purposes",
                 },
               },
             })
@@ -888,7 +873,6 @@ const Feed = () => {
               qubot: {
                 name: `sample-qubot-${networkUser.login}`,
                 owner: networkUser.login,
-                description: "This is a sample qubot for demonstration purposes",
               },
             },
           })
@@ -967,7 +951,6 @@ const Feed = () => {
       result = result.filter(
         (activity) =>
           activity.qubot.name.toLowerCase().includes(query) ||
-          activity.qubot.description.toLowerCase().includes(query) ||
           activity.user.login.toLowerCase().includes(query) ||
           activity.user.full_name.toLowerCase().includes(query),
       )
@@ -1078,7 +1061,7 @@ const Feed = () => {
           <Badge variant="outline" className="mb-4 px-3 py-1 text-sm bg-primary/10 border-primary/20">
             Discover what's happening
           </Badge>
-          <h1 className="text-4xl md:text-5xl font-bold mb-4">Qubot Activity Feed</h1>
+          <h1 className="text-4xl md:text-5xl font-bold mb-4">Activity feed</h1>
           <p className="text-xl text-foreground/70 max-w-3xl mx-auto">
             Stay updated with the latest qubots and see what the community is building
           </p>
@@ -1093,7 +1076,7 @@ const Feed = () => {
               <CardHeader className="pb-3">
                 <CardTitle className="text-lg flex items-center gap-2">
                   <Trophy className="h-5 w-5 text-amber-500" />
-                  Top Contributors
+                  Top contributors
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-4">
@@ -1138,7 +1121,7 @@ const Feed = () => {
               <CardHeader className="pb-3">
                 <CardTitle className="text-lg flex items-center gap-2">
                   <Users className="h-5 w-5 text-blue-500" />
-                  Top Followed Accounts
+                  Most followed accounts
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-4">
@@ -1190,7 +1173,7 @@ const Feed = () => {
             >
               <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
                 <User className="h-5 w-5 text-blue-500" />
-                Your Network's Activity
+                Your network
               </h2>
 
               {isLoadingNetworkActivities ? (
@@ -1316,11 +1299,7 @@ const Feed = () => {
                             </div>
 
                             {/* Content preview */}
-                            {activity.type === "qubot_created" && activity.data.qubot?.description && (
-                              <div className="bg-muted/30 rounded-md p-3 text-sm">
-                                {activity.data.qubot.description}
-                              </div>
-                            )}
+                            
                             {activity.type === "feature_comment" && activity.data.comment?.content && (
                               <div className="bg-muted/30 rounded-md p-3 text-sm">
                                 {activity.data.comment.content.length > 150
@@ -1378,7 +1357,7 @@ const Feed = () => {
               <CardHeader className="pb-3">
                 <CardTitle className="text-lg flex items-center gap-2">
                   <Bookmark className="h-5 w-5 text-green-500" />
-                  Top Qubot Repositories
+                  Most starred qubots
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-4">
@@ -1403,7 +1382,6 @@ const Feed = () => {
                             {repo.stars_count}
                           </div>
                         </div>
-                        <p className="text-xs text-muted-foreground line-clamp-1">{repo.description}</p>
                       </div>
                     ))}
                   </div>

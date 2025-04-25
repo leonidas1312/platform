@@ -12,6 +12,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent } from "@/components/ui/tabs"
 import { Clock, FolderGit, GitFork, Loader2, Search, Star, Tag, Users, X, FileJson } from "lucide-react"
+import { Link } from 'react-router-dom'
 
 interface GiteaRepo {
   id: number
@@ -364,9 +365,24 @@ export default function PublicReposPage() {
                                     <Users className="h-4 w-4 text-primary" />
                                   </div>
                                 )}
-                                <div>
-                                  <CardTitle className="text-base font-medium">{repo.full_name}</CardTitle>
-                                </div>
+                                <div className="flex items-center gap-1 mb-1">
+                                    <Link
+                                      to={`/u/${repo.owner.login}`}
+                                      className="inline-block font-medium text-lg hover:text-primary hover:underline transition-colors"
+                                      onClick={e => e.stopPropagation()}
+                                    >
+                                      {repo.owner.login}
+                                    </Link>
+                                    <span className="text-muted-foreground">/</span>
+                                    <Link
+                                      to={`/${repo.owner.login}/${repo.name}`}
+                                      className="inline-block font-medium text-lg hover:text-primary hover:underline transition-colors"
+                                      onClick={e => e.stopPropagation()}
+                                    >
+                                      {repo.name}
+                                    </Link>
+                                    
+                                  </div>
                               </div>
                               <Badge
                                 variant={repo.private ? "outline" : "secondary"}
@@ -425,7 +441,7 @@ export default function PublicReposPage() {
                                 <span>{timeAgo(repo.updated_at)}</span>
                               </div>
                             </div>
-                          </CardContent>
+                            </CardContent>
                         </Card>
                       ))}
                     </div>
@@ -453,18 +469,30 @@ export default function PublicReposPage() {
                                   </div>
                                 )}
                                 <div className="flex-1">
-                                  <div className="flex items-center gap-2 mb-1">
-                                    <h3 className="font-medium text-lg">{repo.full_name}</h3>
+                                  <div className="flex items-center gap-1 mb-1">
+                                    <Link
+                                      to={`/u/${repo.owner.login}`}
+                                      className="inline-block font-medium text-lg hover:text-primary hover:underline transition-colors"
+                                      onClick={e => e.stopPropagation()}
+                                    >
+                                      {repo.owner.login}
+                                    </Link>
+                                    <span className="text-muted-foreground">/</span>
+                                    <Link
+                                      to={`/${repo.owner.login}/${repo.name}`}
+                                      className="inline-block font-medium text-lg hover:text-primary hover:underline transition-colors"
+                                      onClick={e => e.stopPropagation()}
+                                    >
+                                      {repo.name}
+                                    </Link>
                                     <Badge
                                       variant={repo.private ? "outline" : "secondary"}
-                                      className="text-xs px-2 h-6"
+                                      className="text-xs px-2 h-6 ml-2"
                                     >
                                       {repo.private ? "Private" : "Public"}
                                     </Badge>
                                   </div>
-                                  <p className="text-sm text-muted-foreground mb-3">
-                                    {repo.description || "No description provided"}
-                                  </p>
+                                  
 
                                   {/* Show matching keywords from config.json if any */}
                                   {repo.matching_keywords && repo.matching_keywords.length > 0 && (

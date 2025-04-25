@@ -600,16 +600,7 @@ const Profile = () => {
                         <FolderGit className="w-5 h-5 text-primary" />
                         Qubots
                       </h2>
-                      {isOwnProfile && (
-                        <Button
-                          size="sm"
-                          className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary shadow-sm"
-                          onClick={handleCreateRepoClick}
-                        >
-                          <Plus className="w-4 h-4 mr-1" />
-                          New
-                        </Button>
-                      )}
+                      
                     </div>
 
                     {reposLoading ? (
