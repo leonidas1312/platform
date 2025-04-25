@@ -9,18 +9,16 @@ import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
+import { Badge } from "@/components/ui/badge"
 import {
-  Users,
   BookOpen,
   MessageCircle,
   Heart,
   Send,
-  Sparkles,
   Repeat2,
   Clock,
   TrendingUp,
   Search,
-  Bell,
   Bookmark,
   MoreHorizontal,
   ImageIcon,
@@ -133,7 +131,7 @@ const Community = () => {
         if (!response.ok) {
           throw new Error(`Failed to fetch posts: ${response.statusText}`)
         }
-  
+
         const data = await response.json() // This should be an array of posts
         setPosts(data)
       } catch (error) {
@@ -206,7 +204,7 @@ const Community = () => {
   // Handle post submission
   const handlePostSubmit = async () => {
     if (!postText.trim()) return
-  
+
     if (!isAuthenticated) {
       toast({
         title: "Authentication required",
@@ -215,12 +213,12 @@ const Community = () => {
       })
       return
     }
-  
+
     setIsPosting(true)
     try {
       const token = localStorage.getItem("gitea_token")
       if (!token) throw new Error("Missing token")
-  
+
       // CHANGED: Actually POST to our new endpoint:
       const response = await fetch("http://localhost:4000/api/community/posts", {
         method: "POST",
@@ -230,15 +228,15 @@ const Community = () => {
         },
         body: JSON.stringify({ content: postText }),
       })
-  
+
       if (!response.ok) {
         const errData = await response.json()
         throw new Error(errData.message || "Failed to create post.")
       }
-  
+
       // The server returns the newly created post (DB row).
       const createdPost = await response.json()
-  
+
       // We still need to shape it for the front-end
       // Typically we'd re-fetch osts, or we can patch it in manually:all p
       setPosts((prevPosts) => [
@@ -263,10 +261,10 @@ const Community = () => {
         },
         ...prevPosts,
       ])
-  
+
       setPostText("")
       setIsExpanded(false)
-  
+
       toast({
         title: "Post shared!",
         description: "Your post has been shared with the community",
@@ -313,50 +311,101 @@ const Community = () => {
       return
     }
 
-    // Optimistic update
-    setPosts(
-      posts.map((post) => {
-        if (post.id === postId) {
-          const isLiked = !post.isLiked
-          return {
-            ...post,
-            likes: isLiked ? post.likes + 1 : post.likes - 1,
-            isLiked,
-          }
-        }
-        return post
-      }),
-    )
+    try {
+      const token = localStorage.getItem("gitea_token")
+      if (!token) throw new Error("Authentication token missing")
 
-    // In a real implementation, you would send this to your backend
-    // try {
-    //   const token = localStorage.getItem('token');
-    //   await fetch(`/api/community/posts/${postId}/like`, {
-    //     method: 'POST',
-    //     headers: {
-    //       'Authorization': `token ${token}`
-    //     }
-    //   });
-    // } catch (error) {
-    //   console.error('Error liking post:', error);
-    //   toast({
-    //     title: "Error",
-    //     description: "Failed to like the post. Please try again.",
-    //     variant: "destructive"
-    //   });
-    //   // Revert the optimistic update on error
-    //   setPosts(prevPosts => prevPosts.map(post => {
-    //     if (post.id === postId) {
-    //       const isLiked = !post.isLiked;
-    //       return {
-    //         ...post,
-    //         likes: isLiked ? post.likes + 1 : post.likes - 1,
-    //         isLiked
-    //       };
-    //     }
-    //     return post;
-    //   }));
-    // }
+      // Call the API endpoint to toggle like (similar to feature vote)
+      const response = await fetch(`http://localhost:4000/api/community/posts/${postId}/like`, {
+        method: "POST",
+        headers: {
+          Authorization: `token ${token}`,
+        },
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.message || "Failed to like post")
+      }
+
+      const data = await response.json()
+
+      // Update the post in the list with the new like count and status
+      setPosts(
+        posts.map((post) => {
+          if (post.id === postId) {
+            return {
+              ...post,
+              likes: data.likes,
+              isLiked: data.isLiked,
+            }
+          }
+          return post
+        }),
+      )
+    } catch (error) {
+      console.error("Error liking post:", error)
+      toast({
+        title: "Error",
+        description: "Failed to like the post. Please try again.",
+        variant: "destructive",
+      })
+    }
+  }
+
+  // Handle adding a comment to a post
+  const handleAddComment = async (postId: number, commentText: string) => {
+    if (!isAuthenticated) {
+      toast({
+        title: "Authentication required",
+        description: "Please sign in to comment on posts",
+        variant: "destructive",
+      })
+      return
+    }
+
+    if (!commentText.trim()) return
+
+    try {
+      const token = localStorage.getItem("gitea_token")
+      if (!token) throw new Error("Authentication token missing")
+
+      const response = await fetch(`http://localhost:4000/api/community/posts/${postId}/comments`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `token ${token}`,
+        },
+        body: JSON.stringify({
+          content: commentText,
+        }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.message || "Failed to add comment")
+      }
+
+      const newComment = await response.json()
+
+      // Update the comment count in the post
+      setPosts((prev) => prev.map((post) => (post.id === postId ? { ...post, comments: post.comments + 1 } : post)))
+
+      toast({
+        title: "Comment added",
+        description: "Your comment has been added to the post",
+      })
+
+      return newComment
+    } catch (error) {
+      console.error("Error adding comment:", error)
+      toast({
+        title: "Error",
+        description: "Failed to add comment. Please try again.",
+        variant: "destructive",
+      })
+      return null
+    }
   }
 
   // Handle repost
@@ -388,7 +437,7 @@ const Community = () => {
     // In a real implementation, you would send this to your backend
   }
 
-  // Handle bookmark
+  // Handle bookmark post
   const handleBookmark = async (postId: number) => {
     if (!isAuthenticated) {
       toast({
@@ -399,25 +448,51 @@ const Community = () => {
       return
     }
 
-    // Optimistic update
-    setPosts(
-      posts.map((post) => {
-        if (post.id === postId) {
-          return {
-            ...post,
-            isBookmarked: !post.isBookmarked,
+    try {
+      const token = localStorage.getItem("gitea_token")
+      if (!token) throw new Error("Authentication token missing")
+
+      const response = await fetch(`http://localhost:4000/api/community/posts/${postId}/bookmark`, {
+        method: "POST",
+        headers: {
+          Authorization: `token ${token}`,
+        },
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.message || "Failed to bookmark post")
+      }
+
+      const data = await response.json()
+
+      // Update the post in the list
+      setPosts(
+        posts.map((post) => {
+          if (post.id === postId) {
+            return {
+              ...post,
+              isBookmarked: data.isBookmarked,
+            }
           }
-        }
-        return post
-      }),
-    )
+          return post
+        }),
+      )
 
-    toast({
-      title: "Post bookmarked",
-      description: "You can find this post in your bookmarks",
-    })
-
-    // In a real implementation, you would send this to your backend
+      toast({
+        title: data.isBookmarked ? "Post bookmarked" : "Bookmark removed",
+        description: data.isBookmarked
+          ? "You can find this post in your bookmarks"
+          : "Post removed from your bookmarks",
+      })
+    } catch (error) {
+      console.error("Error bookmarking post:", error)
+      toast({
+        title: "Error",
+        description: "Failed to bookmark the post. Please try again.",
+        variant: "destructive",
+      })
+    }
   }
 
   // Filter posts based on search query
@@ -467,12 +542,17 @@ const Community = () => {
   return (
     <Layout>
       <div className="container mx-auto px-4 py-32">
+
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="mb-8 text-center"
-        >
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="text-center mb-12"
+          >
+            <Badge variant="outline" className="mb-4 px-3 py-1 text-sm bg-primary/10 border-primary/20">
+              Join our community
+            </Badge>
+          
           <h1 className="text-4xl md:text-5xl font-bold mb-4">Community</h1>
           <p className="text-xl text-foreground/70 max-w-3xl mx-auto">
             Connect with optimization enthusiasts, share ideas, and discover collaborative opportunities.
@@ -493,7 +573,7 @@ const Community = () => {
                   <div className="flex gap-3">
                     <Avatar className="w-10 h-10">
                       {currentUser && currentUser.avatar_url ? (
-                        <AvatarImage src={currentUser.avatar_url} alt={currentUser.full_name} />
+                        <AvatarImage src={currentUser.avatar_url || "/placeholder.svg"} alt={currentUser.full_name} />
                       ) : (
                         <AvatarFallback>{currentUser ? currentUser.full_name.charAt(0) : "G"}</AvatarFallback>
                       )}
@@ -622,7 +702,6 @@ const Community = () => {
                       <TrendingUp size={16} />
                       <span>Trending</span>
                     </TabsTrigger>
-                    
                   </TabsList>
 
                   <div className="relative">
@@ -799,10 +878,6 @@ const Community = () => {
             </div>
 
             <div className="w-full md:w-1/4 space-y-6">
-              
-
-              
-
               {/* Community guidelines card */}
               <Card>
                 <CardHeader className="pb-3">
@@ -817,7 +892,6 @@ const Community = () => {
                   <p className="text-sm">• Cite sources when applicable</p>
                   <p className="text-sm">• Keep discussions on topic</p>
                 </CardContent>
-                
               </Card>
             </div>
           </div>
@@ -827,8 +901,104 @@ const Community = () => {
   )
 }
 
-// Post Card Component
+// Update the PostCard component to include a comment form
 const PostCard = ({ post, onLike, onRepost, onBookmark, formatDate }) => {
+  const [showComments, setShowComments] = useState(false)
+  const [comments, setComments] = useState([])
+  const [isLoadingComments, setIsLoadingComments] = useState(false)
+  const [commentText, setCommentText] = useState("")
+  const [isAddingComment, setIsAddingComment] = useState(false)
+  const { toast } = useToast()
+
+  // Fetch comments when the comments section is opened
+  const fetchComments = async () => {
+    if (!showComments) return
+
+    setIsLoadingComments(true)
+    try {
+      const response = await fetch(`http://localhost:4000/api/community/posts/${post.id}/comments`)
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch comments")
+      }
+
+      const data = await response.json()
+      setComments(data)
+    } catch (error) {
+      console.error("Error fetching comments:", error)
+      toast({
+        title: "Error",
+        description: "Failed to load comments. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoadingComments(false)
+    }
+  }
+
+  // Fetch comments when the comments section is opened
+  useEffect(() => {
+    fetchComments()
+  }, [showComments])
+
+  // Handle adding a comment
+  const handleAddComment = async () => {
+    if (!commentText.trim()) return
+
+    setIsAddingComment(true)
+    try {
+      const token = localStorage.getItem("gitea_token")
+      if (!token) {
+        toast({
+          title: "Authentication required",
+          description: "Please sign in to comment on posts",
+          variant: "destructive",
+        })
+        return
+      }
+
+      const response = await fetch(`http://localhost:4000/api/community/posts/${post.id}/comments`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `token ${token}`,
+        },
+        body: JSON.stringify({
+          content: commentText,
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to add comment")
+      }
+
+      const newComment = await response.json()
+
+      // Add the new comment to the list
+      setComments((prev) => [newComment, ...prev])
+
+      // Clear the comment text
+      setCommentText("")
+
+      // Update the comment count in the post
+      post.comments += 1
+
+      toast({
+        title: "Comment added",
+        description: "Your comment has been added to the post",
+      })
+    } catch (error) {
+      console.error("Error adding comment:", error)
+      toast({
+        title: "Error",
+        description: "Failed to add comment. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsAddingComment(false)
+    }
+  }
+
   return (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
       <Card className="overflow-hidden hover:border-primary/30 transition-all">
@@ -836,7 +1006,7 @@ const PostCard = ({ post, onLike, onRepost, onBookmark, formatDate }) => {
           <div className="flex justify-between items-start">
             <div className="flex items-center gap-3">
               <Avatar>
-                <AvatarImage src={post.author.avatar_url} alt={post.author.full_name} />
+                <AvatarImage src={post.author.avatar_url || "/placeholder.svg"} alt={post.author.full_name} />
                 <AvatarFallback>{post.author.full_name.charAt(0)}</AvatarFallback>
               </Avatar>
               <div>
@@ -884,24 +1054,89 @@ const PostCard = ({ post, onLike, onRepost, onBookmark, formatDate }) => {
               <Repeat2 size={16} />
               <span>{post.reposts}</span>
             </Button>
-            <Button variant="ghost" size="sm" className="flex items-center gap-1.5 h-8">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="flex items-center gap-1.5 h-8"
+              onClick={() => setShowComments(!showComments)}
+            >
               <MessageCircle size={16} />
               <span>{post.comments}</span>
             </Button>
           </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            className={`h-8 ${post.isBookmarked ? "text-blue-500" : ""}`}
-            onClick={() => onBookmark(post.id)}
-          >
-            <Bookmark size={16} className={post.isBookmarked ? "fill-current" : ""} />
-          </Button>
+          
         </CardFooter>
+
+        {/* Comments section */}
+        {showComments && (
+          <div className="px-4 pb-4 border-t pt-4">
+            <div className="flex gap-3 mb-4">
+              <Avatar className="h-8 w-8">
+                <AvatarImage src="/placeholder.svg?height=32&width=32" alt="Your avatar" />
+                <AvatarFallback>U</AvatarFallback>
+              </Avatar>
+              <div className="flex-1">
+                <Textarea
+                  placeholder="Add a comment..."
+                  value={commentText}
+                  onChange={(e) => setCommentText(e.target.value)}
+                  className="min-h-[80px] resize-none"
+                />
+                <Button
+                  className="mt-2"
+                  size="sm"
+                  onClick={handleAddComment}
+                  disabled={!commentText.trim() || isAddingComment}
+                >
+                  {isAddingComment ? (
+                    <>
+                      <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                      Posting...
+                    </>
+                  ) : (
+                    "Post Comment"
+                  )}
+                </Button>
+              </div>
+            </div>
+
+            {/* Comments list */}
+            {isLoadingComments ? (
+              <div className="flex items-center justify-center py-4">
+                <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                <span className="ml-2 text-sm text-muted-foreground">Loading comments...</span>
+              </div>
+            ) : comments.length > 0 ? (
+              <div className="space-y-4">
+                {comments.map((comment) => (
+                  <div key={comment.id} className="flex gap-3">
+                    <Avatar className="h-8 w-8">
+                      <AvatarImage
+                        src={comment.user.avatar_url || "/placeholder.svg?height=32&width=32"}
+                        alt={comment.user.username}
+                      />
+                      <AvatarFallback>{comment.user.username.charAt(0).toUpperCase()}</AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-sm">{comment.user.username}</span>
+                        <span className="text-xs text-muted-foreground">{formatDate(comment.created_at)}</span>
+                      </div>
+                      <p className="text-sm mt-1">{comment.content}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-4">
+                <p className="text-sm text-muted-foreground">No comments yet. Be the first to comment!</p>
+              </div>
+            )}
+          </div>
+        )}
       </Card>
     </motion.div>
   )
 }
 
 export default Community
-

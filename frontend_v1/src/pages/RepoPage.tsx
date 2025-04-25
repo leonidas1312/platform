@@ -117,6 +117,7 @@ export default function RepoPage() {
   // New state variables for connections
   const [connections, setConnections] = useState<
     Array<{
+      id?: number
       repoPath: string
       description: string
       codeSnippet: string
@@ -912,19 +913,59 @@ export default function RepoPage() {
     setShowConnectionDialog(true)
   }
 
-  const handleDeleteConnection = (index: number) => {
-    const updatedConnections = [...connections]
-    updatedConnections.splice(index, 1)
-    setConnections(updatedConnections)
+  const handleDeleteConnection = async (index: number) => {
+    const connection = connections[index]
 
-    // In a real app, you would save this to the backend
-    toast({
-      title: "Connection removed",
-      description: "The repository connection has been removed",
-    })
+    if (!connection.id) {
+      console.error("Connection ID is missing")
+      return
+    }
+
+    try {
+      const token = getUserToken()
+      if (!token) {
+        toast({
+          title: "Authentication required",
+          description: "Please sign in to delete connections",
+          variant: "destructive",
+        })
+        return
+      }
+
+      const response = await fetch(
+        `http://localhost:4000/api/repos/${owner}/${repoName}/connections/${connection.id}`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: `token ${token}`,
+          },
+        },
+      )
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || "Failed to delete connection")
+      }
+
+      // Refresh connections from the server
+      await fetchConnections()
+
+      toast({
+        title: "Connection removed",
+        description: "The repository connection has been removed",
+      })
+    } catch (error: any) {
+      console.error("Error deleting connection:", error)
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete connection",
+        variant: "destructive",
+      })
+    }
   }
 
-  const handleSaveConnection = () => {
+  // Update the handleSaveConnection function to handle validation errors better
+  const handleSaveConnection = async () => {
     if (!connectionForm.repoPath || !connectionForm.codeSnippet) {
       toast({
         title: "Required fields missing",
@@ -934,43 +975,135 @@ export default function RepoPage() {
       return
     }
 
-    const updatedConnections = [...connections]
-
-    if (editingConnectionIndex !== null) {
-      // Edit existing connection
-      updatedConnections[editingConnectionIndex] = connectionForm
-    } else {
-      // Add new connection
-      updatedConnections.push(connectionForm)
+    // Basic format validation
+    if (!connectionForm.repoPath.includes("/")) {
+      toast({
+        title: "Invalid repository path",
+        description: "Repository path must be in the format 'owner/repoName'",
+        variant: "destructive",
+      })
+      return
     }
 
-    setConnections(updatedConnections)
-    setShowConnectionDialog(false)
-    setEditingConnectionIndex(null)
-    setConnectionForm({
-      repoPath: "",
-      description: "",
-      codeSnippet: "",
-    })
+    try {
+      const token = getUserToken()
+      if (!token) {
+        toast({
+          title: "Authentication required",
+          description: "Please sign in to add connections",
+          variant: "destructive",
+        })
+        return
+      }
 
-    // In a real app, you would save this to the backend
-    toast({
-      title: editingConnectionIndex !== null ? "Connection updated" : "Connection added",
-      description:
-        editingConnectionIndex !== null
-          ? "The repository connection has been updated"
-          : "The repository connection has been added",
-    })
+      if (editingConnectionIndex !== null) {
+        // Edit existing connection
+        const connectionId = connections[editingConnectionIndex].id
+
+        if (!connectionId) {
+          throw new Error("Connection ID is missing")
+        }
+
+        const response = await fetch(
+          `http://localhost:4000/api/repos/${owner}/${repoName}/connections/${connectionId}`,
+          {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `token ${token}`,
+            },
+            body: JSON.stringify({
+              repoPath: connectionForm.repoPath,
+              description: connectionForm.description,
+              codeSnippet: connectionForm.codeSnippet,
+            }),
+          },
+        )
+
+        if (!response.ok) {
+          const errorData = await response.json()
+          throw new Error(errorData.error || "Failed to update connection")
+        }
+      } else {
+        // Add new connection
+        const response = await fetch(`http://localhost:4000/api/repos/${owner}/${repoName}/connections`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `token ${token}`,
+          },
+          body: JSON.stringify({
+            repoPath: connectionForm.repoPath,
+            description: connectionForm.description,
+            codeSnippet: connectionForm.codeSnippet,
+          }),
+        })
+
+        if (!response.ok) {
+          const errorData = await response.json()
+          throw new Error(errorData.error || "Failed to add connection")
+        }
+      }
+
+      // Refresh connections from the server
+      await fetchConnections()
+
+      setShowConnectionDialog(false)
+      setEditingConnectionIndex(null)
+      setConnectionForm({
+        repoPath: "",
+        description: "",
+        codeSnippet: "",
+      })
+
+      toast({
+        title: editingConnectionIndex !== null ? "Connection updated" : "Connection added",
+        description:
+          editingConnectionIndex !== null
+            ? "The repository connection has been updated"
+            : "The repository connection has been added",
+      })
+    } catch (error: any) {
+      console.error("Error saving connection:", error)
+      toast({
+        title: "Error",
+        description: error.message || "Failed to save connection",
+        variant: "destructive",
+      })
+    }
   }
+
+  // Add this function to fetch connections from the server
+  const fetchConnections = async () => {
+    if (!owner || !repoName) return
+
+    try {
+      const response = await fetch(`http://localhost:4000/api/repos/${owner}/${repoName}/connections`)
+
+      if (response.ok) {
+        const data = await response.json()
+        setConnections(data)
+      } else {
+        console.error("Failed to fetch connections:", response.status)
+      }
+    } catch (error) {
+      console.error("Error fetching connections:", error)
+    }
+  }
+
+  // Update the useEffect that loads connections to call fetchConnections
+  useEffect(() => {
+    if (repo) {
+      // Fetch connections from the server
+      fetchConnections()
+    }
+  }, [repo])
 
   // Add this effect to load connections when the repo data is loaded
   useEffect(() => {
     if (repo) {
-      // In a real app, you would fetch connections from the backend
-      // For now, we'll just set some example connections if none exist
-      if (connections.length === 0) {
-        // Don't set example connections as requested
-      }
+      // Fetch connections from the server
+      fetchConnections()
     }
   }, [repo])
 

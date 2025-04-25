@@ -1,11 +1,13 @@
 "use client"
 
+import { DropdownMenuSeparator } from "@/components/ui/dropdown-menu"
+
 import type React from "react"
 
 import { useState, useEffect, useRef } from "react"
 import { Link, useLocation, useNavigate } from "react-router-dom"
 import { motion } from "framer-motion"
-import { User, Settings, LogOut, Cpu, Lightbulb, Rocket, GraduationCap, FolderGit } from "lucide-react"
+import { User, Settings, LogOut, Cpu, Lightbulb, Rocket, GraduationCap, FolderGit, MessageSquare } from "lucide-react"
 import { ModeToggle } from "./ModeToggle"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
@@ -14,24 +16,32 @@ import {
   DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 
 import { toast } from "@/components/ui/use-toast"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Checkbox } from "@/components/ui/checkbox"
-import { Loader2, Plus } from "lucide-react"
+import { Loader2, Plus, Boxes, Shell, BookOpenText, ChartLine} from "lucide-react"
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogDescription,
-  DialogFooter
+  DialogFooter,
 } from "@/components/ui/dialog"
+
+import {
+  NavigationMenu,
+  NavigationMenuContent,
+  NavigationMenuItem,
+  NavigationMenuLink,
+  NavigationMenuList,
+  NavigationMenuTrigger,
+} from "@/components/ui/navigation-menu"
+import { cn } from "@/lib/utils"
+
 const Navbar = () => {
   const location = useLocation()
   const navigate = useNavigate()
@@ -52,7 +62,6 @@ const Navbar = () => {
 
   // User state – if null, not logged in.
   const [user, setUser] = useState<any>(null)
-
 
   useEffect(() => {
     const handleScroll = () => {
@@ -159,13 +168,13 @@ const Navbar = () => {
       })
 
       setShowCreateRepoDialog(false)
-      
+
       // Reset form fields
       setRepoName("")
       setRepoDescription("")
       setLicense("")
       setIsPrivate(false)
-      
+
       // Navigate to the new repository
       navigate(`/${user.login}/${repoName}`)
     } catch (error: any) {
@@ -178,10 +187,6 @@ const Navbar = () => {
       setIsCreatingRepo(false)
     }
   }
-
-  
-
-  
 
   return (
     <header
@@ -210,16 +215,13 @@ const Navbar = () => {
             transition={{ duration: 0.5, delay: 0.1 }}
             className="hidden md:flex items-center gap-2"
           >
-            
-
-
             <Button
               variant="ghost"
               size="sm"
               className={`h-9 gap-1 px-3 ${location.pathname === "/qubots" ? "bg-muted" : ""}`}
               onClick={() => navigate("/qubots")}
             >
-              <Cpu className="w-4 h-4 text-purple-500" />
+              <Boxes className="w-4 h-4 text-purple-500" />
               Qubots
             </Button>
             {/*
@@ -233,17 +235,54 @@ const Navbar = () => {
               Blogs
             </Button>
 
-            <Button
-              variant="ghost"
-              size="sm"
-              className={`h-9 gap-1 px-3 ${location.pathname === "/community" ? "bg-muted" : ""}`}
-              onClick={() => navigate("/community")}
-            >
-              <MessageSquare className="w-4 h-4 text-blue-500" />
-              Community
-            </Button>
-            */}
             
+            */}
+
+            <NavigationMenu>
+              <NavigationMenuList>
+                <NavigationMenuItem>
+                  <NavigationMenuTrigger
+                    className={cn(
+                      "h-9 gap-1 px-3 text-sm",
+                      location.pathname.includes("/feedback") || location.pathname.includes("/roadmap")
+                        ? "bg-muted"
+                        : "",
+                    )}
+                  >
+                    <Shell className="w-4 h-4 text-blue-500" />
+                    Community
+                  </NavigationMenuTrigger>
+                  <NavigationMenuContent>
+                    <ul className="grid gap-3 p-4 w-[200px]">
+                      <li className="row-span-3">
+                        <NavigationMenuLink asChild>
+                          <Button
+                            variant="ghost"
+                            className="w-full justify-start"
+                            onClick={() => navigate("/feedback")}
+                          >
+                            <MessageSquare className="mr-2 h-4 w-4 text-orange-500" />
+                            <span>Feedback</span>
+                          </Button>
+                        </NavigationMenuLink>
+                      </li>
+                      <li className="row-span-3">
+                        <NavigationMenuLink asChild>
+                          <Button
+                            variant="ghost"
+                            className="w-full justify-start"
+                            onClick={() => navigate("/roadmap")}
+                          >
+                            <Rocket className="mr-2 h-4 w-4 text-red-500" />
+                            <span>Roadmap</span>
+                          </Button>
+                        </NavigationMenuLink>
+                      </li>
+                    </ul>
+                  </NavigationMenuContent>
+                </NavigationMenuItem>
+              </NavigationMenuList>
+            </NavigationMenu>
 
             <Button
               variant="ghost"
@@ -251,7 +290,7 @@ const Navbar = () => {
               className={`h-9 gap-1 px-3 ${location.pathname === "/docs" ? "bg-muted" : ""}`}
               onClick={() => navigate("/docs")}
             >
-              <GraduationCap className="w-4 h-4 text-amber-500" />
+              <BookOpenText className="w-4 h-4 text-amber-500" />
               Documentation
             </Button>
 
@@ -261,19 +300,11 @@ const Navbar = () => {
               className={`h-9 gap-1 px-3 ${location.pathname === "/leaderboard" ? "bg-muted" : ""}`}
               onClick={() => navigate("/leaderboard")}
             >
-              <Rocket className="w-4 h-4 text-amber-500" />
+              <ChartLine className="w-4 h-4 text-green-500" />
               Leaderboard
             </Button>
 
-            <Button
-              variant="ghost"
-              size="sm"
-              className={`h-9 gap-1 px-3 ${location.pathname === "/beta-testing" ? "bg-muted" : ""}`}
-              onClick={() => navigate("/beta-testing")}
-            >
-              <Lightbulb className="w-4 h-4 text-amber-500" />
-              Beta testing
-            </Button>
+            
           </motion.nav>
 
           {/* Actions */}
@@ -283,8 +314,6 @@ const Navbar = () => {
             transition={{ duration: 0.5, delay: 0.2 }}
             className="flex items-center gap-1 md:gap-2"
           >
-
-
             {/* User menu */}
             {user ? (
               <DropdownMenu>
@@ -337,8 +366,6 @@ const Navbar = () => {
             )}
 
             <ModeToggle />
-
-            
           </motion.div>
         </div>
       </div>
@@ -353,7 +380,7 @@ const Navbar = () => {
               </div>
               Create a new Qubot repository
             </DialogTitle>
-            
+
             <DialogDescription>
               A Qubot repository contains your python files for an optimization problem or algorithm.
             </DialogDescription>
@@ -372,15 +399,9 @@ const Navbar = () => {
                 required
               />
               <p className="text-xs text-muted-foreground">
-                  Great repository names are short, memorable and easy to understand.
+                Great repository names are short, memorable and easy to understand.
               </p>
             </div>
-
-            
-
-              
-
-            
 
             <DialogFooter className="pt-4">
               <Button
@@ -406,7 +427,7 @@ const Navbar = () => {
         </DialogContent>
       </Dialog>
     </header>
-  );
-};
+  )
+}
 
-export default Navbar;
+export default Navbar

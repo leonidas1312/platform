@@ -18,7 +18,7 @@ import PublicReposPage from "./pages/PublicReposPage";
 import RepoPage from "./pages/RepoPage";
 import { ThemeProvider } from "./components/ThemeContext";
 import SettingsPage from "./pages/SettingsPage";
-import BetaSignupPage from "./pages/BetaSignUp";
+import Roadmap from "./pages/Roadmap";
 import LeaderboardPage from "./pages/Leaderboard";
 
 const queryClient = new QueryClient();
@@ -34,7 +34,7 @@ const App = () => (
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/qubot-problems" element={<QubotProblems />} />
-              <Route path="/community" element={<Community />} />
+              <Route path="/feedback" element={<Community />} />
               <Route path="/blogs" element={<BlogsPage />} />
               <Route path="/blogs/:id" element={<BlogDetails />} />
               <Route path="/docs" element={<Documentation />} />
@@ -42,7 +42,7 @@ const App = () => (
               <Route path="/auth" element={<AuthPage />} />
               <Route path="/email-verify" element={<EmailVerify />} />
               <Route path="/qubots" element={<PublicReposPage />} />
-              <Route path="/beta-testing" element={<BetaSignupPage />} />
+              <Route path="/roadmap" element={<Roadmap />} />
               <Route path="/leaderboard" element={<LeaderboardPage />} />
 
 

@@ -1,14 +1,16 @@
 "use client"
 
+import { CardTitle } from "@/components/ui/card"
+
 import type React from "react"
 import { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import Layout from "../components/Layout"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Tabs, TabsContent } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import {
   ChevronLeft,
@@ -23,6 +25,7 @@ import {
   Tag,
   Users,
   X,
+  FileJson,
 } from "lucide-react"
 
 interface GiteaRepo {
@@ -37,6 +40,7 @@ interface GiteaRepo {
   description?: string
   private: boolean
   language?: string
+  matching_keywords?: string[] // Added to track keywords matched in config.json
 }
 
 // If your /api/public-repos returns data like { data, total_count }
@@ -60,7 +64,6 @@ function timeAgo(dateString: string) {
   if (diffHours < 24) return `Updated ${diffHours} hour${diffHours !== 1 ? "s" : ""} ago`
   if (diffDays < 7) return `Updated ${diffDays} day${diffDays !== 1 ? "s" : ""} ago`
   if (diffWeeks < 4) return `Updated ${diffWeeks} week${diffWeeks !== 1 ? "s" : ""} ago`
-  if (diffMonths < 12) return `Updated ${diffMonths} month${diffMonths !== 1 ? "s" : ""} ago`
   return `Updated ${diffYears} year${diffYears !== 1 ? "s" : ""} ago`
 }
 
@@ -84,7 +87,7 @@ const languageColors: Record<string, string> = {
 }
 
 export default function PublicReposPage() {
-  const PAGE_SIZE = 25
+  const PAGE_SIZE = 26
 
   const [repos, setRepos] = useState<GiteaRepo[]>([])
   const [loading, setLoading] = useState(true)
@@ -99,7 +102,6 @@ export default function PublicReposPage() {
   // For server-side filtering:
   const [selectedKeywords, setSelectedKeywords] = useState<string[]>([])
   const [selectedLanguages, setSelectedLanguages] = useState<string[]>([])
-  const [searchInUsernames, setSearchInUsernames] = useState(true) // Default to true to search in usernames
 
   const navigate = useNavigate()
 
@@ -122,10 +124,7 @@ export default function PublicReposPage() {
     // Add search query if present
     if (searchQuery.trim()) {
       queryParams.append("q", searchQuery)
-      // Add parameter to indicate we want to search in usernames as well
-      if (searchInUsernames) {
-        queryParams.append("search_usernames", "true")
-      }
+      queryParams.append("search_usernames", "true")
     }
 
     // Add keyword filters if present
@@ -157,12 +156,12 @@ export default function PublicReposPage() {
         setError(err.message || "Unknown error")
         setLoading(false)
       })
-  }, [page, sortBy, searchQuery, selectedKeywords, selectedLanguages, searchInUsernames])
+  }, [page, sortBy, searchQuery, selectedKeywords, selectedLanguages])
 
   // Add a useEffect to reset to page 1 when sorting or filtering changes
   useEffect(() => {
     setPage(1)
-  }, [searchQuery, selectedKeywords, selectedLanguages, sortBy, searchInUsernames])
+  }, [searchQuery, selectedKeywords, selectedLanguages, sortBy])
 
   // navigation handlers
   const handlePrevPage = () => setPage((p) => Math.max(p - 1, 1))
@@ -216,167 +215,27 @@ export default function PublicReposPage() {
     // The filters will be applied by the useEffect due to dependencies
   }
 
-  if (error) {
-    return (
-      <Layout>
-        <div className="min-h-screen flex items-center justify-center">
-          <div className="p-6 bg-destructive/10 text-destructive rounded-lg shadow-md max-w-md text-center">
-            <h3 className="text-lg font-semibold mb-2">Error</h3>
-            <p>{error}</p>
-            <Button variant="outline" className="mt-4" onClick={() => window.location.reload()}>
-              Try Again
-            </Button>
-          </div>
-        </div>
-      </Layout>
-    )
-  }
-
-  // Function to render repository grid
-  const renderRepositoryGrid = () => (
-    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-      {repos.map((repo) => (
-        <Card
-          key={repo.id}
-          className="overflow-hidden hover:shadow-md transition-shadow cursor-pointer h-full"
-          onClick={() => handleRepoClick(repo)}
-        >
-          <CardHeader className="pb-2 px-4 pt-4">
-            <div className="flex items-start justify-between">
-              <div className="flex items-center gap-2">
-                {repo.owner?.avatar_url ? (
-                  <img
-                    src={repo.owner.avatar_url || "/placeholder.svg"}
-                    alt={repo.owner.login}
-                    className="w-5 h-5 rounded-full"
-                  />
-                ) : (
-                  <div className="w-5 h-5 rounded-full bg-primary/10 flex items-center justify-center">
-                    <Users className="h-3 w-3 text-primary" />
-                  </div>
-                )}
-                <CardTitle className="text-sm font-medium truncate max-w-[150px]">{repo.full_name}</CardTitle>
-              </div>
-              <Badge variant={repo.private ? "outline" : "secondary"} className="text-[10px] px-1 h-5">
-                {repo.private ? "Private" : "Public"}
-              </Badge>
-            </div>
-          </CardHeader>
-          <CardContent className="px-4 pb-4">
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-3 text-xs text-muted-foreground">
-              {repo.language && (
-                <div className="flex items-center gap-1">
-                  <span
-                    className={`w-2 h-2 rounded-full ${languageColors[repo.language] || languageColors.default}`}
-                  ></span>
-                  {repo.language}
-                </div>
-              )}
-
-              <div className="flex items-center gap-1">
-                <Star className="h-3 w-3" />
-                {repo.stars_count}
-              </div>
-
-              {repo.forks_count !== undefined && (
-                <div className="flex items-center gap-1">
-                  <GitFork className="h-3 w-3" />
-                  {repo.forks_count}
-                </div>
-              )}
-
-              <div className="flex items-center gap-1 w-full mt-1">
-                <Clock className="h-3 w-3 flex-shrink-0" />
-                <span className="truncate">{timeAgo(repo.updated_at).replace("Updated ", "")}</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      ))}
-    </div>
-  )
-
-  // Function to render repository list
-  const renderRepositoryList = () => (
-    <div className="space-y-2">
-      {repos.map((repo) => (
-        <Card
-          key={repo.id}
-          className="overflow-hidden hover:shadow-md transition-shadow cursor-pointer"
-          onClick={() => handleRepoClick(repo)}
-        >
-          <div className="p-3">
-            <div className="flex items-start justify-between">
-              <div>
-                <div className="flex items-center gap-2 mb-1">
-                  {repo.owner?.avatar_url ? (
-                    <img
-                      src={repo.owner.avatar_url || "/placeholder.svg"}
-                      alt={repo.owner.login}
-                      className="w-5 h-5 rounded-full"
-                    />
-                  ) : (
-                    <div className="w-5 h-5 rounded-full bg-primary/10 flex items-center justify-center">
-                      <Users className="h-3 w-3 text-primary" />
-                    </div>
-                  )}
-                  <h3 className="font-medium text-sm">{repo.full_name}</h3>
-                  <Badge variant={repo.private ? "outline" : "secondary"} className="text-[10px] px-1 h-5">
-                    {repo.private ? "Private" : "Public"}
-                  </Badge>
-                </div>
-                <p className="text-xs text-muted-foreground mb-2">{repo.description || "No description provided"}</p>
-              </div>
-
-              <div className="flex items-center gap-3 text-xs">
-                <div className="flex items-center gap-1">
-                  <Star className="h-3.5 w-3.5 text-muted-foreground" />
-                  <span>{repo.stars_count}</span>
-                </div>
-
-                {repo.forks_count !== undefined && (
-                  <div className="flex items-center gap-1">
-                    <GitFork className="h-3.5 w-3.5 text-muted-foreground" />
-                    <span>{repo.forks_count}</span>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div className="flex items-center gap-4 mt-1 text-xs text-muted-foreground">
-              {repo.language && (
-                <div className="flex items-center gap-1">
-                  <span
-                    className={`w-2 h-2 rounded-full ${languageColors[repo.language] || languageColors.default}`}
-                  ></span>
-                  {repo.language}
-                </div>
-              )}
-
-              <div className="flex items-center gap-1">
-                <Clock className="h-3 w-3" />
-                <span>{timeAgo(repo.updated_at)}</span>
-              </div>
-            </div>
-          </div>
-        </Card>
-      ))}
-    </div>
-  )
-
   return (
     <Layout>
       <div className="min-h-screen bg-background pt-24 pb-12">
         <div className="container max-w-[1400px] mx-auto px-4">
           {/* Page Header with Search */}
           <div className="mb-8">
-            <h1 className="text-2xl font-bold tracking-tight mb-4">Explore qubots</h1>
+            <div className="flex items-center justify-between mb-4">
+                <h1 className="text-2xl font-bold tracking-tight">Explore public qubots within Rastion</h1>
+                {!loading && (
+                  <Badge variant="outline" className="px-3 py-1.5 text-base font-medium bg-primary/5 border-primary/20">
+                    <FolderGit className="h-4 w-4 mr-2 text-primary" />
+                    Qubots: {totalCount}
+                  </Badge>
+                )}
+              </div>
             <div className="relative w-full max-w-3xl">
               <form onSubmit={handleSearch} className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                 <Input
                   type="search"
-                  placeholder="Search repositories and users..."
+                  placeholder="Search qubot repositories and users..."
                   className="pl-10 h-12 text-base"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
@@ -411,8 +270,6 @@ export default function PublicReposPage() {
                   </CardContent>
                 </Card>
 
-                
-
                 {/* Keywords Filter */}
                 <Card>
                   <CardHeader className="pb-3">
@@ -427,18 +284,20 @@ export default function PublicReposPage() {
                         <Badge
                           key={kw}
                           variant={selectedKeywords.includes(kw) ? "default" : "outline"}
-                          className="cursor-pointer hover:bg-primary/90 transition-colors"
+                          className="cursor-pointer transition-colors"
                           onClick={() => toggleKeyword(kw)}
                         >
                           {kw}
                         </Badge>
                       ))}
                     </div>
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Filtering by keywords will search in repository names, descriptions, and config.json files.
+                    </p>
                   </CardContent>
                 </Card>
 
                 
-
                 {/* Clear Filters Button */}
                 {(selectedKeywords.length > 0 || selectedLanguages.length > 0) && (
                   <Button variant="outline" className="w-full" onClick={clearFilters}>
@@ -546,6 +405,27 @@ export default function PublicReposPage() {
                             </div>
                           </CardHeader>
                           <CardContent className="px-4 pb-4">
+                            {/* Show matching keywords from config.json if any */}
+                            {repo.matching_keywords && repo.matching_keywords.length > 0 && (
+                              <div className="mb-3 bg-primary/5 p-2 rounded-md border border-primary/10">
+                                <div className="flex items-center gap-1 text-xs text-primary mb-1">
+                                  <FileJson className="h-3.5 w-3.5" />
+                                  <span>Matched keywords in qubot card:</span>
+                                </div>
+                                <div className="flex flex-wrap gap-1">
+                                  {repo.matching_keywords.map((kw) => (
+                                    <Badge
+                                      key={kw}
+                                      variant="outline"
+                                      className="text-xs bg-primary/10 border-primary/20 hover:bg-primary/20 transition-colors"
+                                    >
+                                      {kw}
+                                    </Badge>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
                             <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mt-3 text-sm text-muted-foreground">
                               {repo.language && (
                                 <div className="flex items-center gap-1">
@@ -572,8 +452,8 @@ export default function PublicReposPage() {
                                 <Clock className="h-4 w-4 flex-shrink-0" />
                                 <span>{timeAgo(repo.updated_at)}</span>
                               </div>
-                            </div>
-                          </CardContent>
+                              </div>
+                            </CardContent>
                         </Card>
                       ))}
                     </div>
@@ -613,30 +493,29 @@ export default function PublicReposPage() {
                                   <p className="text-sm text-muted-foreground mb-3">
                                     {repo.description || "No description provided"}
                                   </p>
-                                  <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
-                                    {repo.language && (
-                                      <div className="flex items-center gap-1">
-                                        <span
-                                          className={`w-2 h-2 rounded-full ${languageColors[repo.language] || languageColors.default}`}
-                                        ></span>
-                                        {repo.language}
+
+                                  {/* Show matching keywords from config.json if any */}
+                                  {repo.matching_keywords && repo.matching_keywords.length > 0 && (
+                                    <div className="mb-3 bg-primary/5 p-2 rounded-md border border-primary/10">
+                                      <div className="flex items-center gap-1 text-xs text-primary mb-1">
+                                        <FileJson className="h-3.5 w-3.5" />
+                                        <span>Matched keywords in config.json:</span>
                                       </div>
-                                    )}
-                                    <div className="flex items-center gap-1">
-                                      <Star className="h-4 w-4" />
-                                      <span>{repo.stars_count}</span>
-                                    </div>
-                                    {repo.forks_count !== undefined && (
-                                      <div className="flex items-center gap-1">
-                                        <GitFork className="h-4 w-4" />
-                                        <span>{repo.forks_count}</span>
+                                      <div className="flex flex-wrap gap-1">
+                                        {repo.matching_keywords.map((kw) => (
+                                          <Badge
+                                            key={kw}
+                                            variant="outline"
+                                            className="text-xs bg-primary/10 border-primary/20"
+                                          >
+                                            {kw}
+                                          </Badge>
+                                        ))}
                                       </div>
-                                    )}
-                                    <div className="flex items-center gap-1">
-                                      <Clock className="h-4 w-4" />
-                                      <span>{timeAgo(repo.updated_at)}</span>
                                     </div>
-                                  </div>
+                                  )}
+
+                                  
                                 </div>
                               </div>
                             </div>
