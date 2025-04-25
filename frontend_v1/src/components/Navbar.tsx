@@ -7,7 +7,18 @@ import type React from "react"
 import { useState, useEffect, useRef } from "react"
 import { Link, useLocation, useNavigate } from "react-router-dom"
 import { motion } from "framer-motion"
-import { User, Settings, LogOut, Cpu, Lightbulb, Rocket, GraduationCap, FolderGit, MessageSquare } from "lucide-react"
+import {
+  User,
+  Settings,
+  LogOut,
+  Cpu,
+  Lightbulb,
+  Rocket,
+  GraduationCap,
+  FolderGit,
+  MessageSquare,
+  Activity,
+} from "lucide-react" 
 import { ModeToggle } from "./ModeToggle"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
@@ -238,6 +249,8 @@ const Navbar = () => {
             
             */}
 
+            
+
             <NavigationMenu>
               <NavigationMenuList>
                 <NavigationMenuItem>
@@ -258,6 +271,17 @@ const Navbar = () => {
                         <NavigationMenuLink asChild>
                           <Button
                             variant="ghost"
+                            className={`w-full justify-start ${location.pathname === "/feed" ? "bg-muted" : ""}`}
+                            onClick={() => navigate("/feed")}
+                          >
+                            <Activity className="mr-2 h-4 w-4 text-indigo-500" />
+                            News
+                          </Button>
+                        </NavigationMenuLink>
+
+                        <NavigationMenuLink asChild>
+                          <Button
+                            variant="ghost"
                             className="w-full justify-start"
                             onClick={() => navigate("/feedback")}
                           >
@@ -265,8 +289,8 @@ const Navbar = () => {
                             <span>Feedback</span>
                           </Button>
                         </NavigationMenuLink>
-                      </li>
-                      <li className="row-span-3">
+                      
+                      
                         <NavigationMenuLink asChild>
                           <Button
                             variant="ghost"
@@ -293,8 +317,9 @@ const Navbar = () => {
               <BookOpenText className="w-4 h-4 text-amber-500" />
               Documentation
             </Button>
-
-            <Button
+            
+            {/*}
+             <Button
               variant="ghost"
               size="sm"
               className={`h-9 gap-1 px-3 ${location.pathname === "/leaderboard" ? "bg-muted" : ""}`}
@@ -304,6 +329,9 @@ const Navbar = () => {
               Leaderboard
             </Button>
 
+             */}
+
+            
             
           </motion.nav>
 

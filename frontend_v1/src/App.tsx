@@ -20,6 +20,7 @@ import { ThemeProvider } from "./components/ThemeContext";
 import SettingsPage from "./pages/SettingsPage";
 import Roadmap from "./pages/Roadmap";
 import LeaderboardPage from "./pages/Leaderboard";
+import Feed from "./pages/Feed";
 
 const queryClient = new QueryClient();
 
@@ -44,6 +45,7 @@ const App = () => (
               <Route path="/qubots" element={<PublicReposPage />} />
               <Route path="/roadmap" element={<Roadmap />} />
               <Route path="/leaderboard" element={<LeaderboardPage />} />
+              <Route path="/feed" element={<Feed />} />
 
 
               {/* Profile page with username in URL */}

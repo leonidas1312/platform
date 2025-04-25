@@ -353,6 +353,149 @@ app.get("/api/users/:username/repos", async (req, res) => {
   }
 })
 
+// Check if the authenticated user is following a specific user
+app.get("/api/user/following/:username", auth, async (req, res) => {
+  const { username } = req.params
+
+  try {
+    const response = await fetch(`${GITEA_URL}/api/v1/user/following/${username}`, {
+      method: "GET",
+      headers: {
+        Authorization: `token ${req.user.token}`,
+      },
+    })
+
+    // Gitea returns 204 No Content if following, 404 Not Found if not following
+    if (response.status === 204) {
+      return res.status(204).send()
+    } else {
+      return res.status(404).json({ message: "Not following this user" })
+    }
+  } catch (error) {
+    console.error("Error checking follow status:", error)
+    return res.status(500).json({ message: "Internal server error" })
+  }
+})
+
+// Follow a user
+app.put("/api/user/following/:username", auth, async (req, res) => {
+  const { username } = req.params
+
+  try {
+    const response = await fetch(`${GITEA_URL}/api/v1/user/following/${username}`, {
+      method: "PUT",
+      headers: {
+        Authorization: `token ${req.user.token}`,
+      },
+    })
+
+    if (response.status === 204) {
+      // Record the follow activity
+      try {
+        await knex("user_activities").insert({
+          username: req.user.login,
+          activity_type: "user_followed",
+          target_user: username,
+          created_at: knex.fn.now(),
+        })
+      } catch (dbError) {
+        console.error("Error recording follow activity:", dbError)
+        // Continue even if recording fails
+      }
+
+      return res.status(204).send()
+    } else {
+      const errorData = await response.json()
+      return res.status(response.status).json({
+        message: errorData.message || "Failed to follow user",
+      })
+    }
+  } catch (error) {
+    console.error("Error following user:", error)
+    return res.status(500).json({ message: "Internal server error" })
+  }
+})
+
+// Unfollow a user
+app.delete("/api/user/following/:username", auth, async (req, res) => {
+  const { username } = req.params
+
+  try {
+    const response = await fetch(`${GITEA_URL}/api/v1/user/following/${username}`, {
+      method: "DELETE",
+      headers: {
+        Authorization: `token ${req.user.token}`,
+      },
+    })
+
+    if (response.status === 204) {
+      return res.status(204).send()
+    } else {
+      const errorData = await response.json()
+      return res.status(response.status).json({
+        message: errorData.message || "Failed to unfollow user",
+      })
+    }
+  } catch (error) {
+    console.error("Error unfollowing user:", error)
+    return res.status(500).json({ message: "Internal server error" })
+  }
+})
+
+// Get a user's followers
+app.get("/api/users/:username/followers", async (req, res) => {
+  const { username } = req.params
+  const token = req.headers.authorization?.split(" ")[1]
+
+  try {
+    const headers = token ? { Authorization: `token ${token}` } : {}
+
+    const response = await fetch(`${GITEA_URL}/api/v1/users/${username}/followers`, {
+      headers,
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json()
+      return res.status(response.status).json({
+        message: errorData.message || "Failed to fetch followers",
+      })
+    }
+
+    const followers = await response.json()
+    return res.json(followers)
+  } catch (error) {
+    console.error("Error fetching followers:", error)
+    return res.status(500).json({ message: "Internal server error" })
+  }
+})
+
+// Get users that a user is following
+app.get("/api/users/:username/following", async (req, res) => {
+  const { username } = req.params
+  const token = req.headers.authorization?.split(" ")[1]
+
+  try {
+    const headers = token ? { Authorization: `token ${token}` } : {}
+
+    const response = await fetch(`${GITEA_URL}/api/v1/users/${username}/following`, {
+      headers,
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json()
+      return res.status(response.status).json({
+        message: errorData.message || "Failed to fetch following",
+      })
+    }
+
+    const following = await response.json()
+    return res.json(following)
+  } catch (error) {
+    console.error("Error fetching following:", error)
+    return res.status(500).json({ message: "Internal server error" })
+  }
+})
+
 // PATCH /api/profile
 app.patch("/api/profile", async (req, res) => {
   const token = req.headers.authorization?.split(" ")[1] // Get token from header
@@ -1653,27 +1796,25 @@ app.get("/api/features", async (req, res) => {
     // Format response
     const formattedFeatures = await Promise.all(
       features.map(async (feature) => {
-        const tags = featureTags
-          .filter(tag => tag.feature_id === feature.id)
-          .map(tag => tag.tag_name);
-    
-        const user = usersMap[feature.created_by_username] || { username: feature.created_by_username };
-    
+        const tags = featureTags.filter((tag) => tag.feature_id === feature.id).map((tag) => tag.tag_name)
+
+        const user = usersMap[feature.created_by_username] || { username: feature.created_by_username }
+
         // default placeholder
-        let avatarUrl = `/placeholder.svg?height=40&width=40&query=${user.username}`;
-    
+        let avatarUrl = `/placeholder.svg?height=40&width=40&query=${user.username}`
+
         try {
-          const userRes = await fetch(`${GITEA_URL}/api/v1/users/${user.username}`);
+          const userRes = await fetch(`${GITEA_URL}/api/v1/users/${user.username}`)
           if (userRes.ok) {
-            const userData = await userRes.json();
+            const userData = await userRes.json()
             if (userData.avatar_url) {
-              avatarUrl = userData.avatar_url;  // ← fixed typo here
+              avatarUrl = userData.avatar_url // ← fixed typo here
             }
           }
         } catch (error) {
-          console.error(`Error fetching avatar for user ${user.username}:`, error);
+          console.error(`Error fetching avatar for user ${user.username}:`, error)
         }
-    
+
         return {
           id: feature.id.toString(),
           title: feature.title,
@@ -1689,10 +1830,9 @@ app.get("/api/features", async (req, res) => {
           priority: feature.priority,
           tags,
           hasVoted: userVotesSet.has(feature.id),
-        };
-      })
-    );
-    
+        }
+      }),
+    )
 
     res.json(formattedFeatures)
   } catch (error) {
@@ -2741,6 +2881,213 @@ app.delete("/api/repos/:owner/:repoName/connections/:connectionId", auth, async 
   } catch (error) {
     console.error("Error deleting repository connection:", error)
     res.status(500).json({ error: "Failed to delete repository connection" })
+  }
+})
+
+// Add these new endpoints after the existing routes
+
+// Get user's starred repositories
+app.get("/api/user/starred", auth, async (req, res) => {
+  try {
+    const response = await fetch(`${GITEA_URL}/api/v1/user/starred`, {
+      headers: {
+        Authorization: `token ${req.user.token}`,
+      },
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json()
+      return res.status(response.status).json({
+        message: errorData.message || "Failed to fetch starred repositories",
+      })
+    }
+
+    const starredRepos = await response.json()
+    return res.json(starredRepos)
+  } catch (error) {
+    console.error("Error fetching starred repositories:", error)
+    return res.status(500).json({ message: "Internal server error" })
+  }
+})
+
+// Check if a repository is starred
+app.get("/api/user/starred/:owner/:repo", auth, async (req, res) => {
+  const { owner, repo } = req.params
+
+  try {
+    const response = await fetch(`${GITEA_URL}/api/v1/user/starred/${owner}/${repo}`, {
+      method: "GET",
+      headers: {
+        Authorization: `token ${req.user.token}`,
+      },
+    })
+
+    // Gitea returns 204 No Content if starred, 404 Not Found if not starred
+    if (response.status === 204) {
+      return res.status(204).send()
+    } else {
+      return res.status(404).json({ message: "Repository not starred" })
+    }
+  } catch (error) {
+    console.error("Error checking star status:", error)
+    return res.status(500).json({ message: "Internal server error" })
+  }
+})
+
+// Star a repository
+app.put("/api/user/starred/:owner/:repo", auth, async (req, res) => {
+  const { owner, repo } = req.params
+
+  try {
+    const response = await fetch(`${GITEA_URL}/api/v1/user/starred/${owner}/${repo}`, {
+      method: "PUT",
+      headers: {
+        Authorization: `token ${req.user.token}`,
+      },
+    })
+
+    if (response.status === 204) {
+      // Record the star activity in the database
+      try {
+        await knex("user_activities").insert({
+          username: req.user.login,
+          activity_type: "repo_starred",
+          target_repo: `${owner}/${repo}`,
+          created_at: knex.fn.now(),
+        })
+      } catch (dbError) {
+        console.error("Error recording star activity:", dbError)
+        // Continue even if recording fails
+      }
+
+      return res.status(204).send()
+    } else {
+      const errorData = await response.json()
+      return res.status(response.status).json({
+        message: errorData.message || "Failed to star repository",
+      })
+    }
+  } catch (error) {
+    console.error("Error starring repository:", error)
+    return res.status(500).json({ message: "Internal server error" })
+  }
+})
+
+// Unstar a repository
+app.delete("/api/user/starred/:owner/:repo", auth, async (req, res) => {
+  const { owner, repo } = req.params
+
+  try {
+    const response = await fetch(`${GITEA_URL}/api/v1/user/starred/${owner}/${repo}`, {
+      method: "DELETE",
+      headers: {
+        Authorization: `token ${req.user.token}`,
+      },
+    })
+
+    if (response.status === 204) {
+      return res.status(204).send()
+    } else {
+      const errorData = await response.json()
+      return res.status(response.status).json({
+        message: errorData.message || "Failed to unstar repository",
+      })
+    }
+  } catch (error) {
+    console.error("Error unstarring repository:", error)
+    return res.status(500).json({ message: "Internal server error" })
+  }
+})
+
+// Record a follow activity
+app.post("/api/user/follow-activity", auth, async (req, res) => {
+  const { targetUsername } = req.body
+
+  if (!targetUsername) {
+    return res.status(400).json({ error: "Target username is required" })
+  }
+
+  try {
+    // Record the follow activity
+    await knex("user_activities").insert({
+      username: req.user.login,
+      activity_type: "user_followed",
+      target_user: targetUsername,
+      created_at: knex.fn.now(),
+    })
+
+    return res.status(201).json({ message: "Follow activity recorded successfully" })
+  } catch (error) {
+    console.error("Error recording follow activity:", error)
+    return res.status(500).json({ message: "Internal server error" })
+  }
+})
+
+// Get user activities (follows and stars)
+app.get("/api/user/activities", auth, async (req, res) => {
+  try {
+    const activities = await knex("user_activities")
+      .where({ username: req.user.login })
+      .orderBy("created_at", "desc")
+      .limit(50)
+
+    return res.json(activities)
+  } catch (error) {
+    console.error("Error fetching user activities:", error)
+    return res.status(500).json({ message: "Internal server error" })
+  }
+})
+
+// Get activities for a specific user
+app.get("/api/users/:username/activities", async (req, res) => {
+  const { username } = req.params
+
+  try {
+    const activities = await knex("user_activities").where({ username }).orderBy("created_at", "desc").limit(50)
+
+    return res.json(activities)
+  } catch (error) {
+    console.error(`Error fetching activities for user ${username}:`, error)
+    return res.status(500).json({ message: "Internal server error" })
+  }
+})
+
+// Modify the existing follow user endpoint to record the activity
+app.put("/api/user/following/:username", auth, async (req, res) => {
+  const { username } = req.params
+
+  try {
+    const response = await fetch(`${GITEA_URL}/api/v1/user/following/${username}`, {
+      method: "PUT",
+      headers: {
+        Authorization: `token ${req.user.token}`,
+      },
+    })
+
+    if (response.status === 204) {
+      // Record the follow activity
+      try {
+        await knex("user_activities").insert({
+          username: req.user.login,
+          activity_type: "user_followed",
+          target_user: username,
+          created_at: knex.fn.now(),
+        })
+      } catch (dbError) {
+        console.error("Error recording follow activity:", dbError)
+        // Continue even if recording fails
+      }
+
+      return res.status(204).send()
+    } else {
+      const errorData = await response.json()
+      return res.status(response.status).json({
+        message: errorData.message || "Failed to follow user",
+      })
+    }
+  } catch (error) {
+    console.error("Error following user:", error)
+    return res.status(500).json({ message: "Internal server error" })
   }
 })
 

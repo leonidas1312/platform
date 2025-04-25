@@ -1,5 +1,11 @@
 "use client"
 
+import { AvatarFallback } from "@/components/ui/avatar"
+
+import { AvatarImage } from "@/components/ui/avatar"
+
+import { Avatar } from "@/components/ui/avatar"
+
 import type React from "react"
 
 import { useState, useEffect } from "react"
@@ -23,6 +29,9 @@ import {
   Plus,
   FileText,
   Clock,
+  UserPlus,
+  UserMinus,
+  Users,
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
@@ -43,6 +52,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
 import ActivityFeed from "@/components/ActivityFeed"
+import { ScrollArea } from "@/components/ui/scroll-area"
 
 const Profile = () => {
   // Get username from URL params
@@ -61,6 +71,17 @@ const Profile = () => {
   const [isPrivate, setIsPrivate] = useState(false)
   const [isCreatingRepo, setIsCreatingRepo] = useState(false)
 
+  // New state for followers functionality
+  const [isFollowing, setIsFollowing] = useState(false)
+  const [isFollowLoading, setIsFollowLoading] = useState(false)
+  const [followers, setFollowers] = useState<any[]>([])
+  const [following, setFollowing] = useState<any[]>([])
+  const [showFollowersDialog, setShowFollowersDialog] = useState(false)
+  const [showFollowingDialog, setShowFollowingDialog] = useState(false)
+  const [followersLoading, setFollowersLoading] = useState(false)
+  const [followingLoading, setFollowingLoading] = useState(false)
+  const [currentUserData, setCurrentUserData] = useState<any>(null)
+
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -68,6 +89,22 @@ const Profile = () => {
     if (!token) {
       navigate("/auth")
       return
+    }
+
+    // Fetch current logged-in user data
+    const fetchCurrentUser = async () => {
+      try {
+        const response = await fetch("http://localhost:4000/api/profile", {
+          headers: { Authorization: `token ${token}` },
+        })
+
+        if (response.ok) {
+          const userData = await response.json()
+          setCurrentUserData(userData)
+        }
+      } catch (error) {
+        console.error("Failed to fetch current user", error)
+      }
     }
 
     // Fetch user profile - if username is provided, fetch that user's profile
@@ -87,6 +124,15 @@ const Profile = () => {
 
         const data = await response.json()
         setUser(data)
+
+        // Check if current user is following this user
+        if (username && username !== currentUserData?.login) {
+          checkFollowStatus(username)
+        }
+
+        // Fetch followers and following
+        fetchFollowers(username || data.login)
+        fetchFollowing(username || data.login)
       } catch (error) {
         console.error("Failed to fetch user", error)
         navigate("/auth")
@@ -118,9 +164,102 @@ const Profile = () => {
       }
     }
 
+    fetchCurrentUser()
     fetchUserProfile()
     fetchUserRepos()
-  }, [navigate, username])
+  }, [navigate, username, currentUserData?.login])
+
+  // Check if current user is following the profile user
+  const checkFollowStatus = async (targetUsername: string) => {
+    try {
+      const token = localStorage.getItem("gitea_token")
+      const response = await fetch(`http://localhost:4000/api/user/following/${targetUsername}`, {
+        headers: { Authorization: `token ${token}` },
+      })
+
+      setIsFollowing(response.status === 204)
+    } catch (error) {
+      console.error("Failed to check follow status", error)
+    }
+  }
+
+  // Fetch followers for a user
+  const fetchFollowers = async (targetUsername: string) => {
+    setFollowersLoading(true)
+    try {
+      const token = localStorage.getItem("gitea_token")
+      const response = await fetch(`http://localhost:4000/api/users/${targetUsername}/followers`, {
+        headers: { Authorization: `token ${token}` },
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setFollowers(data)
+      }
+    } catch (error) {
+      console.error("Failed to fetch followers", error)
+    } finally {
+      setFollowersLoading(false)
+    }
+  }
+
+  // Fetch users that the profile user is following
+  const fetchFollowing = async (targetUsername: string) => {
+    setFollowingLoading(true)
+    try {
+      const token = localStorage.getItem("gitea_token")
+      const response = await fetch(`http://localhost:4000/api/users/${targetUsername}/following`, {
+        headers: { Authorization: `token ${token}` },
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setFollowing(data)
+      }
+    } catch (error) {
+      console.error("Failed to fetch following", error)
+    } finally {
+      setFollowingLoading(false)
+    }
+  }
+
+  // Handle follow/unfollow action
+  const handleFollowToggle = async () => {
+    if (!username || username === currentUserData?.login) return
+
+    setIsFollowLoading(true)
+    try {
+      const token = localStorage.getItem("gitea_token")
+      const method = isFollowing ? "DELETE" : "PUT"
+
+      const response = await fetch(`http://localhost:4000/api/user/following/${username}`, {
+        method,
+        headers: { Authorization: `token ${token}` },
+      })
+
+      if (response.ok) {
+        setIsFollowing(!isFollowing)
+        // Refresh followers list
+        fetchFollowers(username)
+
+        toast({
+          title: isFollowing ? "Unfollowed" : "Following",
+          description: isFollowing ? `You unfollowed ${username}` : `You are now following ${username}`,
+        })
+      } else {
+        throw new Error("Failed to update follow status")
+      }
+    } catch (error) {
+      console.error("Failed to follow/unfollow", error)
+      toast({
+        title: "Error",
+        description: "Failed to update follow status. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsFollowLoading(false)
+    }
+  }
 
   if (loading) {
     return (
@@ -279,6 +418,9 @@ const Profile = () => {
     }
   }
 
+  // Check if viewing own profile
+  const isOwnProfile = !username || username === currentUserData?.login
+
   return (
     <Layout>
       <main className="min-h-screen bg-gradient-to-b from-background to-background/95 py-32 text-foreground">
@@ -295,22 +437,44 @@ const Profile = () => {
                     alt="Profile Avatar"
                     className="relative w-32 h-32 rounded-full border-4 border-background object-cover shadow-md transition-all duration-300 group-hover:border-primary/50 z-10"
                   />
-                  <div className="absolute inset-0 rounded-full bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center z-20">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="text-white hover:bg-white/20"
-                      onClick={handleOpenModal}
-                    >
-                      <Settings className="w-5 h-5" />
-                    </Button>
-                  </div>
+                  {isOwnProfile && (
+                    <div className="absolute inset-0 rounded-full bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center z-20">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="text-white hover:bg-white/20"
+                        onClick={handleOpenModal}
+                      >
+                        <Settings className="w-5 h-5" />
+                      </Button>
+                    </div>
+                  )}
                 </div>
 
                 <h1 className="text-2xl font-bold mt-5 text-center lg:text-left bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/80">
                   {user.full_name || user.login}
                 </h1>
                 <p className="text-muted-foreground text-center lg:text-left">@{user.login}</p>
+
+                {/* Follow button - only show when viewing another user's profile */}
+                {!isOwnProfile && (
+                  <Button
+                    variant={isFollowing ? "outline" : "default"}
+                    size="sm"
+                    className="mt-3 w-full"
+                    onClick={handleFollowToggle}
+                    disabled={isFollowLoading}
+                  >
+                    {isFollowLoading ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    ) : isFollowing ? (
+                      <UserMinus className="h-4 w-4 mr-2" />
+                    ) : (
+                      <UserPlus className="h-4 w-4 mr-2" />
+                    )}
+                    {isFollowing ? "Unfollow" : "Follow"}
+                  </Button>
+                )}
 
                 <Separator className="my-4 bg-border/50" />
 
@@ -366,15 +530,21 @@ const Profile = () => {
                   Stats
                 </h2>
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="flex flex-col items-center p-3 bg-gradient-to-br from-muted/30 to-muted/60 rounded-lg border border-border/30 hover:border-border/50 transition-colors">
+                  <div
+                    className="flex flex-col items-center p-3 bg-gradient-to-br from-muted/30 to-muted/60 rounded-lg border border-border/30 hover:border-border/50 transition-colors cursor-pointer"
+                    onClick={() => setShowFollowersDialog(true)}
+                  >
                     <span className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/80">
-                      {user.followers_count || 0}
+                      {followers.length || 0}
                     </span>
                     <span className="text-xs text-muted-foreground">Followers</span>
                   </div>
-                  <div className="flex flex-col items-center p-3 bg-gradient-to-br from-muted/30 to-muted/60 rounded-lg border border-border/30 hover:border-border/50 transition-colors">
+                  <div
+                    className="flex flex-col items-center p-3 bg-gradient-to-br from-muted/30 to-muted/60 rounded-lg border border-border/30 hover:border-border/50 transition-colors cursor-pointer"
+                    onClick={() => setShowFollowingDialog(true)}
+                  >
                     <span className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/80">
-                      {user.following_count || 0}
+                      {following.length || 0}
                     </span>
                     <span className="text-xs text-muted-foreground">Following</span>
                   </div>
@@ -430,14 +600,16 @@ const Profile = () => {
                         <FolderGit className="w-5 h-5 text-primary" />
                         Qubots
                       </h2>
-                      <Button
-                        size="sm"
-                        className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary shadow-sm"
-                        onClick={handleCreateRepoClick}
-                      >
-                        <Plus className="w-4 h-4 mr-1" />
-                        New
-                      </Button>
+                      {isOwnProfile && (
+                        <Button
+                          size="sm"
+                          className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary shadow-sm"
+                          onClick={handleCreateRepoClick}
+                        >
+                          <Plus className="w-4 h-4 mr-1" />
+                          New
+                        </Button>
+                      )}
                     </div>
 
                     {reposLoading ? (
@@ -514,15 +686,19 @@ const Profile = () => {
                         </div>
                         <h3 className="text-lg font-medium">No repositories yet</h3>
                         <p className="text-muted-foreground mt-1 mb-6 max-w-md mx-auto">
-                          Create your first repository to get started with optimization problems and solutions
+                          {isOwnProfile
+                            ? "Create your first repository to get started with optimization problems and solutions"
+                            : `${username} hasn't created any repositories yet`}
                         </p>
-                        <Button
-                          onClick={handleCreateRepoClick}
-                          className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary shadow-sm"
-                        >
-                          <Plus className="w-4 h-4 mr-1" />
-                          New Qubot Repository
-                        </Button>
+                        {isOwnProfile && (
+                          <Button
+                            onClick={handleCreateRepoClick}
+                            className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary shadow-sm"
+                          >
+                            <Plus className="w-4 h-4 mr-1" />
+                            New Qubot Repository
+                          </Button>
+                        )}
                       </div>
                     )}
                   </div>
@@ -552,15 +728,17 @@ const Profile = () => {
                         ) : (
                           <div className="text-center py-8">
                             <p className="text-muted-foreground mb-4">No bio provided</p>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="border-primary/20 hover:bg-primary/5 transition-colors"
-                              onClick={handleOpenModal}
-                            >
-                              <FileText className="w-4 h-4 mr-2" />
-                              Add Bio
-                            </Button>
+                            {isOwnProfile && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="border-primary/20 hover:bg-primary/5 transition-colors"
+                                onClick={handleOpenModal}
+                              >
+                                <FileText className="w-4 h-4 mr-2" />
+                                Add Bio
+                              </Button>
+                            )}
                           </div>
                         )}
                       </div>
@@ -695,6 +873,114 @@ const Profile = () => {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Followers Dialog */}
+      <Dialog open={showFollowersDialog} onOpenChange={setShowFollowersDialog}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Users className="h-5 w-5 text-primary" />
+              Followers
+            </DialogTitle>
+            <DialogDescription>People following {isOwnProfile ? "you" : user.login}</DialogDescription>
+          </DialogHeader>
+
+          {followersLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-6 w-6 animate-spin text-primary" />
+            </div>
+          ) : followers.length > 0 ? (
+            <ScrollArea className="h-[300px] pr-4">
+              <div className="space-y-4">
+                {followers.map((follower) => (
+                  <div
+                    key={follower.id}
+                    className="flex items-center gap-3 p-2 rounded-md hover:bg-muted/50 cursor-pointer"
+                    onClick={() => {
+                      navigate(`/u/${follower.login}`)
+                      setShowFollowersDialog(false)
+                    }}
+                  >
+                    <Avatar className="h-10 w-10 border border-border/40">
+                      <AvatarImage
+                        src={follower.avatar_url || `/placeholder.svg?height=40&width=40&query=${follower.login}`}
+                        alt={follower.login}
+                      />
+                      <AvatarFallback>{follower.login.charAt(0).toUpperCase()}</AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <p className="font-medium">{follower.full_name || follower.login}</p>
+                      <p className="text-sm text-muted-foreground">@{follower.login}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </ScrollArea>
+          ) : (
+            <div className="text-center py-8">
+              <Users className="h-12 w-12 text-muted-foreground opacity-30 mx-auto mb-2" />
+              <p className="text-muted-foreground">
+                {isOwnProfile ? "You don't have any followers yet" : `${user.login} doesn't have any followers yet`}
+              </p>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Following Dialog */}
+      <Dialog open={showFollowingDialog} onOpenChange={setShowFollowingDialog}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Users className="h-5 w-5 text-primary" />
+              Following
+            </DialogTitle>
+            <DialogDescription>People {isOwnProfile ? "you're" : `${user.login} is`} following</DialogDescription>
+          </DialogHeader>
+
+          {followingLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-6 w-6 animate-spin text-primary" />
+            </div>
+          ) : following.length > 0 ? (
+            <ScrollArea className="h-[300px] pr-4">
+              <div className="space-y-4">
+                {following.map((followedUser) => (
+                  <div
+                    key={followedUser.id}
+                    className="flex items-center gap-3 p-2 rounded-md hover:bg-muted/50 cursor-pointer"
+                    onClick={() => {
+                      navigate(`/u/${followedUser.login}`)
+                      setShowFollowingDialog(false)
+                    }}
+                  >
+                    <Avatar className="h-10 w-10 border border-border/40">
+                      <AvatarImage
+                        src={
+                          followedUser.avatar_url || `/placeholder.svg?height=40&width=40&query=${followedUser.login}`
+                        }
+                        alt={followedUser.login}
+                      />
+                      <AvatarFallback>{followedUser.login.charAt(0).toUpperCase()}</AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <p className="font-medium">{followedUser.full_name || followedUser.login}</p>
+                      <p className="text-sm text-muted-foreground">@{followedUser.login}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </ScrollArea>
+          ) : (
+            <div className="text-center py-8">
+              <Users className="h-12 w-12 text-muted-foreground opacity-30 mx-auto mb-2" />
+              <p className="text-muted-foreground">
+                {isOwnProfile ? "You're not following anyone yet" : `${user.login} isn't following anyone yet`}
+              </p>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </Layout>

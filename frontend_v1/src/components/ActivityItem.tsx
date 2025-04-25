@@ -2,14 +2,22 @@
 
 import { useState } from "react"
 import { useNavigate } from "react-router-dom"
-import { MessageSquare, FolderGit, ThumbsUp } from "lucide-react"
+import { MessageSquare, FolderGit, ThumbsUp, Code, User, Star } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 
 interface ActivityItemProps {
   username: string
   avatar_url?: string
-  type: "qubot_created" | "feature_comment" | "feature_vote" | "post_comment" | "post_like"
+  type:
+    | "qubot_created"
+    | "qubot_updated"
+    | "feature_comment"
+    | "feature_vote"
+    | "post_comment"
+    | "post_like"
+    | "user_followed"
+    | "repo_starred"
   timestamp: string
   data: {
     qubot?: {
@@ -27,6 +35,15 @@ interface ActivityItemProps {
     post?: {
       id: number
       content: string
+    }
+    followed_user?: {
+      login: string
+      full_name?: string
+    }
+    starred_repo?: {
+      name: string
+      owner: string
+      description?: string
     }
   }
 }
@@ -92,6 +109,18 @@ export default function ActivityItem({ username, avatar_url, type, timestamp, da
                   </Button>
                 </>
               )}
+              {type === "qubot_updated" && (
+                <>
+                  updated their Qubot repository{" "}
+                  <Button
+                    variant="link"
+                    className="p-0 h-auto text-primary font-medium"
+                    onClick={() => navigate(`/${data.qubot?.owner}/${data.qubot?.name}`)}
+                  >
+                    {data.qubot?.name}
+                  </Button>
+                </>
+              )}
               {type === "feature_comment" && (
                 <>
                   commented on feature{" "}
@@ -116,15 +145,42 @@ export default function ActivityItem({ username, avatar_url, type, timestamp, da
                   </Button>
                 </>
               )}
+              {type === "user_followed" && (
+                <>
+                  followed{" "}
+                  <Button
+                    variant="link"
+                    className="p-0 h-auto text-primary font-medium"
+                    onClick={() => navigate(`/u/${data.followed_user?.login}`)}
+                  >
+                    {data.followed_user?.full_name || data.followed_user?.login}
+                  </Button>
+                </>
+              )}
+              {type === "repo_starred" && (
+                <>
+                  starred repository{" "}
+                  <Button
+                    variant="link"
+                    className="p-0 h-auto text-primary font-medium"
+                    onClick={() => navigate(`/${data.starred_repo?.owner}/${data.starred_repo?.name}`)}
+                  >
+                    {data.starred_repo?.name}
+                  </Button>
+                </>
+              )}
             </p>
             <p className="text-xs text-muted-foreground mt-1">{formatDate(timestamp)}</p>
           </div>
           <div className="flex-shrink-0">
             {type === "qubot_created" && <FolderGit className="h-5 w-5 text-primary/70" />}
+            {type === "qubot_updated" && <Code className="h-5 w-5 text-blue-500" />}
             {type === "feature_comment" && <MessageSquare className="h-5 w-5 text-primary/70" />}
             {type === "feature_vote" && <ThumbsUp className="h-5 w-5 text-primary/70" />}
             {type === "post_comment" && <MessageSquare className="h-5 w-5 text-primary/70" />}
             {type === "post_like" && <ThumbsUp className="h-5 w-5 text-primary/70" />}
+            {type === "user_followed" && <User className="h-5 w-5 text-indigo-500" />}
+            {type === "repo_starred" && <Star className="h-5 w-5 text-amber-500" />}
           </div>
         </div>
 

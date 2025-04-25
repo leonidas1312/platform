@@ -2,14 +2,22 @@
 
 import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
-import { Loader2, MessageSquare, FolderGit, ThumbsUp, Clock } from "lucide-react"
+import { Loader2, MessageSquare, FolderGit, ThumbsUp, Clock, Code, User, Star } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 
 type ActivityItem = {
   id: string
-  type: "qubot_created" | "feature_comment" | "feature_vote" | "post_comment" | "post_like"
+  type:
+    | "qubot_created"
+    | "qubot_updated"
+    | "feature_comment"
+    | "feature_vote"
+    | "post_comment"
+    | "post_like"
+    | "user_followed"
+    | "repo_starred"
   timestamp: string
   data: {
     qubot?: {
@@ -28,6 +36,15 @@ type ActivityItem = {
       id: number
       content: string
     }
+    followed_user?: {
+      login: string
+      full_name?: string
+    }
+    starred_repo?: {
+      name: string
+      owner: string
+      description?: string
+    }
   }
 }
 
@@ -41,119 +58,207 @@ export default function ActivityFeed({ username, avatar_url }: ActivityFeedProps
   const [loading, setLoading] = useState(true)
   const navigate = useNavigate()
 
-  useEffect(() => {
-    const fetchActivity = async () => {
-      setLoading(true)
-      try {
-        // In a real implementation, you would fetch from an API endpoint
-        // For now, we'll simulate activity data
+  // Update the fetchActivity function to include real follow and star activities
+  const fetchActivity = async () => {
+    setLoading(true)
+    try {
+      // In a real implementation, you would fetch from an API endpoint
+      // For now, we'll simulate activity data
 
-        // Fetch user's repositories to get recent Qubots
-        const token = localStorage.getItem("gitea_token")
-        if (!token) {
-          setLoading(false)
-          return
-        }
+      // Fetch user's repositories to get recent Qubots
+      const token = localStorage.getItem("gitea_token")
+      if (!token) {
+        setLoading(false)
+        return
+      }
 
-        const reposResponse = await fetch(`http://localhost:4000/api/users/${username}/repos`, {
+      const reposResponse = await fetch(`http://localhost:4000/api/users/${username}/repos`, {
+        headers: { Authorization: `token ${token}` },
+      })
+
+      if (!reposResponse.ok) {
+        throw new Error("Failed to fetch repositories")
+      }
+
+      const repos = (await reposResponse.ok) ? await reposResponse.json() : []
+
+      // Fetch user's comments from feature backlog
+      const commentsResponse = await fetch(`http://localhost:4000/api/features`, {
+        headers: { Authorization: `token ${token}` },
+      })
+
+      const features = commentsResponse.ok ? await commentsResponse.json() : []
+
+      // Simulate fetching comments for each feature
+      let featureComments: any[] = []
+      for (const feature of features.slice(0, 3)) {
+        const featureCommentsResponse = await fetch(`http://localhost:4000/api/features/${feature.id}/comments`, {
           headers: { Authorization: `token ${token}` },
         })
 
-        if (!reposResponse.ok) {
-          throw new Error("Failed to fetch repositories")
-        }
+        if (featureCommentsResponse.ok) {
+          const comments = await featureCommentsResponse.json()
+          const userComments = comments.filter((comment: any) => comment.user.username === username)
 
-        const repos = (await reposResponse.ok) ? await reposResponse.json() : []
-
-        // Fetch user's comments from feature backlog
-        const commentsResponse = await fetch(`http://localhost:4000/api/features`, {
-          headers: { Authorization: `token ${token}` },
-        })
-
-        const features = commentsResponse.ok ? await commentsResponse.json() : []
-
-        // Simulate fetching comments for each feature
-        let featureComments: any[] = []
-        for (const feature of features.slice(0, 3)) {
-          const featureCommentsResponse = await fetch(`http://localhost:4000/api/features/${feature.id}/comments`, {
-            headers: { Authorization: `token ${token}` },
-          })
-
-          if (featureCommentsResponse.ok) {
-            const comments = await featureCommentsResponse.json()
-            const userComments = comments.filter((comment: any) => comment.user.username === username)
-
-            featureComments = [
-              ...featureComments,
-              ...userComments.map((comment: any) => ({
-                id: `feature-comment-${comment.id}`,
-                type: "feature_comment" as const,
-                timestamp: comment.created_at,
-                data: {
-                  feature: {
-                    id: feature.id,
-                    title: feature.title,
-                  },
-                  comment: {
-                    content: comment.content,
-                  },
+          featureComments = [
+            ...featureComments,
+            ...userComments.map((comment: any) => ({
+              id: `feature-comment-${comment.id}`,
+              type: "feature_comment" as const,
+              timestamp: comment.created_at,
+              data: {
+                feature: {
+                  id: feature.id,
+                  title: feature.title,
                 },
-              })),
-            ]
-          }
-        }
-
-        // Simulate fetching community posts and comments
-        const postsResponse = await fetch(`http://localhost:4000/api/community/posts`, {
-          headers: { Authorization: `token ${token}` },
-        })
-
-        const posts = postsResponse.ok ? await postsResponse.json() : []
-        const userPosts = posts.filter((post: any) => post.author.login === username)
-
-        // Create activity items from repos (newest first)
-        const repoActivities = repos
-          .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-          .slice(0, 5)
-          .map((repo: any) => ({
-            id: `qubot-${repo.id}`,
-            type: "qubot_created" as const,
-            timestamp: repo.created_at,
-            data: {
-              qubot: {
-                name: repo.name,
-                owner: repo.owner.login,
-                description: repo.description,
+                comment: {
+                  content: comment.content,
+                },
               },
-            },
-          }))
+            })),
+          ]
+        }
+      }
 
-        // Create activity items from posts
-        const postActivities = userPosts.map((post: any) => ({
-          id: `post-${post.id}`,
-          type: "post_comment" as const,
-          timestamp: post.created_at,
+      // Simulate fetching community posts and comments
+      const postsResponse = await fetch(`http://localhost:4000/api/community/posts`, {
+        headers: { Authorization: `token ${token}` },
+      })
+
+      const posts = postsResponse.ok ? await postsResponse.json() : []
+      const userPosts = posts.filter((post: any) => post.author.login === username)
+
+      // Create activity items from repos (newest first)
+      const repoActivities = repos
+        .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+        .slice(0, 5)
+        .map((repo: any) => ({
+          id: `qubot-${repo.id}`,
+          type: "qubot_created" as const,
+          timestamp: repo.created_at,
           data: {
-            post: {
-              id: post.id,
-              content: post.content,
+            qubot: {
+              name: repo.name,
+              owner: repo.owner.login,
+              description: repo.description,
             },
           },
         }))
 
-        // Combine all activities and sort by timestamp (newest first)
-        const allActivities = [...repoActivities, ...featureComments, ...postActivities].sort(
-          (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
-        )
+      // Create activity items for updated repositories with more accurate detection
+      const updatedRepoActivities = repos
+        .filter((repo) => {
+          // Consider a repo as updated if:
+          // 1. It was updated more recently than it was created
+          // 2. The update was within the last 30 days
+          // 3. The update was at least 1 day after creation (to avoid showing both created and updated for new repos)
+          const createdDate = new Date(repo.created_at)
+          const updatedDate = new Date(repo.updated_at)
+          const thirtyDaysAgo = new Date()
+          thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
 
-        setActivities(allActivities)
+          // Calculate days between creation and update
+          const daysSinceCreation = (updatedDate.getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24)
+
+          return daysSinceCreation > 1 && updatedDate > thirtyDaysAgo
+        })
+        .sort((a: any, b: any) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
+        .slice(0, 3) // Limit to 3 most recently updated repos
+        .map((repo) => ({
+          id: `qubot-updated-${repo.id}`,
+          type: "qubot_updated" as const,
+          timestamp: repo.updated_at,
+          data: {
+            qubot: {
+              name: repo.name,
+              owner: repo.owner.login,
+              description: repo.description,
+            },
+          },
+        }))
+
+      // Create activity items from posts
+      const postActivities = userPosts.map((post: any) => ({
+        id: `post-${post.id}`,
+        type: "post_comment" as const,
+        timestamp: post.created_at,
+        data: {
+          post: {
+            id: post.id,
+            content: post.content,
+          },
+        },
+      }))
+
+      // Fetch user activities (follows and stars) from our new API endpoint
+      let followActivities: any[] = []
+      let starredActivities: any[] = []
+
+      try {
+        const activitiesResponse = await fetch(`http://localhost:4000/api/users/${username}/activities`, {
+          headers: { Authorization: `token ${token}` },
+        })
+
+        if (activitiesResponse.ok) {
+          const userActivities = await activitiesResponse.json()
+
+          // Process follow activities
+          followActivities = userActivities
+            .filter((activity: any) => activity.activity_type === "user_followed")
+            .map((activity: any) => ({
+              id: `follow-${activity.id}`,
+              type: "user_followed" as const,
+              timestamp: activity.created_at,
+              data: {
+                followed_user: {
+                  login: activity.target_user,
+                  full_name: activity.target_user, // We'll use login as fallback
+                },
+              },
+            }))
+
+          // Process star activities
+          starredActivities = userActivities
+            .filter((activity: any) => activity.activity_type === "repo_starred")
+            .map((activity: any) => {
+              const [owner, name] = activity.target_repo.split("/")
+              return {
+                id: `star-${activity.id}`,
+                type: "repo_starred" as const,
+                timestamp: activity.created_at,
+                data: {
+                  starred_repo: {
+                    name: name,
+                    owner: owner,
+                    description: "", // We don't have this in the activity record
+                  },
+                },
+              }
+            })
+        }
       } catch (error) {
-        console.error("Failed to fetch activity:", error)
-      } finally {
-        setLoading(false)
+        console.error(`Error fetching activities for user ${username}:`, error)
       }
-    }
 
+      // Combine all activities and sort by timestamp (newest first)
+      const allActivities = [
+        ...repoActivities,
+        ...updatedRepoActivities,
+        ...featureComments,
+        ...postActivities,
+        ...followActivities,
+        ...starredActivities,
+      ].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+
+      setActivities(allActivities)
+    } catch (error) {
+      console.error("Failed to fetch activity:", error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
     fetchActivity()
   }, [username])
 
@@ -230,10 +335,22 @@ export default function ActivityFeed({ username, avatar_url }: ActivityFeedProps
               <div className="flex items-start justify-between">
                 <div>
                   <p className="text-sm text-muted-foreground">
-                    <span className="font-medium text-foreground">{username}</span>{" "}
+                    <span className="font-medium text-foreground">{"You"}</span>{" "}
                     {activity.type === "qubot_created" && (
                       <>
                         created a new Qubot repository{" "}
+                        <Button
+                          variant="link"
+                          className="p-0 h-auto text-primary font-medium"
+                          onClick={() => navigate(`/${activity.data.qubot?.owner}/${activity.data.qubot?.name}`)}
+                        >
+                          {activity.data.qubot?.name}
+                        </Button>
+                      </>
+                    )}
+                    {activity.type === "qubot_updated" && (
+                      <>
+                        updated their Qubot repository{" "}
                         <Button
                           variant="link"
                           className="p-0 h-auto text-primary font-medium"
@@ -267,15 +384,38 @@ export default function ActivityFeed({ username, avatar_url }: ActivityFeedProps
                         </Button>
                       </>
                     )}
+                    {activity.type === "user_followed" && (
+                      <>
+                        followed{" "}
+                        <span className="font-medium text-foreground">{activity.data.followed_user?.login}</span>
+                      </>
+                    )}
+                    {activity.type === "repo_starred" && (
+                      <>
+                        starred repository{" "}
+                        <Button
+                          variant="link"
+                          className="p-0 h-auto text-primary font-medium"
+                          onClick={() =>
+                            navigate(`/${activity.data.starred_repo?.owner}/${activity.data.starred_repo?.name}`)
+                          }
+                        >
+                          {activity.data.starred_repo?.name}
+                        </Button>
+                      </>
+                    )}
                   </p>
                   <p className="text-xs text-muted-foreground mt-1">{formatDate(activity.timestamp)}</p>
                 </div>
                 <div className="flex-shrink-0">
-                  {activity.type === "qubot_created" && <FolderGit className="h-5 w-5 text-primary/70" />}
+                  {activity.type === "qubot_created" && <FolderGit className="h-5 w-5 text-green-500" />}
+                  {activity.type === "qubot_updated" && <Code className="h-5 w-5 text-blue-500" />}
                   {activity.type === "feature_comment" && <MessageSquare className="h-5 w-5 text-primary/70" />}
                   {activity.type === "feature_vote" && <ThumbsUp className="h-5 w-5 text-primary/70" />}
                   {activity.type === "post_comment" && <MessageSquare className="h-5 w-5 text-primary/70" />}
                   {activity.type === "post_like" && <ThumbsUp className="h-5 w-5 text-primary/70" />}
+                  {activity.type === "user_followed" && <User className="h-5 w-5 text-indigo-500" />}
+                  {activity.type === "repo_starred" && <Star className="h-5 w-5 text-amber-500" />}
                 </div>
               </div>
 

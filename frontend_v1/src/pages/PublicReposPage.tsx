@@ -11,22 +11,7 @@ import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent } from "@/components/ui/tabs"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import {
-  ChevronLeft,
-  ChevronRight,
-  Clock,
-  FolderGit,
-  GitFork,
-  Loader2,
-  Search,
-  SlidersHorizontal,
-  Star,
-  Tag,
-  Users,
-  X,
-  FileJson,
-} from "lucide-react"
+import { Clock, FolderGit, GitFork, Loader2, Search, Star, Tag, Users, X, FileJson } from "lucide-react"
 
 interface GiteaRepo {
   id: number
@@ -87,17 +72,17 @@ const languageColors: Record<string, string> = {
 }
 
 export default function PublicReposPage() {
-  const PAGE_SIZE = 26
+  const PAGE_SIZE = 10
 
   const [repos, setRepos] = useState<GiteaRepo[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
-  const [page, setPage] = useState(1)
-  const [totalPages, setTotalPages] = useState(1)
+  const [allLoadedRepos, setAllLoadedRepos] = useState<GiteaRepo[]>([])
+  const [currentPage, setCurrentPage] = useState(1)
+  const [hasMoreRepos, setHasMoreRepos] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
   const [activeView, setActiveView] = useState<"grid" | "list">("grid")
   const [showFilters, setShowFilters] = useState(false)
-  const [sortBy, setSortBy] = useState<string>("updated")
 
   // For server-side filtering:
   const [selectedKeywords, setSelectedKeywords] = useState<string[]>([])
@@ -117,8 +102,9 @@ export default function PublicReposPage() {
     // Build query parameters for the API request
     const queryParams = new URLSearchParams({
       limit: PAGE_SIZE.toString(),
-      page: page.toString(),
-      sort: sortBy,
+      page: currentPage.toString(),
+      sort: "created",
+      order: "asc",
     })
 
     // Add search query if present
@@ -147,30 +133,33 @@ export default function PublicReposPage() {
         return res.json()
       })
       .then((result: SearchResult) => {
-        setRepos(result.data || [])
+        const newRepos = result.data || []
+
+        // If it's the first page or we're applying new filters, replace all repos
+        if (currentPage === 1) {
+          setAllLoadedRepos(newRepos)
+        } else {
+          // Otherwise append the new repos to the existing ones
+          setAllLoadedRepos((prev) => [...prev, ...newRepos])
+        }
+
+        setRepos(newRepos)
         setTotalCount(result.total_count)
-        setTotalPages(Math.ceil(result.total_count / PAGE_SIZE))
+        // Only set hasMoreRepos to false if we received fewer items than requested
+        setHasMoreRepos(newRepos.length >= PAGE_SIZE)
         setLoading(false)
       })
       .catch((err) => {
         setError(err.message || "Unknown error")
         setLoading(false)
       })
-  }, [page, sortBy, searchQuery, selectedKeywords, selectedLanguages])
+  }, [currentPage, searchQuery, selectedKeywords, selectedLanguages])
 
-  // Add a useEffect to reset to page 1 when sorting or filtering changes
+  // Add a useEffect to reset to page 1 when filters change
   useEffect(() => {
-    setPage(1)
-  }, [searchQuery, selectedKeywords, selectedLanguages, sortBy])
-
-  // navigation handlers
-  const handlePrevPage = () => setPage((p) => Math.max(p - 1, 1))
-  const hasNextPage = page < totalPages
-  const handleNextPage = () => {
-    if (hasNextPage) {
-      setPage((p) => p + 1)
-    }
-  }
+    setCurrentPage(1)
+    setHasMoreRepos(true)
+  }, [searchQuery, selectedKeywords, selectedLanguages])
 
   const handleRepoClick = (repo: GiteaRepo) => {
     // Suppose we have a route /repo/:owner/:repoName
@@ -182,7 +171,8 @@ export default function PublicReposPage() {
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
     // Reset to page 1 when searching
-    setPage(1)
+    setCurrentPage(1)
+    setHasMoreRepos(true)
     // The search will be triggered by the useEffect due to searchQuery dependency
   }
 
@@ -205,15 +195,27 @@ export default function PublicReposPage() {
     setSelectedKeywords([])
     setSelectedLanguages([])
     setSearchQuery("")
+    setCurrentPage(1)
+    setHasMoreRepos(true)
     // The page will be reset to 1 by the useEffect that watches these dependencies
     // A new search will be triggered automatically
   }
 
   const handleApplyFilters = () => {
     // Reset to page 1 when applying filters
-    setPage(1)
+    setCurrentPage(1)
+    setHasMoreRepos(true)
     // The filters will be applied by the useEffect due to dependencies
   }
+
+  const handleLoadMore = () => {
+    if (!loading) {
+      setCurrentPage((prev) => prev + 1)
+    }
+  }
+
+  // Remove duplicate repos
+  const dedupedRepos = allLoadedRepos.filter((repo, index, self) => index === self.findIndex((t) => t.id === repo.id))
 
   return (
     <Layout>
@@ -222,14 +224,14 @@ export default function PublicReposPage() {
           {/* Page Header with Search */}
           <div className="mb-8">
             <div className="flex items-center justify-between mb-4">
-                <h1 className="text-2xl font-bold tracking-tight">Explore public qubots within Rastion</h1>
-                {!loading && (
-                  <Badge variant="outline" className="px-3 py-1.5 text-base font-medium bg-primary/5 border-primary/20">
-                    <FolderGit className="h-4 w-4 mr-2 text-primary" />
-                    Qubots: {totalCount}
-                  </Badge>
-                )}
-              </div>
+              <h1 className="text-2xl font-bold tracking-tight">Explore public qubots within Rastion</h1>
+              {!loading && (
+                <Badge variant="outline" className="px-3 py-1.5 text-base font-medium bg-primary/5 border-primary/20">
+                  <FolderGit className="h-4 w-4 mr-2 text-primary" />
+                  Qubots: {totalCount}
+                </Badge>
+              )}
+            </div>
             <div className="relative w-full max-w-3xl">
               <form onSubmit={handleSearch} className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
@@ -248,28 +250,6 @@ export default function PublicReposPage() {
             {/* Sidebar with Filters */}
             <div className="w-full lg:w-64 flex-shrink-0">
               <div className="sticky top-24 space-y-6">
-                {/* Sort Options */}
-                <Card>
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-base flex items-center">
-                      <SlidersHorizontal className="h-4 w-4 mr-2" />
-                      Sort Options
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="pt-0">
-                    <Select value={sortBy} onValueChange={setSortBy}>
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Sort by" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="updated">Recently Updated</SelectItem>
-                        <SelectItem value="stars">Most Stars</SelectItem>
-                        <SelectItem value="forks">Most Forks</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </CardContent>
-                </Card>
-
                 {/* Keywords Filter */}
                 <Card>
                   <CardHeader className="pb-3">
@@ -297,7 +277,6 @@ export default function PublicReposPage() {
                   </CardContent>
                 </Card>
 
-                
                 {/* Clear Filters Button */}
                 {(selectedKeywords.length > 0 || selectedLanguages.length > 0) && (
                   <Button variant="outline" className="w-full" onClick={clearFilters}>
@@ -351,7 +330,7 @@ export default function PublicReposPage() {
                   <Loader2 className="h-8 w-8 animate-spin text-primary" />
                   <span className="ml-2 text-muted-foreground">Loading repositories...</span>
                 </div>
-              ) : repos.length === 0 ? (
+              ) : dedupedRepos.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-16 text-center">
                   <FolderGit className="h-16 w-16 text-muted-foreground/50 mb-4" />
                   <h3 className="text-lg font-medium">No repositories found</h3>
@@ -365,7 +344,7 @@ export default function PublicReposPage() {
                 <Tabs value={activeView} onValueChange={(v) => setActiveView(v as "grid" | "list")}>
                   <TabsContent value="grid" className="mt-0">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      {repos.map((repo) => (
+                      {dedupedRepos.map((repo) => (
                         <Card
                           key={repo.id}
                           className="overflow-hidden hover:shadow-md transition-shadow cursor-pointer h-full"
@@ -387,7 +366,6 @@ export default function PublicReposPage() {
                                 )}
                                 <div>
                                   <CardTitle className="text-base font-medium">{repo.full_name}</CardTitle>
-                                  
                                 </div>
                               </div>
                               <Badge
@@ -446,15 +424,15 @@ export default function PublicReposPage() {
                                 <Clock className="h-4 w-4 flex-shrink-0" />
                                 <span>{timeAgo(repo.updated_at)}</span>
                               </div>
-                              </div>
-                            </CardContent>
+                            </div>
+                          </CardContent>
                         </Card>
                       ))}
                     </div>
                   </TabsContent>
                   <TabsContent value="list" className="mt-0">
                     <div className="space-y-4">
-                      {repos.map((repo) => (
+                      {dedupedRepos.map((repo) => (
                         <Card
                           key={repo.id}
                           className="overflow-hidden hover:shadow-md transition-shadow cursor-pointer"
@@ -508,8 +486,6 @@ export default function PublicReposPage() {
                                       </div>
                                     </div>
                                   )}
-
-                                  
                                 </div>
                               </div>
                             </div>
@@ -521,23 +497,24 @@ export default function PublicReposPage() {
                 </Tabs>
               )}
 
-              {/* Pagination */}
-              {repos.length > 0 && (
-                <div className="flex items-center justify-between mt-8">
-                  <div className="text-sm text-muted-foreground">
-                    Showing {(page - 1) * PAGE_SIZE + 1} to {(page - 1) * PAGE_SIZE + repos.length} of {totalCount}{" "}
-                    repositories
+              {/* Load More Button */}
+              {allLoadedRepos.length > 0 && (
+                <div className="flex flex-col items-center mt-8">
+                  <div className="text-sm text-muted-foreground mb-4">
+                    Showing {allLoadedRepos.length} of {totalCount} repositories
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Button variant="outline" size="sm" onClick={handlePrevPage} disabled={page === 1}>
-                      <ChevronLeft className="h-4 w-4 mr-1" />
-                      Previous
+                  {hasMoreRepos && (
+                    <Button variant="outline" onClick={handleLoadMore} disabled={loading} className="min-w-[200px]">
+                      {loading ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Loading...
+                        </>
+                      ) : (
+                        <>Load More</>
+                      )}
                     </Button>
-                    <Button variant="outline" size="sm" onClick={handleNextPage} disabled={page >= totalPages}>
-                      Next
-                      <ChevronRight className="h-4 w-4 ml-1" />
-                    </Button>
-                  </div>
+                  )}
                 </div>
               )}
             </div>
