@@ -3,11 +3,10 @@
 import { useState, useEffect } from "react"
 import ReactMarkdown from "react-markdown"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { FileText, FolderOpen, Copy, Check, Link, BookOpen, ArrowRight, ChevronRight } from "lucide-react"
+import { FileText, Copy, Check, Link, BookOpen } from "lucide-react"
 import remarkGfm from "remark-gfm"
 import rehypeRaw from "rehype-raw"
 import { Button } from "@/components/ui/button"
-import { Separator } from "@/components/ui/separator"
 import { useToast } from "@/components/ui/use-toast"
 
 interface QubotCardDisplayProps {
@@ -66,16 +65,25 @@ export default function QubotCardDisplay({ data, readme, onGoToFile }: QubotCard
                 {data?.problem_name && <p className="text-sm text-muted-foreground mt-1">{data.problem_name}</p>}
               </div>
             </div>
-
-            
+            <Button variant="outline" size="sm" onClick={handleCopyReadme} className="gap-1 h-8">
+              {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+              {copied ? "Copied" : "Copy"}
+            </Button>
           </div>
         </CardHeader>
 
-        
-
         <CardContent className="p-6 pt-4">
           {readme ? (
-            <div className="prose prose-sm md:prose lg:prose-lg max-w-none dark:prose-invert">
+            <div
+              className="prose max-w-none font-sans"
+              style={{
+                fontFamily:
+                  '-apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji"',
+                fontSize: "16px",
+                lineHeight: "1.5",
+                color: "var(--foreground)",
+              }}
+            >
               <ReactMarkdown
                 remarkPlugins={[remarkGfm]}
                 rehypePlugins={[rehypeRaw]}
@@ -83,9 +91,9 @@ export default function QubotCardDisplay({ data, readme, onGoToFile }: QubotCard
                   code({ className, children, ...props }) {
                     const match = /language-(\w+)/.exec(className || "")
                     return match ? (
-                      <div className="relative rounded-md overflow-hidden my-4 group">
-                        <div className="bg-zinc-950 dark:bg-zinc-900 text-xs px-3 py-1.5 border-b border-zinc-800 flex justify-between items-center">
-                          <span className="text-zinc-400">{match[1]}</span>
+                      <div className="relative rounded-md overflow-hidden my-4 group border border-border/40">
+                        <div className="bg-muted/50 text-xs px-3 py-2 border-b border-border/30 flex justify-between items-center">
+                          <span className="text-muted-foreground font-mono">{match[1]}</span>
                           <button
                             onClick={() => {
                               const code = String(children).replace(/\n$/, "")
@@ -95,19 +103,29 @@ export default function QubotCardDisplay({ data, readme, onGoToFile }: QubotCard
                                 description: "Code snippet copied to clipboard",
                               })
                             }}
-                            className="text-zinc-500 hover:text-zinc-300 transition-colors opacity-0 group-hover:opacity-100"
+                            className="text-muted-foreground hover:text-foreground transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100 focus:outline-none"
                           >
                             <Copy className="h-3.5 w-3.5" />
                           </button>
                         </div>
-                        <pre className="p-4 overflow-x-auto bg-zinc-950 dark:bg-zinc-900 text-zinc-100 dark:text-zinc-200 text-sm">
-                          <code className={className} {...props}>
+                        <pre
+                          className="p-4 overflow-x-auto bg-muted/20 text-foreground text-sm font-mono"
+                          style={{ margin: 0 }}
+                        >
+                          <code className={className} {...props} style={{ background: "transparent", padding: 0 }}>
                             {String(children).replace(/\n$/, "")}
                           </code>
                         </pre>
                       </div>
                     ) : (
-                      <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm" {...props}>
+                      <code
+                        className="bg-muted/30 px-1.5 py-0.5 rounded-sm text-sm font-mono"
+                        style={{
+                          fontFamily:
+                            "ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace",
+                        }}
+                        {...props}
+                      >
                         {children}
                       </code>
                     )
@@ -117,7 +135,8 @@ export default function QubotCardDisplay({ data, readme, onGoToFile }: QubotCard
                       {...props}
                       target={props.href?.startsWith("http") ? "_blank" : undefined}
                       rel={props.href?.startsWith("http") ? "noopener noreferrer" : undefined}
-                      className="text-primary hover:underline inline-flex items-center"
+                      className="text-[#0969da] hover:underline inline-flex items-center"
+                      style={{ textDecoration: "none" }}
                     >
                       {props.children}
                       {props.href?.startsWith("http") && <Link className="h-3 w-3 ml-1 inline-block" />}
@@ -137,7 +156,12 @@ export default function QubotCardDisplay({ data, readme, onGoToFile }: QubotCard
                         .replace(/\s+/g, "-")
                         .replace(/[^\w-]/g, "") || ""
                     return (
-                      <h1 id={id} {...props} className="text-2xl font-bold mt-8 mb-4 pb-2 border-b border-border/40">
+                      <h1
+                        id={id}
+                        {...props}
+                        className="text-2xl font-semibold mt-6 mb-4 pb-3 border-b border-border/30"
+                        style={{ borderBottomWidth: "1px", paddingBottom: "0.3em" }}
+                      >
                         {props.children}
                       </h1>
                     )
@@ -150,9 +174,14 @@ export default function QubotCardDisplay({ data, readme, onGoToFile }: QubotCard
                         .replace(/\s+/g, "-")
                         .replace(/[^\w-]/g, "") || ""
                     return (
-                      <h2 id={id} {...props} className="text-xl font-bold mt-6 mb-3 group flex items-center">
-                        <a href={`#${id}`} className="opacity-0 group-hover:opacity-100 mr-2">
-                          <Link className="h-4 w-4 text-primary/60" />
+                      <h2
+                        id={id}
+                        {...props}
+                        className="text-xl font-semibold mt-6 mb-3 pb-2 border-b border-border/20 group flex items-center"
+                        style={{ borderBottomWidth: "1px", paddingBottom: "0.3em" }}
+                      >
+                        <a href={`#${id}`} className="opacity-0 group-hover:opacity-100 mr-2 focus:opacity-100">
+                          <Link className="h-4 w-4 text-[#0969da]" />
                         </a>
                         {props.children}
                       </h2>
@@ -167,31 +196,88 @@ export default function QubotCardDisplay({ data, readme, onGoToFile }: QubotCard
                         .replace(/[^\w-]/g, "") || ""
                     return (
                       <h3 id={id} {...props} className="text-lg font-bold mt-5 mb-2 group flex items-center">
-                        <a href={`#${id}`} className="opacity-0 group-hover:opacity-100 mr-2">
-                          <Link className="h-3.5 w-3.5 text-primary/60" />
+                        <a href={`#${id}`} className="opacity-0 group-hover:opacity-100 mr-2 focus:opacity-100">
+                          <Link className="h-3.5 w-3.5 text-[#0969da]" />
                         </a>
                         {props.children}
                       </h3>
                     )
                   },
-                  ul: ({ ...props }) => <ul {...props} className="list-disc pl-6 my-4 space-y-1" />,
-                  ol: ({ ...props }) => <ol {...props} className="list-decimal pl-6 my-4 space-y-1" />,
-                  li: ({ ...props }) => <li {...props} className="mb-1" />,
+                  ul: ({ ...props }) => (
+                    <ul
+                      {...props}
+                      className="list-disc pl-8 my-5"
+                      style={{ paddingLeft: "2em", marginBottom: "16px" }}
+                    />
+                  ),
+                  ol: ({ ...props }) => (
+                    <ol
+                      {...props}
+                      className="list-decimal pl-8 my-5"
+                      style={{ paddingLeft: "2em", marginBottom: "16px" }}
+                    />
+                  ),
+                  li: ({ ...props }) => <li {...props} className="mb-1" style={{ marginTop: "0.25em" }} />,
                   blockquote: ({ ...props }) => (
                     <blockquote
                       {...props}
-                      className="border-l-4 border-primary/30 pl-4 italic my-4 text-muted-foreground bg-muted/30 py-2 pr-2 rounded-r-md"
+                      className="border-l-4 border-border pl-4 my-4 text-muted-foreground py-0 pr-0"
+                      style={{
+                        color: "var(--muted-foreground)",
+                        borderLeftColor: "#d0d7de",
+                        padding: "0 1em",
+                        marginBottom: "16px",
+                      }}
                     />
                   ),
                   table: ({ ...props }) => (
                     <div className="overflow-x-auto my-6 rounded-md border border-border/40">
-                      <table {...props} className="min-w-full divide-y divide-border" />
+                      <table
+                        {...props}
+                        className="min-w-full border-collapse"
+                        style={{ borderSpacing: 0, borderCollapse: "collapse", marginTop: 0, marginBottom: "16px" }}
+                      />
                     </div>
                   ),
-                  tr: ({ ...props }) => <tr {...props} className="border-b border-border/30" />,
-                  th: ({ ...props }) => <th {...props} className="px-4 py-2 text-left font-medium bg-muted/50" />,
-                  td: ({ ...props }) => <td {...props} className="px-4 py-2" />,
-                  hr: ({ ...props }) => <hr {...props} className="my-6 border-border/40" />,
+                  tr: ({ ...props }) => (
+                    <tr
+                      {...props}
+                      className="border-t border-border/30"
+                      style={{ borderTop: "1px solid var(--border)" }}
+                    />
+                  ),
+                  th: ({ ...props }) => (
+                    <th
+                      {...props}
+                      className="px-4 py-3 text-left font-semibold bg-muted/30"
+                      style={{ padding: "6px 13px", borderBottom: "1px solid var(--border)" }}
+                    />
+                  ),
+                  td: ({ ...props }) => (
+                    <td
+                      {...props}
+                      className="px-4 py-3 border-t border-border/20"
+                      style={{ padding: "6px 13px", borderTop: "1px solid var(--border)" }}
+                    />
+                  ),
+                  hr: ({ ...props }) => (
+                    <hr
+                      {...props}
+                      className="my-6 border-t border-border/40"
+                      style={{
+                        height: "0.25em",
+                        padding: 0,
+                        margin: "24px 0",
+                        backgroundColor: "var(--border)",
+                        border: 0,
+                      }}
+                    />
+                  ),
+                  p: ({ ...props }) => (
+                    <p {...props} className="my-4 leading-relaxed" style={{ marginTop: "0", marginBottom: "16px" }} />
+                  ),
+                  strong: ({ ...props }) => <strong {...props} className="font-semibold" />,
+                  em: ({ ...props }) => <em {...props} className="italic" />,
                 }}
               >
                 {readme}
@@ -217,10 +303,6 @@ export default function QubotCardDisplay({ data, readme, onGoToFile }: QubotCard
           )}
         </CardContent>
       </Card>
-
-      
-          
-      
     </div>
   )
 }

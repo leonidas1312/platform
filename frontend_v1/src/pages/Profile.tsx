@@ -42,6 +42,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
+import ActivityFeed from "@/components/ActivityFeed"
 
 const Profile = () => {
   // Get username from URL params
@@ -411,6 +412,13 @@ const Profile = () => {
                     <FolderGit className="w-4 h-4" />
                     Qubots
                   </TabsTrigger>
+                  <TabsTrigger
+                    value="activity"
+                    className="flex items-center gap-1 data-[state=active]:bg-primary/10 data-[state=active]:text-primary"
+                  >
+                    <Clock className="w-4 h-4" />
+                    Activity
+                  </TabsTrigger>
                 </TabsList>
 
                 {/* Repositories Tab with enhanced styling */}
@@ -557,6 +565,19 @@ const Profile = () => {
                         )}
                       </div>
                     </div>
+                  </div>
+                </TabsContent>
+
+                {/* Activity Tab with enhanced styling */}
+                <TabsContent value="activity" className="mt-0">
+                  <div className="bg-card rounded-xl shadow-md p-6 border border-border/40 backdrop-blur-sm">
+                    <h2 className="text-xl font-bold flex items-center gap-2 mb-6">
+                      <div className="w-1 h-6 bg-gradient-to-b from-primary to-primary/50 rounded-full mr-2"></div>
+                      <Clock className="w-5 h-5 text-primary" />
+                      Recent Activity
+                    </h2>
+
+                    <ActivityFeed username={username || user.login} avatar_url={user.avatar_url} />
                   </div>
                 </TabsContent>
               </Tabs>

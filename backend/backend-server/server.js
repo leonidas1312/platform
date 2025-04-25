@@ -1401,12 +1401,11 @@ app.get("/api/community/posts", async (req, res) => {
       .groupBy("posts.id")
       .orderBy("posts.created_at", "desc")
 
-    // 2) If user is authenticated, get their likes 
+    // 2) If user is authenticated, get their likes
     let userLikes = []
 
     if (currentUsername) {
       userLikes = await knex("post_likes").select("post_id").where("username", currentUsername)
-
     }
 
     const userLikesSet = new Set(userLikes.map((like) => like.post_id))
@@ -1652,28 +1651,48 @@ app.get("/api/features", async (req, res) => {
     const userVotesSet = new Set(userVotes.map((v) => v.feature_id))
 
     // Format response
-    const formattedFeatures = features.map((feature) => {
-      const tags = featureTags.filter((tag) => tag.feature_id === feature.id).map((tag) => tag.tag_name)
-
-      const user = usersMap[feature.created_by_username] || { username: feature.created_by_username }
-
-      return {
-        id: feature.id.toString(),
-        title: feature.title,
-        description: feature.description,
-        status: feature.status,
-        votes: Number.parseInt(feature.votes_count),
-        comments: Number.parseInt(feature.comments_count),
-        createdAt: feature.created_at,
-        createdBy: {
-          name: user.username,
-          avatar: `/placeholder.svg?height=40&width=40`,
-        },
-        priority: feature.priority,
-        tags,
-        hasVoted: userVotesSet.has(feature.id),
-      }
-    })
+    const formattedFeatures = await Promise.all(
+      features.map(async (feature) => {
+        const tags = featureTags
+          .filter(tag => tag.feature_id === feature.id)
+          .map(tag => tag.tag_name);
+    
+        const user = usersMap[feature.created_by_username] || { username: feature.created_by_username };
+    
+        // default placeholder
+        let avatarUrl = `/placeholder.svg?height=40&width=40&query=${user.username}`;
+    
+        try {
+          const userRes = await fetch(`${GITEA_URL}/api/v1/users/${user.username}`);
+          if (userRes.ok) {
+            const userData = await userRes.json();
+            if (userData.avatar_url) {
+              avatarUrl = userData.avatar_url;  // ← fixed typo here
+            }
+          }
+        } catch (error) {
+          console.error(`Error fetching avatar for user ${user.username}:`, error);
+        }
+    
+        return {
+          id: feature.id.toString(),
+          title: feature.title,
+          description: feature.description,
+          status: feature.status,
+          votes: Number.parseInt(feature.votes_count, 10),
+          comments: Number.parseInt(feature.comments_count, 10),
+          createdAt: feature.created_at,
+          createdBy: {
+            name: user.username,
+            avatar: avatarUrl,
+          },
+          priority: feature.priority,
+          tags,
+          hasVoted: userVotesSet.has(feature.id),
+        };
+      })
+    );
+    
 
     res.json(formattedFeatures)
   } catch (error) {
@@ -1710,7 +1729,7 @@ app.post("/api/features", auth, async (req, res) => {
       }
 
       // Insert the feature
-      const [featureId] = await trx("features")
+      const [featureIdObj] = await trx("features")
         .insert({
           title,
           description,
@@ -1719,6 +1738,17 @@ app.post("/api/features", auth, async (req, res) => {
           created_by_username: req.user.login,
         })
         .returning("id")
+
+      // Extract the actual ID value - ensure it's a number
+      const featureId =
+        typeof featureIdObj === "object"
+          ? featureIdObj.id || Object.values(featureIdObj)[0]
+          : Number.parseInt(featureIdObj, 10)
+
+      // Make sure we have a valid numeric ID
+      if (isNaN(featureId)) {
+        throw new Error("Failed to get a valid feature ID")
+      }
 
       // Insert tags if provided
       if (tags && tags.length > 0) {
@@ -1811,6 +1841,20 @@ app.get("/api/features/:id", async (req, res) => {
     // Get user info
     const user = await knex("users").select("username", "email").where("username", feature.created_by_username).first()
 
+    // Try to fetch user avatar from Gitea
+    let avatarUrl = `/placeholder.svg?height=40&width=40&query=${feature.created_by_username}`
+    try {
+      const userRes = await fetch(`${GITEA_URL}/api/v1/users/${feature.created_by_username}`)
+      if (userRes.ok) {
+        const userData = await userRes.json()
+        if (userData.avatar_url) {
+          avatarUrl = userData.avatar_url
+        }
+      }
+    } catch (error) {
+      console.error(`Error fetching avatar for user ${feature.created_by_username}:`, error)
+    }
+
     // Format response
     const formattedFeature = {
       id: feature.id.toString(),
@@ -1822,7 +1866,7 @@ app.get("/api/features/:id", async (req, res) => {
       createdAt: feature.created_at,
       createdBy: {
         name: user ? user.username : feature.created_by_username,
-        avatar: `/placeholder.svg?height=40&width=40`,
+        avatar: avatarUrl,
       },
       priority: feature.priority,
       tags: tags.map((tag) => tag.tag_name),
@@ -2092,8 +2136,27 @@ app.get("/api/features/:id/comments", async (req, res) => {
 
     // Get user info for each comment
     const usernames = [...new Set(comments.map((c) => c.username))]
-    const users = await knex("users").select("username", "email").whereIn("username", usernames)
-
+    // Fetch user data from Gitea for each commenter
+    const users = []
+    for (const username of usernames) {
+      try {
+        const userRes = await fetch(`${GITEA_URL}/api/v1/users/${username}`)
+        if (userRes.ok) {
+          const userData = await userRes.json()
+          users.push({
+            username: userData.login,
+            avatar_url: userData.avatar_url,
+            full_name: userData.full_name || userData.login,
+          })
+        } else {
+          // Fallback if user not found in Gitea
+          users.push({ username, avatar_url: null })
+        }
+      } catch (error) {
+        console.error(`Error fetching user ${username}:`, error)
+        users.push({ username, avatar_url: null })
+      }
+    }
     const usersMap = users.reduce((acc, user) => {
       acc[user.username] = user
       return acc
@@ -2101,7 +2164,7 @@ app.get("/api/features/:id/comments", async (req, res) => {
 
     // Format response
     const formattedComments = comments.map((comment) => {
-      const user = usersMap[comment.username] || { username: comment.username }
+      const user = usersMap[comment.username] || { username: comment.username, avatar_url: null }
 
       return {
         id: comment.id,
@@ -2109,7 +2172,8 @@ app.get("/api/features/:id/comments", async (req, res) => {
         created_at: comment.created_at,
         user: {
           username: user.username,
-          avatar_url: `/placeholder.svg?height=32&width=32`,
+          full_name: user.full_name || user.username,
+          avatar_url: user.avatar_url || `/placeholder.svg?height=32&width=32&query=${user.username}`,
         },
       }
     })
@@ -2183,7 +2247,8 @@ app.post("/api/features/:id/comments", auth, async (req, res) => {
         created_at: comment.created_at,
         user: {
           username: req.user.login,
-          avatar_url: `/placeholder.svg?height=32&width=32`,
+          full_name: req.user.name || req.user.login,
+          avatar_url: req.user.avatar_url || `/placeholder.svg?height=32&width=32&query=${req.user.login}`,
         },
       }
 
@@ -2297,6 +2362,51 @@ app.post("/api/community/posts/:id/like", auth, async (req, res) => {
   }
 })
 
+// Delete a post
+app.delete("/api/community/posts/:id", auth, async (req, res) => {
+  try {
+    const { id } = req.params
+
+    // Check if post exists
+    const post = await knex("posts").where("id", id).first()
+
+    if (!post) {
+      return res.status(404).json({ error: "Post not found" })
+    }
+
+    // Verify the user is the author of the post
+    if (post.author_username !== req.user.login) {
+      return res.status(403).json({ error: "You can only delete your own posts" })
+    }
+
+    // Start a transaction
+    const trx = await knex.transaction()
+
+    try {
+      // Delete related likes
+      await trx("post_likes").where("post_id", id).delete()
+
+      // Delete related comments
+      await trx("post_comments").where("post_id", id).delete()
+
+      // Delete the post
+      await trx("posts").where("id", id).delete()
+
+      // Commit the transaction
+      await trx.commit()
+
+      res.json({ message: "Post deleted successfully" })
+    } catch (error) {
+      // Rollback the transaction on error
+      await trx.rollback()
+      throw error
+    }
+  } catch (error) {
+    console.error("Error deleting post:", error)
+    res.status(500).json({ error: "Failed to delete post" })
+  }
+})
+
 // Add a comment to a post
 app.post("/api/community/posts/:id/comments", auth, async (req, res) => {
   try {
@@ -2352,14 +2462,15 @@ app.post("/api/community/posts/:id/comments", auth, async (req, res) => {
       // Commit the transaction
       await trx.commit()
 
-      // Format response
+      // Format response with proper user data including avatar
       const formattedComment = {
         id: comment.id,
         content: comment.content,
         created_at: comment.created_at,
         user: {
           username: req.user.login,
-          avatar_url: `/placeholder.svg?height=32&width=32`,
+          full_name: req.user.name || req.user.login,
+          avatar_url: req.user.avatar_url || `/placeholder.svg?height=32&width=32&query=${req.user.login}`,
         },
       }
 
@@ -2375,6 +2486,7 @@ app.post("/api/community/posts/:id/comments", auth, async (req, res) => {
   }
 })
 
+// Get comments for a post
 // Get comments for a post
 app.get("/api/community/posts/:id/comments", async (req, res) => {
   try {
@@ -2392,7 +2504,28 @@ app.get("/api/community/posts/:id/comments", async (req, res) => {
 
     // Get user info for each comment
     const usernames = [...new Set(comments.map((c) => c.username))]
-    const users = await knex("users").select("username", "email").whereIn("username", usernames)
+
+    // Fetch user data from Gitea for each commenter
+    const users = []
+    for (const username of usernames) {
+      try {
+        const userRes = await fetch(`${GITEA_URL}/api/v1/users/${username}`)
+        if (userRes.ok) {
+          const userData = await userRes.json()
+          users.push({
+            username: userData.login,
+            avatar_url: userData.avatar_url,
+            full_name: userData.full_name || userData.login,
+          })
+        } else {
+          // Fallback if user not found in Gitea
+          users.push({ username, avatar_url: null })
+        }
+      } catch (error) {
+        console.error(`Error fetching user ${username}:`, error)
+        users.push({ username, avatar_url: null })
+      }
+    }
 
     const usersMap = users.reduce((acc, user) => {
       acc[user.username] = user
@@ -2401,7 +2534,7 @@ app.get("/api/community/posts/:id/comments", async (req, res) => {
 
     // Format response
     const formattedComments = comments.map((comment) => {
-      const user = usersMap[comment.username] || { username: comment.username }
+      const user = usersMap[comment.username] || { username: comment.username, avatar_url: null }
 
       return {
         id: comment.id,
@@ -2409,7 +2542,8 @@ app.get("/api/community/posts/:id/comments", async (req, res) => {
         created_at: comment.created_at,
         user: {
           username: user.username,
-          avatar_url: `/placeholder.svg?height=32&width=32`,
+          full_name: user.full_name || user.username,
+          avatar_url: user.avatar_url || `/placeholder.svg?height=32&width=32&query=${user.username}`,
         },
       }
     })
@@ -2420,7 +2554,6 @@ app.get("/api/community/posts/:id/comments", async (req, res) => {
     res.status(500).json({ error: "Failed to fetch comments" })
   }
 })
-
 
 // Add these routes for repository connections after the existing routes
 

@@ -27,7 +27,6 @@ import {
   Clock,
   CheckCircle2,
   ListTodo,
-  Sparkles,
   MoreHorizontal,
   Edit,
   Trash2,
@@ -72,6 +71,11 @@ export default function FeatureBacklogPage() {
   const [error, setError] = useState<string | null>(null)
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [currentUser, setCurrentUser] = useState<any>(null)
+
+  // State for pagination
+  const [backlogLimit, setBacklogLimit] = useState(10)
+  const [inProgressLimit, setInProgressLimit] = useState(10)
+  const [completedLimit, setCompletedLimit] = useState(10)
 
   // New feature form state
   const [newFeature, setNewFeature] = useState({
@@ -589,9 +593,9 @@ export default function FeatureBacklogPage() {
     })
   }
 
-  // Get features by status
+  // Get features by status, sorted by votes (most liked first)
   const getFeaturesByStatus = (status: "backlog" | "in-progress" | "completed") => {
-    return filteredFeatures.filter((feature) => feature.status === status)
+    return filteredFeatures.filter((feature) => feature.status === status).sort((a, b) => b.votes - a.votes)
   }
 
   // Get priority badge variant
@@ -707,26 +711,42 @@ export default function FeatureBacklogPage() {
                   </h2>
                 </div>
 
-                {getFeaturesByStatus("backlog").length === 0 ? (
-                  <Card className="border-dashed border-2 bg-muted/50">
-                    <CardContent className="flex flex-col items-center justify-center p-6">
-                      <ListTodo className="h-8 w-8 text-muted-foreground mb-2" />
-                      <p className="text-sm text-muted-foreground text-center">No features in backlog</p>
-                    </CardContent>
-                  </Card>
-                ) : (
-                  getFeaturesByStatus("backlog").map((feature) => (
-                    <FeatureCard
-                      key={feature.id}
-                      feature={feature}
-                      onVote={() => handleVoteFeature(feature.id)}
-                      onViewDetails={() => openFeatureDetails(feature)}
-                      onMoveFeature={(status) => handleMoveFeature(feature.id, status)}
-                      getPriorityBadge={getPriorityBadge}
-                      formatDate={formatDate}
-                    />
-                  ))
-                )}
+                <div className="h-[600px] overflow-y-auto pr-2 space-y-4">
+                  {getFeaturesByStatus("backlog").length === 0 ? (
+                    <Card className="border-dashed border-2 bg-muted/50">
+                      <CardContent className="flex flex-col items-center justify-center p-6">
+                        <ListTodo className="h-8 w-8 text-muted-foreground mb-2" />
+                        <p className="text-sm text-muted-foreground text-center">No features in backlog</p>
+                      </CardContent>
+                    </Card>
+                  ) : (
+                    <>
+                      {getFeaturesByStatus("backlog")
+                        .slice(0, backlogLimit)
+                        .map((feature) => (
+                          <FeatureCard
+                            key={feature.id}
+                            feature={feature}
+                            onVote={() => handleVoteFeature(feature.id)}
+                            onViewDetails={() => openFeatureDetails(feature)}
+                            onMoveFeature={(status) => handleMoveFeature(feature.id, status)}
+                            getPriorityBadge={getPriorityBadge}
+                            formatDate={formatDate}
+                          />
+                        ))}
+
+                      {getFeaturesByStatus("backlog").length > backlogLimit && (
+                        <Button
+                          variant="ghost"
+                          className="w-full mt-2"
+                          onClick={() => setBacklogLimit((prev) => prev + 10)}
+                        >
+                          Load more
+                        </Button>
+                      )}
+                    </>
+                  )}
+                </div>
               </div>
 
               {/* In Progress Column */}
@@ -741,26 +761,42 @@ export default function FeatureBacklogPage() {
                   </h2>
                 </div>
 
-                {getFeaturesByStatus("in-progress").length === 0 ? (
-                  <Card className="border-dashed border-2 bg-muted/50">
-                    <CardContent className="flex flex-col items-center justify-center p-6">
-                      <Clock className="h-8 w-8 text-muted-foreground mb-2" />
-                      <p className="text-sm text-muted-foreground text-center">No features in progress</p>
-                    </CardContent>
-                  </Card>
-                ) : (
-                  getFeaturesByStatus("in-progress").map((feature) => (
-                    <FeatureCard
-                      key={feature.id}
-                      feature={feature}
-                      onVote={() => handleVoteFeature(feature.id)}
-                      onViewDetails={() => openFeatureDetails(feature)}
-                      onMoveFeature={(status) => handleMoveFeature(feature.id, status)}
-                      getPriorityBadge={getPriorityBadge}
-                      formatDate={formatDate}
-                    />
-                  ))
-                )}
+                <div className="h-[600px] overflow-y-auto pr-2 space-y-4">
+                  {getFeaturesByStatus("in-progress").length === 0 ? (
+                    <Card className="border-dashed border-2 bg-muted/50">
+                      <CardContent className="flex flex-col items-center justify-center p-6">
+                        <Clock className="h-8 w-8 text-muted-foreground mb-2" />
+                        <p className="text-sm text-muted-foreground text-center">No features in progress</p>
+                      </CardContent>
+                    </Card>
+                  ) : (
+                    <>
+                      {getFeaturesByStatus("in-progress")
+                        .slice(0, inProgressLimit)
+                        .map((feature) => (
+                          <FeatureCard
+                            key={feature.id}
+                            feature={feature}
+                            onVote={() => handleVoteFeature(feature.id)}
+                            onViewDetails={() => openFeatureDetails(feature)}
+                            onMoveFeature={(status) => handleMoveFeature(feature.id, status)}
+                            getPriorityBadge={getPriorityBadge}
+                            formatDate={formatDate}
+                          />
+                        ))}
+
+                      {getFeaturesByStatus("in-progress").length > inProgressLimit && (
+                        <Button
+                          variant="ghost"
+                          className="w-full mt-2"
+                          onClick={() => setInProgressLimit((prev) => prev + 10)}
+                        >
+                          Load more
+                        </Button>
+                      )}
+                    </>
+                  )}
+                </div>
               </div>
 
               {/* Completed Column */}
@@ -775,26 +811,42 @@ export default function FeatureBacklogPage() {
                   </h2>
                 </div>
 
-                {getFeaturesByStatus("completed").length === 0 ? (
-                  <Card className="border-dashed border-2 bg-muted/50">
-                    <CardContent className="flex flex-col items-center justify-center p-6">
-                      <CheckCircle2 className="h-8 w-8 text-muted-foreground mb-2" />
-                      <p className="text-sm text-muted-foreground text-center">No completed features</p>
-                    </CardContent>
-                  </Card>
-                ) : (
-                  getFeaturesByStatus("completed").map((feature) => (
-                    <FeatureCard
-                      key={feature.id}
-                      feature={feature}
-                      onVote={() => handleVoteFeature(feature.id)}
-                      onViewDetails={() => openFeatureDetails(feature)}
-                      onMoveFeature={(status) => handleMoveFeature(feature.id, status)}
-                      getPriorityBadge={getPriorityBadge}
-                      formatDate={formatDate}
-                    />
-                  ))
-                )}
+                <div className="h-[600px] overflow-y-auto pr-2 space-y-4">
+                  {getFeaturesByStatus("completed").length === 0 ? (
+                    <Card className="border-dashed border-2 bg-muted/50">
+                      <CardContent className="flex flex-col items-center justify-center p-6">
+                        <CheckCircle2 className="h-8 w-8 text-muted-foreground mb-2" />
+                        <p className="text-sm text-muted-foreground text-center">No completed features</p>
+                      </CardContent>
+                    </Card>
+                  ) : (
+                    <>
+                      {getFeaturesByStatus("completed")
+                        .slice(0, completedLimit)
+                        .map((feature) => (
+                          <FeatureCard
+                            key={feature.id}
+                            feature={feature}
+                            onVote={() => handleVoteFeature(feature.id)}
+                            onViewDetails={() => openFeatureDetails(feature)}
+                            onMoveFeature={(status) => handleMoveFeature(feature.id, status)}
+                            getPriorityBadge={getPriorityBadge}
+                            formatDate={formatDate}
+                          />
+                        ))}
+
+                      {getFeaturesByStatus("completed").length > completedLimit && (
+                        <Button
+                          variant="ghost"
+                          className="w-full mt-2"
+                          onClick={() => setCompletedLimit((prev) => prev + 10)}
+                        >
+                          Load more
+                        </Button>
+                      )}
+                    </>
+                  )}
+                </div>
               </div>
             </div>
           )}
@@ -1152,7 +1204,10 @@ export default function FeatureBacklogPage() {
                           <div key={comment.id} className="flex gap-3 pt-4">
                             <Avatar className="h-8 w-8">
                               <AvatarImage
-                                src={comment.user.avatar_url || "/placeholder.svg?height=32&width=32"}
+                                src={
+                                  comment.user.avatar_url ||
+                                  `/placeholder.svg?height=32&width=32&query=${comment.user.username || "/placeholder.svg"}`
+                                }
                                 alt={comment.user.username}
                               />
                               <AvatarFallback>{comment.user.username.charAt(0).toUpperCase()}</AvatarFallback>

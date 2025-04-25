@@ -387,13 +387,7 @@ export default function PublicReposPage() {
                                 )}
                                 <div>
                                   <CardTitle className="text-base font-medium">{repo.full_name}</CardTitle>
-                                  <p className="text-xs text-muted-foreground mt-1">
-                                    {repo.description
-                                      ? repo.description.length > 100
-                                        ? `${repo.description.substring(0, 100)}...`
-                                        : repo.description
-                                      : "No description provided"}
-                                  </p>
+                                  
                                 </div>
                               </div>
                               <Badge
