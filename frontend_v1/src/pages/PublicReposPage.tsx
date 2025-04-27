@@ -374,14 +374,8 @@ export default function PublicReposPage() {
                                       {repo.owner.login}
                                     </Link>
                                     <span className="text-muted-foreground">/</span>
-                                    <Link
-                                      to={`/${repo.owner.login}/${repo.name}`}
-                                      className="inline-block font-medium text-lg hover:text-primary hover:underline transition-colors"
-                                      onClick={e => e.stopPropagation()}
-                                    >
-                                      {repo.name}
-                                    </Link>
                                     
+                                    {repo.name}
                                   </div>
                               </div>
                               <Badge

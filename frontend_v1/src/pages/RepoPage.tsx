@@ -1,43 +1,22 @@
 "use client"
 
-import { DialogFooter } from "@/components/ui/dialog"
+import type React from "react"
 
 import { useEffect, useState, useRef } from "react"
 import { useParams, useNavigate, useLocation } from "react-router-dom"
-import Layout from "../components/Layout"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Badge } from "@/components/ui/badge"
-import {
-  Book,
-  Code,
-  Copy,
-  FileText,
-  GitBranch,
-  Loader2,
-  Star,
-  MoreVertical,
-  GitFork,
-  Plus,
-  Trash2,
-  ExternalLink,
-  Tag,
-} from "lucide-react"
+import Layout from "@/components/Layout"
 import { useToast } from "@/components/ui/use-toast"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
-import { Edit } from "lucide-react"
-import { Textarea } from "@/components/ui/textarea"
-import { Label } from "@/components/ui/label"
+import { Dialog } from "@/components/ui/dialog"
+import { Loader2 } from "lucide-react"
+
+// Import components
+import RepoHeader from "@/components/repo/RepoHeader"
+import QubotSidebar from "@/components/repo/QubotSidebar"
+import NewRepoWelcome from "@/components/repo/NewRepoWelcome"
+import SetupDialog from "@/components/repo/SetupDialog"
+import DeleteRepoDialog from "@/components/repo/DeleteRepoDialog"
+import TabsContainer from "@/components/repo/TabsContainer"
+import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 
 import QubotCardForm from "@/components/CreateQubotCard"
 import QubotCardDisplay from "@/components/QubotCardDisplay"
@@ -135,6 +114,30 @@ export default function RepoPage() {
   const [showDeleteRepoDialog, setShowDeleteRepoDialog] = useState(false)
   const [deleteRepoConfirmation, setDeleteRepoConfirmation] = useState("")
   const [isDeletingRepo, setIsDeletingRepo] = useState(false)
+
+  // First-time setup state
+  const [isNewRepo, setIsNewRepo] = useState(false)
+  const [showSetupDialog, setShowSetupDialog] = useState(false)
+
+  // Qubot setup state
+  const [entrypointFile, setEntrypointFile] = useState<string | null>(null)
+  const [qubotParameters, setQubotParameters] = useState<Array<{ name: string; value: string }>>([])
+  const [setupComplete, setSetupComplete] = useState(false)
+  const [currentSetupStep, setCurrentSetupStep] = useState(1)
+  const [newParameterName, setNewParameterName] = useState("")
+  const [newParameterValue, setNewParameterValue] = useState("")
+
+  // Enhance the qubot setup state with new fields
+  const [qubotType, setQubotType] = useState<"problem" | "optimizer">("problem")
+  const [entrypointClass, setEntrypointClass] = useState<string>("")
+  const [arxivLinks, setArxivLinks] = useState<string[]>([])
+  const [newArxivLink, setNewArxivLink] = useState<string>("")
+  const [qubotKeywords, setQubotKeywords] = useState<string[]>(["qubot"])
+  const [newKeyword, setNewKeyword] = useState<string>("")
+
+  // File upload for step 2
+  const [pythonFileToUpload, setPythonFileToUpload] = useState<File | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Parse the URL to determine current path, branch, and file
   useEffect(() => {
@@ -236,6 +239,12 @@ export default function RepoPage() {
         setRepo(data.repo)
         setReadme(data.readme)
         setConfig(data.config)
+
+        // Check if this is a new repository (no config.json and empty or no readme)
+        if (!data.config && (!data.readme || data.readme.trim() === "")) {
+          setIsNewRepo(true)
+        }
+
         // Set default branch if not already set
         const branch = currentBranch || data.repo.default_branch || "main"
         setCurrentBranch(branch)
@@ -303,6 +312,12 @@ export default function RepoPage() {
     setReadme(data.readme)
     setConfig(data.config)
     setFiles(enhanceFilesWithCommitData(data.files))
+
+    // If config exists now, we're no longer in new repo state
+    if (data.config) {
+      setIsNewRepo(false)
+      setSetupComplete(true)
+    }
 
     const token = getUserToken()
     if (token !== "") {
@@ -424,6 +439,15 @@ export default function RepoPage() {
       await reloadRepoData()
       setShowCreateForm(false)
       setConfig(formData)
+
+      // If this was a new repo, it's no longer new
+      if (isNewRepo) {
+        setIsNewRepo(false)
+        setSetupComplete(true)
+      }
+
+      // Close the setup dialog if it was open
+      setShowSetupDialog(false)
     } catch (err: any) {
       console.error(err)
       setError(err.message || "Error creating Qubot card")
@@ -608,7 +632,6 @@ export default function RepoPage() {
   // Add this function to handle repository deletion
   const handleDeleteRepository = async () => {
     if (!owner || !repoName) return
-    if (deleteRepoConfirmation !== `${owner}/${repoName}`) return
 
     setIsDeletingRepo(true)
     try {
@@ -646,6 +669,163 @@ export default function RepoPage() {
     }
   }
 
+  // Handle file selection for Python file upload in step 2
+  const handlePythonFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      const file = e.target.files[0]
+      if (file.name.endsWith(".py")) {
+        setPythonFileToUpload(file)
+        // Set the entrypoint file name
+        setEntrypointFile(file.name)
+      } else {
+        toast({
+          title: "Invalid file type",
+          description: "Please select a Python (.py) file",
+          variant: "destructive",
+        })
+      }
+    }
+  }
+
+  // Handle Python file upload in step 2
+  const handleUploadPythonFile = async () => {
+    if (!pythonFileToUpload || !owner || !repoName) return
+
+    try {
+      const token = getUserToken()
+      const branch = currentBranch || repo?.default_branch || "main"
+
+      // Read the file content
+      const fileContent = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => {
+          if (reader.result) {
+            resolve(reader.result as string)
+          } else {
+            reject(new Error("Failed to read file"))
+          }
+        }
+        reader.onerror = () => reject(reader.error)
+        reader.readAsText(pythonFileToUpload)
+      })
+
+      // Upload the file
+      const response = await fetch(
+        `http://localhost:4000/api/repos/${owner}/${repoName}/contents/${pythonFileToUpload.name}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `token ${token}`,
+          },
+          body: JSON.stringify({
+            content: fileContent,
+            message: `Add ${pythonFileToUpload.name}`,
+            branch: branch,
+          }),
+        },
+      )
+
+      if (!response.ok) {
+        const errData = await response.json()
+        throw new Error(errData.message || "Failed to upload file")
+      }
+
+      // Reload all files to include the new one
+      await loadAllFiles(owner, repoName, branch)
+
+      toast({
+        title: "Success",
+        description: "Python file uploaded successfully!",
+      })
+
+      // Move to the next step
+      setCurrentSetupStep(3)
+    } catch (err: any) {
+      console.error("Error uploading Python file:", err)
+      toast({
+        title: "Error",
+        description: err.message || "Failed to upload Python file",
+        variant: "destructive",
+      })
+    }
+  }
+
+  // Update the handleCompleteSetup function to include the new fields
+  const handleCompleteSetup = async () => {
+    if (!entrypointFile || !owner || !repoName) return
+
+    try {
+      setLoading(true)
+      const token = getUserToken()
+
+      // Create a config object with the proper structure
+      const configData = {
+        type: qubotType,
+        entry_point: entrypointFile.replace(/\.[^/.]+$/, ""), // Remove file extension
+        class_name: entrypointClass,
+        default_params: {},
+        link_to_arxiv: arxivLinks.length > 0 ? arxivLinks : undefined,
+        keywords: qubotKeywords.length > 0 ? qubotKeywords : ["qubot"],
+      }
+
+      // Add parameters to the config
+      qubotParameters.forEach((param) => {
+        configData.default_params[param.name] = param.value
+      })
+
+      // Format the JSON with proper indentation
+      const formattedJson = JSON.stringify(configData, null, 2)
+
+      // Save the config to config.json
+      const configResponse = await fetch(`http://localhost:4000/api/repos/${owner}/${repoName}/contents/config.json`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `token ${token}`,
+        },
+        body: JSON.stringify({
+          content: formattedJson,
+          message: "Update config.json with qubot setup",
+          branch: currentBranch || repo?.default_branch || "main",
+        }),
+      })
+
+      if (!configResponse.ok) {
+        const errData = await configResponse.json()
+        throw new Error(errData.message || "Failed to save qubot configuration")
+      }
+
+      // Update the config state
+      setConfig(configData)
+
+      // Mark setup as complete
+      setSetupComplete(true)
+
+      // No longer a new repo
+      setIsNewRepo(false)
+
+      // Close the setup dialog
+      setShowSetupDialog(false)
+
+      toast({
+        title: "Success",
+        description: "Qubot setup completed successfully!",
+      })
+
+      // Reload repo data to reflect changes
+      await reloadRepoData()
+    } catch (err) {
+      console.error("Error completing qubot setup:", err)
+      toast({
+        title: "Error",
+        description: err.message || "Failed to complete qubot setup",
+        variant: "destructive",
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
   // Handle path navigation
   const handlePathNavigation = (path: string) => {
     const branch = currentBranch || repo?.default_branch || "main"
@@ -827,12 +1007,8 @@ export default function RepoPage() {
 
   // Handle file search
   const handleFileSearch = (filePath: string) => {
-    const branch = currentBranch || repo?.default_branch || "main"
     handleGoToFile(filePath)
   }
-
-  // Update the fetchFiles function to include commit information for each file
-  // Add this function after the loadAllFiles function
 
   // Fetch commit information for files in the current directory
   const fetchFileCommits = async (files: any[], branch: string) => {
@@ -880,200 +1056,52 @@ export default function RepoPage() {
   // Function to load all files in the repository for the file search dialog
   const loadAllFiles = async (repoOwner: string, repoName: string, defaultBranch: string) => {
     try {
-      const response = await fetch(
-        `http://localhost:4000/api/repos/${repoOwner}/${repoName}/files?ref=${defaultBranch}`,
-      )
-      if (response.ok) {
-        const filesData = await response.json()
-        setAllRepoFiles(filesData)
-      } else {
-        console.error("Failed to load all files:", response.status)
+      const token = getUserToken()
+      // Instead of using a non-existent endpoint, we'll recursively fetch all files
+      // starting from the root directory
+      const fetchFilesRecursively = async (path = ""): Promise<any[]> => {
+        const response = await fetch(
+          `http://localhost:4000/api/repos/${repoOwner}/${repoName}/contents/${path}?ref=${defaultBranch}`,
+          {
+            headers: token ? { Authorization: `token ${token}` } : {},
+          },
+        )
+
+        if (!response.ok) {
+          console.error(`Failed to load files for path ${path}:`, response.status)
+          return []
+        }
+
+        const items = await response.json()
+        let allFiles: any[] = []
+
+        for (const item of items) {
+          if (item.type === "file") {
+            allFiles.push({
+              name: item.name,
+              path: path ? `${path}/${item.name}` : item.name,
+              type: item.type,
+              size: item.size,
+              sha: item.sha,
+            })
+          } else if (item.type === "dir") {
+            const subPath = path ? `${path}/${item.name}` : item.name
+            const subFiles = await fetchFilesRecursively(subPath)
+            allFiles = [...allFiles, ...subFiles]
+          }
+        }
+
+        return allFiles
       }
+
+      const files = await fetchFilesRecursively()
+      setAllRepoFiles(files)
     } catch (error) {
       console.error("Failed to load all files:", error)
     }
   }
 
-  const handleCopySnippet = (snippet: string) => {
-    navigator.clipboard.writeText(snippet)
-    toast({
-      title: "Copied to clipboard",
-      description: "Code snippet copied to clipboard",
-    })
-  }
-
-  const handleEditConnection = (index: number) => {
-    const connection = connections[index]
-    setConnectionForm({
-      repoPath: connection.repoPath,
-      description: connection.description,
-      codeSnippet: connection.codeSnippet,
-    })
-    setEditingConnectionIndex(index)
-    setShowConnectionDialog(true)
-  }
-
-  const handleDeleteConnection = async (index: number) => {
-    const connection = connections[index]
-
-    if (!connection.id) {
-      console.error("Connection ID is missing")
-      return
-    }
-
-    try {
-      const token = getUserToken()
-      if (!token) {
-        toast({
-          title: "Authentication required",
-          description: "Please sign in to delete connections",
-          variant: "destructive",
-        })
-        return
-      }
-
-      const response = await fetch(
-        `http://localhost:4000/api/repos/${owner}/${repoName}/connections/${connection.id}`,
-        {
-          method: "DELETE",
-          headers: {
-            Authorization: `token ${token}`,
-          },
-        },
-      )
-
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || "Failed to delete connection")
-      }
-
-      // Refresh connections from the server
-      await fetchConnections()
-
-      toast({
-        title: "Connection removed",
-        description: "The repository connection has been removed",
-      })
-    } catch (error: any) {
-      console.error("Error deleting connection:", error)
-      toast({
-        title: "Error",
-        description: error.message || "Failed to delete connection",
-        variant: "destructive",
-      })
-    }
-  }
-
-  // Update the handleSaveConnection function to handle validation errors better
-  const handleSaveConnection = async () => {
-    if (!connectionForm.repoPath || !connectionForm.codeSnippet) {
-      toast({
-        title: "Required fields missing",
-        description: "Please fill in all required fields",
-        variant: "destructive",
-      })
-      return
-    }
-
-    // Basic format validation
-    if (!connectionForm.repoPath.includes("/")) {
-      toast({
-        title: "Invalid repository path",
-        description: "Repository path must be in the format 'owner/repoName'",
-        variant: "destructive",
-      })
-      return
-    }
-
-    try {
-      const token = getUserToken()
-      if (!token) {
-        toast({
-          title: "Authentication required",
-          description: "Please sign in to add connections",
-          variant: "destructive",
-        })
-        return
-      }
-
-      if (editingConnectionIndex !== null) {
-        // Edit existing connection
-        const connectionId = connections[editingConnectionIndex].id
-
-        if (!connectionId) {
-          throw new Error("Connection ID is missing")
-        }
-
-        const response = await fetch(
-          `http://localhost:4000/api/repos/${owner}/${repoName}/connections/${connectionId}`,
-          {
-            method: "PUT",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `token ${token}`,
-            },
-            body: JSON.stringify({
-              repoPath: connectionForm.repoPath,
-              description: connectionForm.description,
-              codeSnippet: connectionForm.codeSnippet,
-            }),
-          },
-        )
-
-        if (!response.ok) {
-          const errorData = await response.json()
-          throw new Error(errorData.error || "Failed to update connection")
-        }
-      } else {
-        // Add new connection
-        const response = await fetch(`http://localhost:4000/api/repos/${owner}/${repoName}/connections`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `token ${token}`,
-          },
-          body: JSON.stringify({
-            repoPath: connectionForm.repoPath,
-            description: connectionForm.description,
-            codeSnippet: connectionForm.codeSnippet,
-          }),
-        })
-
-        if (!response.ok) {
-          const errorData = await response.json()
-          throw new Error(errorData.error || "Failed to add connection")
-        }
-      }
-
-      // Refresh connections from the server
-      await fetchConnections()
-
-      setShowConnectionDialog(false)
-      setEditingConnectionIndex(null)
-      setConnectionForm({
-        repoPath: "",
-        description: "",
-        codeSnippet: "",
-      })
-
-      toast({
-        title: editingConnectionIndex !== null ? "Connection updated" : "Connection added",
-        description:
-          editingConnectionIndex !== null
-            ? "The repository connection has been updated"
-            : "The repository connection has been added",
-      })
-    } catch (error: any) {
-      console.error("Error saving connection:", error)
-      toast({
-        title: "Error",
-        description: error.message || "Failed to save connection",
-        variant: "destructive",
-      })
-    }
-  }
-
-  // Add this function to fetch connections from the server
+  // Fetch connections from the server
   const fetchConnections = async () => {
     if (!owner || !repoName) return
 
@@ -1099,24 +1127,23 @@ export default function RepoPage() {
     }
   }, [repo])
 
-  // Add this effect to load connections when the repo data is loaded
-  useEffect(() => {
-    if (repo) {
-      // Fetch connections from the server
-      fetchConnections()
+  // Handle tab change
+  const handleTabChange = (tab: string) => {
+    setActiveTab(tab)
+    if (tab === "qubot") {
+      navigate(`/${owner}/${repoName}`)
+    } else if (tab === "files") {
+      const branch = currentBranch || repo?.default_branch || "main"
+      navigate(`/${owner}/${repoName}/src/branch/${branch}`)
     }
-  }, [repo])
+  }
 
-  // Debug output
-  console.log("Current state:", {
-    selectedFile,
-    currentPath,
-    currentBranch,
-    activeTab,
-    fileContentLength: fileContent.length,
-    isLoading: loading,
-    isEditorLoading: editorLoading,
-  })
+  // Handle edit qubot card
+  const handleEditQubotCard = () => {
+    setActiveTab("qubot")
+    setShowCreateForm(true)
+    navigate(`/${owner}/${repoName}`)
+  }
 
   if (loading) {
     return (
@@ -1145,371 +1172,84 @@ export default function RepoPage() {
     )
   }
 
+  // First-time user experience for new repositories
+  if (isNewRepo) {
+    return (
+      <Layout>
+        <NewRepoWelcome
+          owner={owner || ""}
+          repoName={repoName || ""}
+          repo={repo}
+          onCreateQubotCard={() => setShowSetupDialog(true)}
+        />
+
+        <SetupDialog
+          open={showSetupDialog}
+          onOpenChange={setShowSetupDialog}
+          onComplete={handleCompleteSetup}
+          qubotType={qubotType}
+          setQubotType={setQubotType}
+          entrypointFile={entrypointFile}
+          setEntrypointFile={setEntrypointFile}
+          entrypointClass={entrypointClass}
+          setEntrypointClass={setEntrypointClass}
+          qubotParameters={qubotParameters}
+          setQubotParameters={setQubotParameters}
+          arxivLinks={arxivLinks}
+          setArxivLinks={setArxivLinks}
+          qubotKeywords={qubotKeywords}
+          setQubotKeywords={setQubotKeywords}
+          currentSetupStep={currentSetupStep}
+          setCurrentSetupStep={setCurrentSetupStep}
+          pythonFileToUpload={pythonFileToUpload}
+          setPythonFileToUpload={setPythonFileToUpload}
+          handleUploadPythonFile={handleUploadPythonFile}
+        />
+      </Layout>
+    )
+  }
+
+  // Render the main repository view
   return (
     <Layout>
       <div className="container mx-auto px-4 py-8 mt-32 bg-background text-foreground">
-        {/* Repository Header with gradient background */}
-        <div className="flex flex-col space-y-4 mb-8 bg-gradient-to-r from-background via-background/80 to-primary/5 rounded-xl p-6 border border-border/40 shadow-sm">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Book className="h-5 w-5 text-primary" />
-              <button
-                onClick={() => navigate(`/u/${repo.owner.login}`)}
-                className="text-muted-foreground hover:text-primary hover:underline transition-colors"
-              >
-                {repo.owner.login}
-              </button>
-              <span className="text-muted-foreground">/</span>
-              <button
-                onClick={() => {
-                  setActiveTab("qubot")
-                  navigate(`/${owner}/${repoName}`)
-                }}
-                className="font-semibold hover:text-primary hover:underline transition-colors"
-              >
-                {repo.name}
-              </button>
-              <Badge variant="outline" className="ml-2 bg-background/80 backdrop-blur-sm">
-                {repo.private ? "Private" : "Public"}
-              </Badge>
-            </div>
-          </div>
+        <RepoHeader
+          owner={owner || ""}
+          repoName={repoName || ""}
+          repo={repo}
+          config={config}
+          hasRepoStarred={hasRepoStarred}
+          toggleStar={toggleStar}
+          onEditQubotCard={handleEditQubotCard}
+          onDeleteRepo={() => setShowDeleteRepoDialog(true)}
+        />
 
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            {/* Show Qubot description under repo name if available */}
-            <p className="text-muted-foreground max-w-6xl">
-              {config?.description || repo.description || "No description provided."}
-            </p>
-            <div className="flex gap-2 items-center ml-auto">
-              <Button
-                onClick={() => {
-                  toggleStar()
-                }}
-                variant="outline"
-                size="sm"
-                className={`h-8 transition-all ${hasRepoStarred ? "bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800/30 dark:hover:bg-amber-900/50" : ""}`}
-              >
-                <Star className={`mr-1 h-4 w-4 ${hasRepoStarred ? "fill-current" : ""}`} />
-                {hasRepoStarred ? "Unstar" : "Star"}
-                <Badge variant="secondary" className="ml-1 rounded-sm px-1">
-                  {repo.stars_count}
-                </Badge>
-              </Button>
-
-              <Dialog>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                      <MoreVertical className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DialogTrigger asChild>
-                      <DropdownMenuItem>
-                        <GitFork className="mr-2 h-4 w-4" />
-                        Clone Repository
-                      </DropdownMenuItem>
-                    </DialogTrigger>
-                    {config && (
-                      <DropdownMenuItem
-                        onClick={() => {
-                          setActiveTab("qubot")
-                          setShowCreateForm(true)
-                          navigate(`/${owner}/${repoName}`)
-                        }}
-                      >
-                        <Edit className="mr-2 h-4 w-4" />
-                        Edit Qubot Card
-                      </DropdownMenuItem>
-                    )}
-                    <DropdownMenuItem
-                      onClick={() => setShowDeleteRepoDialog(true)}
-                      className="text-destructive focus:text-destructive"
-                    >
-                      <Trash2 className="mr-2 h-4 w-4" />
-                      Delete Repository
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Clone Repository</DialogTitle>
-                    <DialogDescription>Use these commands to clone this repository</DialogDescription>
-                  </DialogHeader>
-                  <div className="space-y-4 mt-4">
-                    <div>
-                      <p className="text-sm font-medium mb-2">HTTPS</p>
-                      <div className="flex">
-                        <Input
-                          readOnly
-                          value={`git clone https://gitea.example.com/${owner}/${repoName}.git`}
-                          className="font-mono text-sm"
-                        />
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="ml-2"
-                          onClick={() => {
-                            navigator.clipboard.writeText(
-                              `git clone https://gitea.example.com/${owner}/${repoName}.git`,
-                            )
-                            toast({
-                              title: "Copied to clipboard",
-                              description: "Clone URL copied to clipboard",
-                            })
-                          }}
-                        >
-                          <Copy className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-
-                    <div>
-                      <p className="text-sm font-medium mb-2">SSH</p>
-                      <div className="flex">
-                        <Input
-                          readOnly
-                          value={`git clone git@gitea.example.com:${owner}/${repoName}.git`}
-                          className="font-mono text-sm"
-                        />
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="ml-2"
-                          onClick={() => {
-                            navigator.clipboard.writeText(`git clone git@gitea.example.com:${owner}/${repoName}.git`)
-                            toast({
-                              title: "Copied to clipboard",
-                              description: "Clone URL copied to clipboard",
-                            })
-                          }}
-                        >
-                          <Copy className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                </DialogContent>
-              </Dialog>
-            </div>
-          </div>
-        </div>
-
-        {/* Main content with sidebar layout */}
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           {/* Sidebar with Qubot Card */}
           <div className="lg:col-span-1 space-y-4">
-            <div className="sticky top-24">
-              <Card className="hover:shadow-md transition-all duration-300 border-border/60">
-                <CardHeader className="pb-2 bg-gradient-to-br from-background to-muted/30 border-b border-border/30">
-                  <CardTitle className="text-lg flex items-center gap-2">{"Qubot card"}</CardTitle>
-                </CardHeader>
-                <CardContent className="p-4">
-                  {showCreateForm ? (
-                    <div className="text-center py-4">
-                      <p className="text-sm text-muted-foreground mb-4">
-                        You're currently editing the Qubot card in the main panel.
-                      </p>
-                    </div>
-                  ) : config ? (
-                    <div className="space-y-4">
-                      {/* Type badge with improved styling */}
-                      <div className="flex items-center gap-2">
-                        <Badge
-                          variant="outline"
-                          className={`px-3 py-1 text-sm font-medium border-none text-white ${
-                            config.type === "problem"
-                              ? "bg-gradient-to-r from-blue-500 to-cyan-500"
-                              : "bg-gradient-to-r from-orange-500 to-red-500"
-                          }`}
-                        >
-                          {config.type.charAt(0).toUpperCase() + config.type.slice(1)}
-                        </Badge>
-                      </div>
-
-                      {/* Metadata section with improved styling */}
-                      {(config.creator || config.problem_name || config.link_to_arxiv) && (
-                        <div className="space-y-2 bg-muted/20 rounded-md p-3 border border-border/40">
-                          {/* Creator */}
-
-                          {config.link_to_arxiv && (
-                            <div className="flex items-start gap-2">
-                              <ExternalLink className="h-4 w-4 text-primary mt-0.5" />
-                              <div>
-                                <span className="text-xs text-muted-foreground">arXiv Link</span>
-                                <a
-                                  href={config.link_to_arxiv}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-sm font-medium text-primary hover:underline block"
-                                >
-                                  View Paper
-                                </a>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                      {/* Keywords with improved styling */}
-                      {config.keywords && config.keywords.length > 0 && (
-                        <div className="space-y-1.5">
-                          <div className="flex items-center gap-1.5">
-                            <Tag className="h-3.5 w-3.5 text-primary" />
-                            <span className="text-xs font-medium text-muted-foreground">Keywords</span>
-                          </div>
-                          <div className="flex flex-wrap gap-1.5 mt-1 bg-muted/20 p-2 rounded-md border border-border/40">
-                            {config.keywords.slice(0, 20).map((keyword: string) => (
-                              <Badge
-                                key={keyword}
-                                variant="outline"
-                                className="text-xs bg-background hover:bg-primary/5 transition-colors border-primary/20"
-                              >
-                                {keyword}
-                              </Badge>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="text-center py-4">
-                      <p className="text-sm text-muted-foreground mb-4">No Qubot Card found.</p>
-                      <Button
-                        onClick={() => {
-                          setActiveTab("qubot")
-                          setShowCreateForm(true)
-                          navigate(`/${owner}/${repoName}`)
-                        }}
-                        size="sm"
-                        className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary"
-                      >
-                        Create Qubot Card
-                      </Button>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* Use with qubots button */}
-              {config && (
-                <Card className="mt-4 hover:shadow-md transition-all duration-300 border-border/60">
-                  <CardHeader className="pb-2 bg-gradient-to-br from-background to-muted/30 border-b border-border/30">
-                    <CardTitle className="text-sm flex items-center gap-2">
-                      <Code className="h-3.5 w-3.5 text-primary" />
-                      Use with qubots library
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="p-4">
-                    {/* Snippet block based on config.type */}
-                    <div className="bg-muted/20 rounded-md p-2 text-xs font-mono overflow-x-auto border border-border/40">
-                      <code className="text-primary">
-                        {config.type === "problem" ? (
-                          <>
-                            <span className="text-blue-500 dark:text-blue-400">from</span>{" "}
-                            <span className="text-green-600 dark:text-green-400">qubots</span>{" "}
-                            <span className="text-blue-500 dark:text-blue-400">import</span> AutoProblem
-                            <br />
-                            problem = AutoProblem.from_repo(
-                            <span className="text-amber-600 dark:text-amber-400">
-                              "{repo.owner.login}/{repo.name}"
-                            </span>
-                            )
-                          </>
-                        ) : (
-                          <>
-                            <span className="text-blue-500 dark:text-blue-400">from</span>{" "}
-                            <span className="text-green-600 dark:text-green-400">qubots</span>{" "}
-                            <span className="text-blue-500 dark:text-blue-400">import</span> AutoOptimizer
-                            <br />
-                            optimizer = AutoOptimizer.from_repo(
-                            <span className="text-amber-600 dark:text-amber-400">
-                              "{repo.owner.login}/{repo.name}"
-                            </span>
-                            )
-                          </>
-                        )}
-                      </code>
-                    </div>
-
-                    {/* Copy button */}
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="w-full mt-3 h-8 text-xs border-primary/20 hover:bg-primary/5 hover:text-primary transition-colors"
-                      onClick={() => {
-                        const snippet =
-                          config.type === "problem"
-                            ? `pip install qubots\nfrom qubots import AutoProblem\nproblem = AutoProblem.from_repo("${repo.owner.login}/${repo.name}")`
-                            : `pip install qubots\nfrom qubots import AutoOptimizer\noptimizer = AutoOptimizer.from_repo("${repo.owner.login}/${repo.name}")`
-                        navigator.clipboard.writeText(snippet)
-                        toast({
-                          title: "Copied to clipboard",
-                          description: "Code snippet copied to clipboard",
-                        })
-                      }}
-                    >
-                      <Copy className="h-3 w-3 mr-1" /> Copy code
-                    </Button>
-                  </CardContent>
-                </Card>
-              )}
-            </div>
+            <QubotSidebar config={config} onEditQubotCard={handleEditQubotCard} />
           </div>
 
           {/* Main content area */}
           <div className="lg:col-span-3">
-            <Tabs
-              defaultValue="files"
-              className="w-full"
-              value={activeTab}
-              onValueChange={(tab) => {
-                setActiveTab(tab)
-                if (tab === "qubot") {
-                  navigate(`/${owner}/${repoName}`)
-                } else if (tab === "files") {
-                  const branch = currentBranch || repo.default_branch || "main"
-                  navigate(`/${owner}/${repoName}/src/branch/${branch}`)
-                }
-              }}
-            >
-              <div className="border-b">
-                <TabsList className="h-10 bg-transparent">
-                  <TabsTrigger
-                    value="qubot"
-                    className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none transition-colors"
-                  >
-                    <Code className="mr-2 h-4 w-4" />
-                    Readme
-                  </TabsTrigger>
-                  <TabsTrigger
-                    value="files"
-                    className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none transition-colors"
-                  >
-                    <FileText className="mr-2 h-4 w-4" />
-                    Files
-                  </TabsTrigger>
-                  <TabsTrigger
-                    value="others"
-                    className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none transition-colors"
-                  >
-                    <GitBranch className="mr-2 h-4 w-4" />
-                    Qubot connections
-                  </TabsTrigger>
-                </TabsList>
-              </div>
-
-              {/* Qubot Card Tab */}
-              <TabsContent value="qubot" className="mt-6 space-y-4">
-                {showCreateForm ? (
+            <TabsContainer
+              activeTab={activeTab}
+              onTabChange={handleTabChange}
+              readmeContent={
+                showCreateForm ? (
                   <QubotCardForm
                     initialData={config}
                     onSave={handleSaveQubotCard}
                     onCancel={() => setShowCreateForm(false)}
                   />
                 ) : readme ? (
-                  <QubotCardDisplay readme={readme} onGoToFile={handleGoToFile} />
+                  <QubotCardDisplay
+                    readme={readme}
+                    data={config}
+                    onGoToFile={handleGoToFile}
+                    onSaveQubotSetup={handleSaveQubotCard}
+                    allRepoFiles={allRepoFiles}
+                  />
                 ) : (
                   <div className="space-y-4">
                     <Card>
@@ -1519,12 +1259,10 @@ export default function RepoPage() {
                       </CardHeader>
                     </Card>
                   </div>
-                )}
-              </TabsContent>
-
-              {/* Files Tab */}
-              <TabsContent value="files" className="mt-6 space-y-4">
-                {!selectedFile ? (
+                )
+              }
+              filesContent={
+                !selectedFile ? (
                   <FileExplorer
                     files={files}
                     onFileClick={handleFileClick}
@@ -1536,8 +1274,8 @@ export default function RepoPage() {
                     onGoToFile={handleGoToFile}
                     isLoading={loading}
                     allRepoFiles={allRepoFiles}
-                    repoOwner={owner}
-                    repoName={repoName}
+                    repoOwner={owner || ""}
+                    repoName={repoName || ""}
                   />
                 ) : (
                   <div className="h-[calc(100vh-250px)] min-h-[600px]">
@@ -1555,87 +1293,9 @@ export default function RepoPage() {
                       className="w-full h-full"
                     />
                   </div>
-                )}
-              </TabsContent>
-
-              {/* Other Qubots Tab */}
-              <TabsContent value="others" className="mt-6 space-y-4">
-                <Card>
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <CardTitle>Qubot connections</CardTitle>
-                      <Button size="sm" onClick={() => setShowConnectionDialog(true)}>
-                        <Plus className="h-4 w-4 mr-2" />
-                        Add Connection
-                      </Button>
-                    </div>
-                    <CardDescription>Connect your repository with other qubot repositories</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    {connections.length === 0 ? (
-                      <div className="text-center py-12">
-                        <GitBranch className="h-12 w-12 text-muted-foreground opacity-50 mx-auto mb-4" />
-                        <h3 className="text-lg font-medium">No connections yet</h3>
-                        <p className="text-muted-foreground mt-1 mb-4">
-                          Connect your repository with other Qubot repositories
-                        </p>
-                        <Button
-                          onClick={() => setShowConnectionDialog(true)}
-                          className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary"
-                        >
-                          <Plus className="h-4 w-4 mr-2" />
-                          Add First Connection
-                        </Button>
-                      </div>
-                    ) : (
-                      <div className="space-y-6">
-                        {connections.map((connection, index) => (
-                          <div key={index} className="border rounded-lg p-4">
-                            <div className="flex items-start justify-between mb-2">
-                              <div>
-                                <h3 className="font-medium flex items-center gap-2">
-                                  <GitBranch className="h-4 w-4 text-primary" />
-                                  <button
-                                    onClick={() => navigate(`/${connection.repoPath}`)}
-                                    className="text-primary hover:underline"
-                                  >
-                                    {connection.repoPath}
-                                  </button>
-                                </h3>
-                                {connection.description && (
-                                  <p className="text-sm text-muted-foreground mt-1">{connection.description}</p>
-                                )}
-                              </div>
-                              <div className="flex gap-2">
-                                <Button variant="ghost" size="sm" onClick={() => handleEditConnection(index)}>
-                                  <Edit className="h-4 w-4" />
-                                </Button>
-                                <Button variant="ghost" size="sm" onClick={() => handleDeleteConnection(index)}>
-                                  <Trash2 className="h-4 w-4 text-destructive" />
-                                </Button>
-                              </div>
-                            </div>
-                            <div className="bg-muted rounded-md p-3 mt-2 relative">
-                              <pre className="text-xs font-mono overflow-x-auto whitespace-pre-wrap">
-                                {connection.codeSnippet}
-                              </pre>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="absolute top-2 right-2 h-7 w-7 p-0"
-                                onClick={() => handleCopySnippet(connection.codeSnippet)}
-                              >
-                                <Copy className="h-3.5 w-3.5" />
-                              </Button>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              </TabsContent>
-            </Tabs>
+                )
+              }
+            />
           </div>
         </div>
       </div>
@@ -1659,137 +1319,40 @@ export default function RepoPage() {
         onFileSelect={handleFileSearch}
       />
 
-      {/* Connection Dialog */}
-      <Dialog
-        open={showConnectionDialog}
-        onOpenChange={(open) => {
-          if (!open) {
-            setEditingConnectionIndex(null)
-            setConnectionForm({
-              repoPath: "",
-              description: "",
-              codeSnippet: "",
-            })
-          }
-          setShowConnectionDialog(open)
-        }}
-      >
-        <DialogContent className="sm:max-w-[600px]">
-          <DialogHeader>
-            <DialogTitle>
-              {editingConnectionIndex !== null ? "Edit Connection" : "Add Repository Connection"}
-            </DialogTitle>
-            <DialogDescription>
-              Connect your repository with another Qubot repository to extend functionality
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="grid gap-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="repoPath">
-                Repository Path <span className="text-destructive">*</span>
-              </Label>
-              <Input
-                id="repoPath"
-                placeholder="some_username/repo-name"
-                value={connectionForm.repoPath}
-                onChange={(e) => setConnectionForm({ ...connectionForm, repoPath: e.target.value })}
-              />
-              <p className="text-xs text-muted-foreground">
-                Format: username/repository-name (e.g., papaflesas/VRP_solver)
-              </p>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="description">Description</Label>
-              <Input
-                id="description"
-                placeholder="Brief description of how this connection is used"
-                value={connectionForm.description}
-                onChange={(e) => setConnectionForm({ ...connectionForm, description: e.target.value })}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="codeSnippet">
-                Code Snippet <span className="text-destructive">*</span>
-              </Label>
-              <Textarea
-                id="codeSnippet"
-                placeholder="from qubots.auto_problem import AutoProblem                           
-                from qubots.auto_optimizer import AutoOptimizer                                                                           
-                problem = AutoProblem.from_repo('some_username/repo-name')
-
-                optimizer = AutoOptimizer.from_repo('my_username/my-repo-name')
-
-                solution, cost_value = optimizer.optimize(problem)"
-                value={connectionForm.codeSnippet}
-                onChange={(e) => setConnectionForm({ ...connectionForm, codeSnippet: e.target.value })}
-                className="font-mono text-sm"
-                rows={6}
-              />
-              <p className="text-xs text-muted-foreground">Add the code that shows how to connect to this repository</p>
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowConnectionDialog(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleSaveConnection}>
-              {editingConnectionIndex !== null ? "Update Connection" : "Add Connection"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
       {/* Delete Repository Dialog */}
-      <Dialog open={showDeleteRepoDialog} onOpenChange={setShowDeleteRepoDialog}>
-        <DialogContent className="sm:max-w-[500px]">
-          <DialogHeader>
-            <DialogTitle className="text-destructive">Delete Repository</DialogTitle>
-            <DialogDescription>
-              This action cannot be undone. This will permanently delete the repository, wiki, issues, comments,
-              packages, secrets, workflow runs, and remove all collaborator associations.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="py-4">
-            <div className="rounded-md bg-destructive/10 p-4 mb-4 border border-destructive/30">
-              <p className="text-sm text-destructive font-medium">
-                Please type{" "}
-                <span className="font-bold">
-                  {owner}/{repoName}
-                </span>{" "}
-                to confirm.
-              </p>
-            </div>
-            <Input
-              value={deleteRepoConfirmation}
-              onChange={(e) => setDeleteRepoConfirmation(e.target.value)}
-              placeholder={`${owner}/${repoName}`}
-              className="w-full"
-            />
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowDeleteRepoDialog(false)} disabled={isDeletingRepo}>
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={handleDeleteRepository}
-              disabled={deleteRepoConfirmation !== `${owner}/${repoName}` || isDeletingRepo}
-            >
-              {isDeletingRepo ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Deleting...
-                </>
-              ) : (
-                "Delete Repository"
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
+      <DeleteRepoDialog
+        open={showDeleteRepoDialog}
+        onOpenChange={setShowDeleteRepoDialog}
+        owner={owner || ""}
+        repoName={repoName || ""}
+        onDelete={handleDeleteRepository}
+        isDeleting={isDeletingRepo}
+      />
+
+      {/* Setup Dialog */}
+      <Dialog open={showSetupDialog} onOpenChange={setShowSetupDialog}>
+        <SetupDialog
+          open={showSetupDialog}
+          onOpenChange={setShowSetupDialog}
+          onComplete={handleCompleteSetup}
+          qubotType={qubotType}
+          setQubotType={setQubotType}
+          entrypointFile={entrypointFile}
+          setEntrypointFile={setEntrypointFile}
+          entrypointClass={entrypointClass}
+          setEntrypointClass={setEntrypointClass}
+          qubotParameters={qubotParameters}
+          setQubotParameters={setQubotParameters}
+          arxivLinks={arxivLinks}
+          setArxivLinks={setArxivLinks}
+          qubotKeywords={qubotKeywords}
+          setQubotKeywords={setQubotKeywords}
+          currentSetupStep={currentSetupStep}
+          setCurrentSetupStep={setCurrentSetupStep}
+          pythonFileToUpload={pythonFileToUpload}
+          setPythonFileToUpload={setPythonFileToUpload}
+          handleUploadPythonFile={handleUploadPythonFile}
+        />
       </Dialog>
     </Layout>
   )

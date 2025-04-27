@@ -315,7 +315,7 @@ const Navbar = () => {
               onClick={() => navigate("/docs")}
             >
               <BookOpenText className="w-4 h-4 text-amber-500" />
-              Documentation
+              Docs
             </Button>
             
             {/*}

@@ -1101,7 +1101,7 @@ const Feed = () => {
                             onClick={() => navigate(`/u/${user.login}`)}
                             className="text-sm hover:text-primary hover:underline transition-colors"
                           >
-                            @{user.login}
+                            {user.login}
                           </button>
                         </div>
                         <span className="text-xs text-muted-foreground">
@@ -1146,7 +1146,7 @@ const Feed = () => {
                             onClick={() => navigate(`/u/${user.login}`)}
                             className="text-sm hover:text-primary hover:underline transition-colors"
                           >
-                            @{user.login}
+                            {user.login}
                           </button>
                         </div>
                         <span className="text-xs text-muted-foreground">
@@ -1207,7 +1207,7 @@ const Feed = () => {
                                     onClick={() => navigate(`/u/${activity.user.login}`)}
                                     className="font-medium text-foreground hover:text-primary hover:underline transition-colors"
                                   >
-                                    {activity.user.full_name || activity.user.login}
+                                    {activity.user.login}
                                   </button>{" "}
                                   {activity.type === "qubot_created" && (
                                     <>
@@ -1260,7 +1260,7 @@ const Feed = () => {
                                         onClick={() => navigate(`/u/${activity.data.followed_user?.login}`)}
                                         className="text-primary font-medium hover:underline"
                                       >
-                                        {activity.data.followed_user?.full_name || activity.data.followed_user?.login}
+                                        {activity.data.followed_user?.login}
                                       </button>
                                     </>
                                   )}
