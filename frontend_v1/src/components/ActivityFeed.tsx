@@ -2,10 +2,11 @@
 
 import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
-import { Loader2, MessageSquare, FolderGit, ThumbsUp, Clock, Code, User, Star } from "lucide-react"
+import { Loader2, MessageSquare, FolderGit, ThumbsUp, Clock, Code, User, Star, ShieldAlert } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 
 type ActivityItem = {
   id: string
@@ -53,17 +54,52 @@ interface ActivityFeedProps {
   avatar_url?: string
 }
 
-const API = import.meta.env.VITE_API_BASE;
-
+const API = import.meta.env.VITE_API_BASE
 
 export default function ActivityFeed({ username, avatar_url }: ActivityFeedProps) {
   const [activities, setActivities] = useState<ActivityItem[]>([])
   const [loading, setLoading] = useState(true)
   const navigate = useNavigate()
+  const [currentUser, setCurrentUser] = useState<string | null>(null)
+  const [isAuthorized, setIsAuthorized] = useState<boolean>(false)
 
-  
+  const checkAuthorization = async () => {
+    const token = localStorage.getItem("gitea_token")
+    if (!token) {
+      setIsAuthorized(false)
+      return
+    }
 
-  // Update the fetchActivity function to include real follow and star activities
+    try {
+      const response = await fetch(`${API}/profile`, {
+        headers: { Authorization: `token ${token}` },
+      })
+
+      if (response.ok) {
+        const userData = await response.json()
+        setCurrentUser(userData.login)
+
+        // Only authorize if the current user matches the requested username
+        setIsAuthorized(userData.login === username)
+      } else {
+        setIsAuthorized(false)
+      }
+    } catch (error) {
+      console.error("Error checking authorization:", error)
+      setIsAuthorized(false)
+    }
+  }
+
+  useEffect(() => {
+    checkAuthorization()
+  }, [username])
+
+  useEffect(() => {
+    if (isAuthorized) {
+      fetchActivity()
+    }
+  }, [isAuthorized, username])
+
   const fetchActivity = async () => {
     setLoading(true)
     try {
@@ -263,10 +299,6 @@ export default function ActivityFeed({ username, avatar_url }: ActivityFeedProps
     }
   }
 
-  useEffect(() => {
-    fetchActivity()
-  }, [username])
-
   // Format date for display
   const formatDate = (dateString: string) => {
     const date = new Date(dateString)
@@ -298,6 +330,8 @@ export default function ActivityFeed({ username, avatar_url }: ActivityFeedProps
       day: "numeric",
     })
   }
+
+  
 
   if (loading) {
     return (

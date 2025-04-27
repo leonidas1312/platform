@@ -54,8 +54,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import ActivityFeed from "@/components/ActivityFeed"
 import { ScrollArea } from "@/components/ui/scroll-area"
 
-const API = import.meta.env.VITE_API_BASE;
-
+const API = import.meta.env.VITE_API_BASE
 
 const Profile = () => {
   // Get username from URL params
@@ -86,6 +85,8 @@ const Profile = () => {
   const [currentUserData, setCurrentUserData] = useState<any>(null)
 
   const navigate = useNavigate()
+
+  const [isOwnProfile, setIsOwnProfile] = useState(false)
 
   useEffect(() => {
     const token = localStorage.getItem("gitea_token")
@@ -148,9 +149,7 @@ const Profile = () => {
     // otherwise fetch the current user's repos
     const fetchUserRepos = async () => {
       try {
-        const endpoint = username
-          ? `${API}/users/${username}/repos`
-          : `${API}/user-repos`
+        const endpoint = username ? `${API}/users/${username}/repos` : `${API}/user-repos`
 
         const res = await fetch(endpoint, {
           headers: { Authorization: `token ${token}` },
@@ -171,6 +170,17 @@ const Profile = () => {
     fetchUserProfile()
     fetchUserRepos()
   }, [navigate, username, currentUserData?.login])
+
+  // Reset active tab if viewing someone else's profile and current tab is 'activity'
+useEffect(() => {
+  if (!isOwnProfile && activeTab === "activity") {
+    setActiveTab("about")
+  }
+}, [isOwnProfile, activeTab])
+
+  useEffect(() => {
+    setIsOwnProfile(!username || username === currentUserData?.login)
+  }, [username, currentUserData?.login])
 
   // Check if current user is following the profile user
   const checkFollowStatus = async (targetUsername: string) => {
@@ -421,8 +431,6 @@ const Profile = () => {
     }
   }
 
-  // Check if viewing own profile
-  const isOwnProfile = !username || username === currentUserData?.login
 
   return (
     <Layout>
@@ -585,13 +593,15 @@ const Profile = () => {
                     <FolderGit className="w-4 h-4" />
                     Qubots
                   </TabsTrigger>
-                  <TabsTrigger
-                    value="activity"
-                    className="flex items-center gap-1 data-[state=active]:bg-primary/10 data-[state=active]:text-primary"
-                  >
-                    <Clock className="w-4 h-4" />
-                    Activity
-                  </TabsTrigger>
+                  {isOwnProfile && (
+                    <TabsTrigger
+                      value="activity"
+                      className="flex items-center gap-1 data-[state=active]:bg-primary/10 data-[state=active]:text-primary"
+                    >
+                      <Clock className="w-4 h-4" />
+                      Activity
+                    </TabsTrigger>
+                  )}
                 </TabsList>
 
                 {/* Repositories Tab with enhanced styling */}
@@ -603,7 +613,6 @@ const Profile = () => {
                         <FolderGit className="w-5 h-5 text-primary" />
                         Qubots
                       </h2>
-                      
                     </div>
 
                     {reposLoading ? (
@@ -980,5 +989,7 @@ const Profile = () => {
     </Layout>
   )
 }
+
+
 
 export default Profile
