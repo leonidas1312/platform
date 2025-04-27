@@ -7,6 +7,9 @@ import { Label } from "@/components/ui/label";
 import { toast } from "@/components/ui/use-toast";
 import Layout from "../components/Layout";
 
+const API = import.meta.env.VITE_API_BASE;
+
+
 const AuthPage = () => {
   const [isLogin, setIsLogin] = useState(true);
   const [username, setUsername] = useState("");
@@ -14,6 +17,8 @@ const AuthPage = () => {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+
+
 
   const handleSubmit = async (e: React.FormEvent) => {
 
@@ -23,7 +28,7 @@ const AuthPage = () => {
     const body = isLogin ? { username, password } : { username, email, password };
 
     try {
-      const res = await fetch(`http://localhost:4000/api/${endpoint}`, {
+      const res = await fetch(`${API}/${endpoint}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),

@@ -21,6 +21,9 @@ import {
 import { toast } from "@/components/ui/use-toast"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
+const API = import.meta.env.VITE_API_BASE;
+
+
 interface Token {
   id: number
   name: string
@@ -60,7 +63,7 @@ const SettingsPage = () => {
     setIsLoading(true)
     try {
       const token = localStorage.getItem("gitea_token")
-      const response = await fetch("http://localhost:4000/api/tokens", {
+      const response = await fetch(`${API}/tokens`, {
         headers: {
           Authorization: `token ${token}`,
         },
@@ -97,7 +100,7 @@ const SettingsPage = () => {
     setIsCreatingToken(true)
     try {
       const token = localStorage.getItem("gitea_token")
-      const response = await fetch("http://localhost:4000/api/create-token", {
+      const response = await fetch(`${API}/create-token`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -141,7 +144,7 @@ const SettingsPage = () => {
     setIsDeletingToken(tokenToDelete.id)
     try {
       const token = localStorage.getItem("gitea_token")
-      const response = await fetch(`http://localhost:4000/api/tokens/${tokenToDelete.id}`, {
+      const response = await fetch(`${API}/tokens/${tokenToDelete.id}`, {
         method: "DELETE",
         headers: {
           Authorization: `token ${token}`,

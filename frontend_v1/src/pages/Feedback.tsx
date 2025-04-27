@@ -26,6 +26,9 @@ import { useToast } from "@/hooks/use-toast"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Skeleton } from "@/components/ui/skeleton"
 
+const API = import.meta.env.VITE_API_BASE;
+
+
 // Types
 interface User {
   id: number
@@ -78,7 +81,7 @@ const Community = () => {
 
     const fetchCurrentUser = async () => {
       try {
-        const response = await fetch("http://localhost:4000/api/profile", {
+        const response = await fetch(`${API}/profile`, {
           headers: {
             Authorization: `token ${token}`,
           },
@@ -121,7 +124,7 @@ const Community = () => {
         }
 
         // CHANGED: Actually fetch from our new backend route
-        const response = await fetch("http://localhost:4000/api/community/posts", { headers })
+        const response = await fetch(`${API}/community/posts`, { headers })
 
         if (!response.ok) {
           throw new Error(`Failed to fetch posts: ${response.statusText}`)
@@ -159,7 +162,7 @@ const Community = () => {
         }
 
         // Fetch users from Gitea
-        const response = await fetch("http://localhost:4000/api/public-repos", {
+        const response = await fetch(`${API}/public-repos`, {
           headers,
         })
 
@@ -215,7 +218,7 @@ const Community = () => {
       if (!token) throw new Error("Missing token")
 
       // CHANGED: Actually POST to our new endpoint:
-      const response = await fetch("http://localhost:4000/api/community/posts", {
+      const response = await fetch(`${API}/community/posts`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -308,7 +311,7 @@ const Community = () => {
       if (!token) throw new Error("Authentication token missing")
 
       // Call the API endpoint to toggle like (similar to feature vote)
-      const response = await fetch(`http://localhost:4000/api/community/posts/${postId}/like`, {
+      const response = await fetch(`${API}/community/posts/${postId}/like`, {
         method: "POST",
         headers: {
           Authorization: `token ${token}`,
@@ -367,7 +370,7 @@ const Community = () => {
       const token = localStorage.getItem("gitea_token")
       if (!token) throw new Error("Authentication token missing")
 
-      const response = await fetch(`http://localhost:4000/api/community/posts/${postId}/comments`, {
+      const response = await fetch(`${API}/community/posts/${postId}/comments`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -734,7 +737,7 @@ const Community = () => {
         return
       }
 
-      const response = await fetch(`http://localhost:4000/api/community/posts/${postId}`, {
+      const response = await fetch(`${API}/community/posts/${postId}`, {
         method: "DELETE",
         headers: {
           Authorization: `token ${token}`,
@@ -779,7 +782,7 @@ const PostCard = ({ post, currentUser, onLike, formatDate, onDelete }) => {
 
     setIsLoadingComments(true)
     try {
-      const response = await fetch(`http://localhost:4000/api/community/posts/${post.id}/comments`)
+      const response = await fetch(`${API}/community/posts/${post.id}/comments`)
 
       if (!response.ok) {
         throw new Error("Failed to fetch comments")
@@ -820,7 +823,7 @@ const PostCard = ({ post, currentUser, onLike, formatDate, onDelete }) => {
         return
       }
 
-      const response = await fetch(`http://localhost:4000/api/community/posts/${post.id}/comments`, {
+      const response = await fetch(`${API}/community/posts/${post.id}/comments`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -875,7 +878,7 @@ const PostCard = ({ post, currentUser, onLike, formatDate, onDelete }) => {
         return
       }
 
-      const response = await fetch(`http://localhost:4000/api/community/posts/${postId}`, {
+      const response = await fetch(`${API}/community/posts/${postId}`, {
         method: "DELETE",
         headers: {
           Authorization: `token ${token}`,

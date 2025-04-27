@@ -24,6 +24,9 @@ import { Textarea } from "@/components/ui/textarea"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { toast } from "@/components/ui/use-toast"
 
+const API = import.meta.env.VITE_API_BASE;
+
+
 interface BlogAuthor {
   name: string
   avatar?: string
@@ -103,7 +106,7 @@ const BlogDetailPage = () => {
         }
 
         // Fetch blog post from the API
-        const response = await fetch(`http://localhost:4000/api/blogs/${id}`, { headers })
+        const response = await fetch(`${API}/blogs/${id}`, { headers })
 
         if (!response.ok) {
           throw new Error("Failed to fetch blog post")
@@ -174,7 +177,7 @@ const BlogDetailPage = () => {
         headers["Authorization"] = `token ${token}`
       }
 
-      const response = await fetch(`http://localhost:4000/api/blogs/${blogId}/comments`, { headers })
+      const response = await fetch(`${API}/blogs/${blogId}/comments`, { headers })
 
       if (!response.ok) {
         throw new Error("Failed to fetch comments")
@@ -219,7 +222,7 @@ const BlogDetailPage = () => {
 
       // In a real app, you would have an endpoint that returns related blogs
       // For now, we'll just fetch all blogs and filter them client-side
-      const response = await fetch("http://localhost:4000/api/blogs", { headers })
+      const response = await fetch(`${API}/blogs`, { headers })
 
       if (!response.ok) {
         throw new Error("Failed to fetch related blogs")
@@ -277,7 +280,7 @@ const BlogDetailPage = () => {
 
       // Call API to like/unlike the blog
       const method = hasLiked ? "DELETE" : "POST"
-      const response = await fetch(`http://localhost:4000/api/blogs/${id}/like`, {
+      const response = await fetch(`${API}/blogs/${id}/like`, {
         method,
         headers: {
           Authorization: `token ${token}`,
@@ -341,7 +344,7 @@ const BlogDetailPage = () => {
       const token = localStorage.getItem("gitea_token")
 
       // Call API to submit comment
-      const response = await fetch(`http://localhost:4000/api/blogs/${id}/comments`, {
+      const response = await fetch(`${API}/blogs/${id}/comments`, {
         method: "POST",
         headers: {
           Authorization: `token ${token}`,

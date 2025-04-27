@@ -14,6 +14,8 @@ import { Tabs, TabsContent } from "@/components/ui/tabs"
 import { Clock, FolderGit, GitFork, Loader2, Search, Star, Tag, Users, X, FileJson } from "lucide-react"
 import { Link } from 'react-router-dom'
 
+const API = import.meta.env.VITE_API_BASE;
+
 interface GiteaRepo {
   id: number
   name: string
@@ -124,7 +126,7 @@ export default function PublicReposPage() {
       queryParams.append("languages", selectedLanguages.join(","))
     }
 
-    fetch(`http://localhost:4000/api/public-repos?${queryParams.toString()}`)
+    fetch(`${API}/public-repos?${queryParams.toString()}`)
       .then((res) => {
         if (!res.ok) {
           return res.json().then((data) => {

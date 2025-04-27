@@ -53,6 +53,9 @@ import {
 } from "@/components/ui/navigation-menu"
 import { cn } from "@/lib/utils"
 
+const API = import.meta.env.VITE_API_BASE;
+
+
 const Navbar = () => {
   const location = useLocation()
   const navigate = useNavigate()
@@ -97,7 +100,7 @@ const Navbar = () => {
   useEffect(() => {
     const token = localStorage.getItem("gitea_token")
     if (token) {
-      fetch("http://localhost:4000/api/profile", {
+      fetch(`${API}/profile`, {
         headers: { Authorization: `token ${token}` },
       })
         .then((res) => {
@@ -152,7 +155,7 @@ const Navbar = () => {
         throw new Error("Authentication required")
       }
 
-      const response = await fetch("http://localhost:4000/api/create-repo", {
+      const response = await fetch(`${API}/create-repo`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

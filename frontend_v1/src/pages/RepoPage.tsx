@@ -25,6 +25,9 @@ import CodeViewer from "@/components/CodeViewerRepoPage"
 import FileUploadDialog from "@/components/FileUploadDialog"
 import FileSearchDialog from "@/components/FileSearchDialog"
 
+const API = import.meta.env.VITE_API_BASE;
+
+
 // For demo purposes, we retrieve the user token from localStorage.
 const getUserToken = () => localStorage.getItem("gitea_token") || ""
 
@@ -222,7 +225,7 @@ export default function RepoPage() {
 
     const token = getUserToken()
 
-    fetch(`http://localhost:4000/api/repos/${owner}/${repoName}`, {
+    fetch(`${API}/repos/${owner}/${repoName}`, {
       headers: {
         ...(token && { Authorization: `token ${token}` }),
       },
@@ -276,7 +279,7 @@ export default function RepoPage() {
   // Load branches
   const loadBranches = async (repoOwner: string, repoName: string) => {
     try {
-      const response = await fetch(`http://localhost:4000/api/repos/${repoOwner}/${repoName}/branches`)
+      const response = await fetch(`${API}/repos/${repoOwner}/${repoName}/branches`)
       if (response.ok) {
         const branchesData = await response.json()
         setBranches(branchesData.map((branch: any) => branch.name))
@@ -306,7 +309,7 @@ export default function RepoPage() {
 
   const reloadRepoData = async () => {
     if (!owner || !repoName) return
-    const res = await fetch(`http://localhost:4000/api/repos/${owner}/${repoName}`)
+    const res = await fetch(`${API}/repos/${owner}/${repoName}`)
     const data = await res.json()
     setRepo(data.repo)
     setReadme(data.readme)
@@ -321,7 +324,7 @@ export default function RepoPage() {
 
     const token = getUserToken()
     if (token !== "") {
-      const resStar = await fetch(`http://localhost:4000/api/hasStar/${owner}/${repoName}`, {
+      const resStar = await fetch(`${API}/hasStar/${owner}/${repoName}`, {
         headers: {
           Authorization: `token ${token}`,
         },
@@ -343,7 +346,7 @@ export default function RepoPage() {
     setEditorLoading(true)
     try {
       const fileRes = await fetch(
-        `http://localhost:4000/api/repos/${owner}/${repoName}/contents/${filePath}?ref=${branch}`,
+        `${API}/repos/${owner}/${repoName}/contents/${filePath}?ref=${branch}`,
         {
           headers: {
             Authorization: `token ${getUserToken()}`,
@@ -393,7 +396,7 @@ export default function RepoPage() {
     console.log("test")
     if (!owner || !repoName) return
     try {
-      const starRes = await fetch(`http://localhost:4000/api/toggleStar/${owner}/${repoName}`, {
+      const starRes = await fetch(`${API}/toggleStar/${owner}/${repoName}`, {
         method: "POST",
         headers: {
           Authorization: `token ${getUserToken()}`,
@@ -418,7 +421,7 @@ export default function RepoPage() {
       const token = getUserToken()
 
       // Save config.json
-      const configResponse = await fetch(`http://localhost:4000/api/repos/${owner}/${repoName}/contents/config.json`, {
+      const configResponse = await fetch(`${API}/repos/${owner}/${repoName}/contents/config.json`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -470,7 +473,7 @@ export default function RepoPage() {
 
       // Immediately load the directory contents
       const branch = currentBranch || repo?.default_branch || "main"
-      const apiUrl = `http://localhost:4000/api/repos/${owner}/${repoName}/contents/${newPath}?ref=${branch}`
+      const apiUrl = `${API}/repos/${owner}/${repoName}/contents/${newPath}?ref=${branch}`
       setLoading(true)
 
       fetch(apiUrl)
@@ -522,7 +525,7 @@ export default function RepoPage() {
       setEditorLoading(true)
       const token = getUserToken()
       const encodedContent = btoa(fileContent)
-      const response = await fetch(`http://localhost:4000/api/repos/${owner}/${repoName}/contents/${selectedFile}`, {
+      const response = await fetch(`${API}/repos/${owner}/${repoName}/contents/${selectedFile}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -567,7 +570,7 @@ export default function RepoPage() {
       setEditorLoading(true)
       const token = getUserToken()
 
-      const response = await fetch(`http://localhost:4000/api/repos/${owner}/${repoName}/contents/${selectedFile}`, {
+      const response = await fetch(`${API}/repos/${owner}/${repoName}/contents/${selectedFile}`, {
         method: "DELETE",
         headers: {
           "Content-Type": "application/json",
@@ -601,7 +604,7 @@ export default function RepoPage() {
       // Reload the directory contents
       if (currentPath) {
         const dirResponse = await fetch(
-          `http://localhost:4000/api/repos/${owner}/${repoName}/contents/${currentPath}?ref=${branch}`,
+          `${API}/repos/${owner}/${repoName}/contents/${currentPath}?ref=${branch}`,
           { headers: { Authorization: `token ${token}` } },
         )
         if (dirResponse.ok) {
@@ -636,7 +639,7 @@ export default function RepoPage() {
     setIsDeletingRepo(true)
     try {
       const token = getUserToken()
-      const response = await fetch(`http://localhost:4000/api/repos/${owner}/${repoName}`, {
+      const response = await fetch(`${API}/repos/${owner}/${repoName}`, {
         method: "DELETE",
         headers: {
           Authorization: `token ${token}`,
@@ -711,7 +714,7 @@ export default function RepoPage() {
 
       // Upload the file
       const response = await fetch(
-        `http://localhost:4000/api/repos/${owner}/${repoName}/contents/${pythonFileToUpload.name}`,
+        `${API}/repos/${owner}/${repoName}/contents/${pythonFileToUpload.name}`,
         {
           method: "POST",
           headers: {
@@ -778,7 +781,7 @@ export default function RepoPage() {
       const formattedJson = JSON.stringify(configData, null, 2)
 
       // Save the config to config.json
-      const configResponse = await fetch(`http://localhost:4000/api/repos/${owner}/${repoName}/contents/config.json`, {
+      const configResponse = await fetch(`${API}/repos/${owner}/${repoName}/contents/config.json`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -888,7 +891,7 @@ export default function RepoPage() {
       const filePath = currentPath ? `${currentPath}/${file.name}` : file.name
 
       // Call your server's API to create/update the file using a PUT request
-      const response = await fetch(`http://localhost:4000/api/repos/${owner}/${repoName}/contents/${filePath}`, {
+      const response = await fetch(`${API}/repos/${owner}/${repoName}/contents/${filePath}`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -909,7 +912,7 @@ export default function RepoPage() {
       // Reload the current directory to show the new file
       if (currentPath) {
         const dirResponse = await fetch(
-          `http://localhost:4000/api/repos/${owner}/${repoName}/contents/${currentPath}?ref=${branch || currentBranch || repo?.default_branch || "main"}`,
+          `${API}/repos/${owner}/${repoName}/contents/${currentPath}?ref=${branch || currentBranch || repo?.default_branch || "main"}`,
           { headers: { Authorization: `token ${token}` } },
         )
         if (dirResponse.ok) {
@@ -970,8 +973,8 @@ export default function RepoPage() {
 
     // Immediately load the parent directory contents
     const apiUrl = parentPath
-      ? `http://localhost:4000/api/repos/${owner}/${repoName}/contents/${parentPath}?ref=${branch}`
-      : `http://localhost:4000/api/repos/${owner}/${repoName}`
+      ? `${API}/repos/${owner}/${repoName}/contents/${parentPath}?ref=${branch}`
+      : `${API}/repos/${owner}/${repoName}`
 
     setLoading(true)
 
@@ -1024,7 +1027,7 @@ export default function RepoPage() {
         const filePath = currentPath ? `${currentPath}/${file.name}` : file.name
 
         const commitResponse = await fetch(
-          `http://localhost:4000/api/repos/${owner}/${repoName}/commits?path=${encodeURIComponent(filePath)}&limit=1&ref=${branch}`,
+          `${API}/repos/${owner}/${repoName}/commits?path=${encodeURIComponent(filePath)}&limit=1&ref=${branch}`,
           {
             headers: token ? { Authorization: `token ${token}` } : {},
           },
@@ -1061,7 +1064,7 @@ export default function RepoPage() {
       // starting from the root directory
       const fetchFilesRecursively = async (path = ""): Promise<any[]> => {
         const response = await fetch(
-          `http://localhost:4000/api/repos/${repoOwner}/${repoName}/contents/${path}?ref=${defaultBranch}`,
+          `${API}/repos/${repoOwner}/${repoName}/contents/${path}?ref=${defaultBranch}`,
           {
             headers: token ? { Authorization: `token ${token}` } : {},
           },
@@ -1106,7 +1109,7 @@ export default function RepoPage() {
     if (!owner || !repoName) return
 
     try {
-      const response = await fetch(`http://localhost:4000/api/repos/${owner}/${repoName}/connections`)
+      const response = await fetch(`${API}/repos/${owner}/${repoName}/connections`)
 
       if (response.ok) {
         const data = await response.json()

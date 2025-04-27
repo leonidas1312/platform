@@ -54,6 +54,9 @@ import { Checkbox } from "@/components/ui/checkbox"
 import ActivityFeed from "@/components/ActivityFeed"
 import { ScrollArea } from "@/components/ui/scroll-area"
 
+const API = import.meta.env.VITE_API_BASE;
+
+
 const Profile = () => {
   // Get username from URL params
   const { username } = useParams<{ username: string }>()
@@ -94,7 +97,7 @@ const Profile = () => {
     // Fetch current logged-in user data
     const fetchCurrentUser = async () => {
       try {
-        const response = await fetch("http://localhost:4000/api/profile", {
+        const response = await fetch(`${API}/profile`, {
           headers: { Authorization: `token ${token}` },
         })
 
@@ -111,7 +114,7 @@ const Profile = () => {
     // otherwise fetch the current user's profile
     const fetchUserProfile = async () => {
       try {
-        const endpoint = username ? `http://localhost:4000/api/users/${username}` : "http://localhost:4000/api/profile"
+        const endpoint = username ? `${API}/users/${username}` : `${API}/profile`
 
         const response = await fetch(endpoint, {
           headers: { Authorization: `token ${token}` },
@@ -146,8 +149,8 @@ const Profile = () => {
     const fetchUserRepos = async () => {
       try {
         const endpoint = username
-          ? `http://localhost:4000/api/users/${username}/repos`
-          : "http://localhost:4000/api/user-repos"
+          ? `${API}/users/${username}/repos`
+          : `${API}/user-repos`
 
         const res = await fetch(endpoint, {
           headers: { Authorization: `token ${token}` },
@@ -173,7 +176,7 @@ const Profile = () => {
   const checkFollowStatus = async (targetUsername: string) => {
     try {
       const token = localStorage.getItem("gitea_token")
-      const response = await fetch(`http://localhost:4000/api/user/following/${targetUsername}`, {
+      const response = await fetch(`${API}/user/following/${targetUsername}`, {
         headers: { Authorization: `token ${token}` },
       })
 
@@ -188,7 +191,7 @@ const Profile = () => {
     setFollowersLoading(true)
     try {
       const token = localStorage.getItem("gitea_token")
-      const response = await fetch(`http://localhost:4000/api/users/${targetUsername}/followers`, {
+      const response = await fetch(`${API}/users/${targetUsername}/followers`, {
         headers: { Authorization: `token ${token}` },
       })
 
@@ -208,7 +211,7 @@ const Profile = () => {
     setFollowingLoading(true)
     try {
       const token = localStorage.getItem("gitea_token")
-      const response = await fetch(`http://localhost:4000/api/users/${targetUsername}/following`, {
+      const response = await fetch(`${API}/users/${targetUsername}/following`, {
         headers: { Authorization: `token ${token}` },
       })
 
@@ -232,7 +235,7 @@ const Profile = () => {
       const token = localStorage.getItem("gitea_token")
       const method = isFollowing ? "DELETE" : "PUT"
 
-      const response = await fetch(`http://localhost:4000/api/user/following/${username}`, {
+      const response = await fetch(`${API}/user/following/${username}`, {
         method,
         headers: { Authorization: `token ${token}` },
       })
@@ -296,7 +299,7 @@ const Profile = () => {
 
       // Only send the PATCH request if there are profile fields to update
       if (Object.keys(updatedData).length > 0) {
-        const patchResponse = await fetch("http://localhost:4000/api/profile", {
+        const patchResponse = await fetch(`${API}/profile`, {
           method: "PATCH",
           headers: {
             Authorization: `token ${token}`,
@@ -312,7 +315,7 @@ const Profile = () => {
       }
 
       // Always fetch the updated profile to get the latest avatar
-      const getResponse = await fetch("http://localhost:4000/api/profile", {
+      const getResponse = await fetch(`${API}/profile`, {
         headers: { Authorization: `token ${token}` },
       })
 
@@ -370,7 +373,7 @@ const Profile = () => {
         throw new Error("Authentication required")
       }
 
-      const response = await fetch("http://localhost:4000/api/create-repo", {
+      const response = await fetch(`${API}/create-repo`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -398,7 +401,7 @@ const Profile = () => {
 
       setShowCreateModal(false)
       // Refresh the repositories list
-      const res = await fetch("http://localhost:4000/api/user-repos", {
+      const res = await fetch(`${API}/user-repos`, {
         headers: { Authorization: `token ${token}` },
       })
       if (res.ok) {

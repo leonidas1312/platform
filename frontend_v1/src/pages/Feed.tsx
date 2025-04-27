@@ -13,6 +13,9 @@ import { useToast } from "@/hooks/use-toast"
 import { useNavigate } from "react-router-dom"
 import { FolderGit, Star, Loader2, Code, User, MessageSquare, ThumbsUp, Users, Trophy, Bookmark } from "lucide-react"
 
+const API = import.meta.env.VITE_API_BASE;
+
+
 interface UserType {
   id: number
   login: string
@@ -160,7 +163,7 @@ const Feed = () => {
       }
 
       // Fetch public repositories to simulate activity
-      const response = await fetch("http://localhost:4000/api/public-repos?limit=50", {
+      const response = await fetch(`${API}/public-repos?limit=50`, {
         headers: { Authorization: `token ${token}` },
       })
 
@@ -230,7 +233,7 @@ const Feed = () => {
       }
 
       // Fetch public repositories to get data for sidebar
-      const response = await fetch("http://localhost:4000/api/public-repos?limit=100", {
+      const response = await fetch(`${API}/public-repos?limit=100`, {
         headers: { Authorization: `token ${token}` },
       })
 
@@ -301,7 +304,7 @@ const Feed = () => {
       for (const user of contributors.slice(0, 20)) {
         // Limit to top 20 to avoid too many requests
         try {
-          const followerResponse = await fetch(`http://localhost:4000/api/users/${user.login}/followers`, {
+          const followerResponse = await fetch(`${API}/users/${user.login}/followers`, {
             headers: { Authorization: `token ${token}` },
           })
 
@@ -353,7 +356,7 @@ const Feed = () => {
       }
 
       // First, get the current user
-      const userResponse = await fetch("http://localhost:4000/api/profile", {
+      const userResponse = await fetch(`${API}/profile`, {
         headers: { Authorization: `token ${token}` },
       })
 
@@ -364,7 +367,7 @@ const Feed = () => {
 
       // In a real implementation, you would fetch trending users from an API
       // For now, we'll simulate trending users based on public repos data
-      const response = await fetch("http://localhost:4000/api/public-repos?limit=50", {
+      const response = await fetch(`${API}/public-repos?limit=50`, {
         headers: { Authorization: `token ${token}` },
       })
 
@@ -394,7 +397,7 @@ const Feed = () => {
         // Fetch actual follower count for each user
         let followersCount = 0
         try {
-          const followerResponse = await fetch(`http://localhost:4000/api/users/${login}/followers`, {
+          const followerResponse = await fetch(`${API}/users/${login}/followers`, {
             headers: { Authorization: `token ${token}` },
           })
 
@@ -449,7 +452,7 @@ const Feed = () => {
       }
 
       // First, get the current user
-      const userResponse = await fetch("http://localhost:4000/api/profile", {
+      const userResponse = await fetch(`${API}/profile`, {
         headers: { Authorization: `token ${token}` },
       })
 
@@ -463,13 +466,13 @@ const Feed = () => {
       // Try multiple possible API endpoints since the exact one might vary
       let followingResponse
       try {
-        followingResponse = await fetch(`http://localhost:4000/api/users/${currentUserData?.login}/following`, {
+        followingResponse = await fetch(`${API}/users/${currentUserData?.login}/following`, {
           headers: { Authorization: `token ${token}` },
         })
       } catch (error) {
         console.error("Error with first following endpoint:", error)
         try {
-          followingResponse = await fetch("http://localhost:4000/api/user/following", {
+          followingResponse = await fetch(`${API}/user/following`, {
             headers: { Authorization: `token ${token}` },
           })
         } catch (error) {
@@ -487,7 +490,7 @@ const Feed = () => {
         console.log("Could not fetch following users, using public repos as fallback")
 
         // Fallback: If we can't get the following list, use some public repos as a demo
-        const publicReposResponse = await fetch("http://localhost:4000/api/public-repos?limit=10", {
+        const publicReposResponse = await fetch(`${API}/public-repos?limit=10`, {
           headers: { Authorization: `token ${token}` },
         })
 
@@ -526,7 +529,7 @@ const Feed = () => {
       for (const followedUser of following) {
         try {
           // Fetch the user's repositories
-          const reposResponse = await fetch(`http://localhost:4000/api/users/${followedUser.login}/repos`, {
+          const reposResponse = await fetch(`${API}/users/${followedUser.login}/repos`, {
             headers: { Authorization: `token ${token}` },
           })
 
@@ -629,7 +632,7 @@ const Feed = () => {
       }
 
       // First, get the current user
-      const userResponse = await fetch("http://localhost:4000/api/profile", {
+      const userResponse = await fetch(`${API}/profile`, {
         headers: { Authorization: `token ${token}` },
       })
 
@@ -659,7 +662,7 @@ const Feed = () => {
       for (const networkUser of networkUsers) {
         try {
           // Fetch user's repositories to get recent Qubots
-          const reposResponse = await fetch(`http://localhost:4000/api/users/${networkUser.login}/repos`, {
+          const reposResponse = await fetch(`${API}/users/${networkUser.login}/repos`, {
             headers: { Authorization: `token ${token}` },
           })
 
@@ -721,7 +724,7 @@ const Feed = () => {
           }
 
           // Fetch user's comments from feature backlog
-          const commentsResponse = await fetch(`http://localhost:4000/api/features`, {
+          const commentsResponse = await fetch(`${API}/features`, {
             headers: { Authorization: `token ${token}` },
           })
 
@@ -732,7 +735,7 @@ const Feed = () => {
             let featureComments: any[] = []
             for (const feature of features.slice(0, 2)) {
               // Limit to 2 features per user
-              const featureCommentsResponse = await fetch(`http://localhost:4000/api/features/${feature.id}/comments`, {
+              const featureCommentsResponse = await fetch(`${API}/features/${feature.id}/comments`, {
                 headers: { Authorization: `token ${token}` },
               })
 
@@ -765,7 +768,7 @@ const Feed = () => {
           }
 
           // Fetch user's community posts
-          const postsResponse = await fetch(`http://localhost:4000/api/community/posts`, {
+          const postsResponse = await fetch(`${API}/community/posts`, {
             headers: { Authorization: `token ${token}` },
           })
 
@@ -792,7 +795,7 @@ const Feed = () => {
 
           // Fetch user activities (follows and stars) from our new API endpoint
           try {
-            const activitiesResponse = await fetch(`http://localhost:4000/api/users/${networkUser.login}/activities`, {
+            const activitiesResponse = await fetch(`${API}/users/${networkUser.login}/activities`, {
               headers: { Authorization: `token ${token}` },
             })
 

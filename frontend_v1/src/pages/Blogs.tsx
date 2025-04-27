@@ -29,6 +29,9 @@ import { AlertCircle } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Label } from "@/components/ui/label"
 
+const API = import.meta.env.VITE_API_BASE;
+
+
 interface BlogAuthor {
   name: string
   avatar?: string
@@ -116,7 +119,7 @@ const BlogsPage = () => {
   // Fetch current user data
   const fetchCurrentUser = async (token: string) => {
     try {
-      const response = await fetch("http://localhost:4000/api/profile", {
+      const response = await fetch(`${API}/profile`, {
         headers: {
           Authorization: `token ${token}`,
         },
@@ -150,7 +153,7 @@ const BlogsPage = () => {
 
       // Fetch blogs from the API
       // This endpoint would need to be implemented on the server
-      const response = await fetch("http://localhost:4000/api/blogs", { headers })
+      const response = await fetch(`${API}/blogs`, { headers })
 
       if (!response.ok) {
         throw new Error("Failed to fetch blogs")
@@ -303,7 +306,7 @@ const BlogsPage = () => {
       }
 
       // Call API to create blog
-      const response = await fetch("http://localhost:4000/api/blogs", {
+      const response = await fetch(`${API}/blogs`, {
         method: "POST",
         headers: {
           Authorization: `token ${token}`,
@@ -449,7 +452,7 @@ const BlogsPage = () => {
       const token = localStorage.getItem("gitea_token")
 
       // Call API to like the blog
-      const response = await fetch(`http://localhost:4000/api/blogs/${blogId}/like`, {
+      const response = await fetch(`${API}/blogs/${blogId}/like`, {
         method: "POST",
         headers: {
           Authorization: `token ${token}`,

@@ -53,10 +53,15 @@ interface ActivityFeedProps {
   avatar_url?: string
 }
 
+const API = import.meta.env.VITE_API_BASE;
+
+
 export default function ActivityFeed({ username, avatar_url }: ActivityFeedProps) {
   const [activities, setActivities] = useState<ActivityItem[]>([])
   const [loading, setLoading] = useState(true)
   const navigate = useNavigate()
+
+  
 
   // Update the fetchActivity function to include real follow and star activities
   const fetchActivity = async () => {
@@ -72,7 +77,7 @@ export default function ActivityFeed({ username, avatar_url }: ActivityFeedProps
         return
       }
 
-      const reposResponse = await fetch(`http://localhost:4000/api/users/${username}/repos`, {
+      const reposResponse = await fetch(`${API}/users/${username}/repos`, {
         headers: { Authorization: `token ${token}` },
       })
 
@@ -83,7 +88,7 @@ export default function ActivityFeed({ username, avatar_url }: ActivityFeedProps
       const repos = (await reposResponse.ok) ? await reposResponse.json() : []
 
       // Fetch user's comments from feature backlog
-      const commentsResponse = await fetch(`http://localhost:4000/api/features`, {
+      const commentsResponse = await fetch(`${API}/features`, {
         headers: { Authorization: `token ${token}` },
       })
 
@@ -92,7 +97,7 @@ export default function ActivityFeed({ username, avatar_url }: ActivityFeedProps
       // Simulate fetching comments for each feature
       let featureComments: any[] = []
       for (const feature of features.slice(0, 3)) {
-        const featureCommentsResponse = await fetch(`http://localhost:4000/api/features/${feature.id}/comments`, {
+        const featureCommentsResponse = await fetch(`${API}/features/${feature.id}/comments`, {
           headers: { Authorization: `token ${token}` },
         })
 
@@ -121,7 +126,7 @@ export default function ActivityFeed({ username, avatar_url }: ActivityFeedProps
       }
 
       // Simulate fetching community posts and comments
-      const postsResponse = await fetch(`http://localhost:4000/api/community/posts`, {
+      const postsResponse = await fetch(`${API}/community/posts`, {
         headers: { Authorization: `token ${token}` },
       })
 
@@ -195,7 +200,7 @@ export default function ActivityFeed({ username, avatar_url }: ActivityFeedProps
       let starredActivities: any[] = []
 
       try {
-        const activitiesResponse = await fetch(`http://localhost:4000/api/users/${username}/activities`, {
+        const activitiesResponse = await fetch(`${API}/users/${username}/activities`, {
           headers: { Authorization: `token ${token}` },
         })
 

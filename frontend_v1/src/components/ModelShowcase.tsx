@@ -2,6 +2,9 @@ import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import ModelCard, { ModelData } from "./ModelCard";
 
+const API = import.meta.env.VITE_API_BASE;
+
+
 const ModelShowcase = () => {
   const [repos, setRepos] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -15,7 +18,7 @@ const ModelShowcase = () => {
       return;
     }
 
-    fetch("http://localhost:4000/api/user-repos", {
+    fetch(`${API}/user-repos`, {
       headers: {
         Authorization: `token ${token}`
       }
