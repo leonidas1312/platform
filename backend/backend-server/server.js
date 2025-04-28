@@ -653,193 +653,181 @@ app.get("/api/repos/:owner/:repo/config", async (req, res) => {
   }
 })
 
-// API endpoint for searching public repositories with filtering and sorting
+// helper to map your sort keys
+function mapSortField(field) {
+  switch (field) {
+    case "stars":   return "stars";
+    case "forks":   return "forks";
+    case "created": return "created";
+    case "alpha":   return "alpha";
+    default:        return "updated";
+  }
+}
+
 app.get("/api/public-repos", async (req, res) => {
   try {
-    const {
-      q = "", // Search query
-      page = 1, // Page number
-      limit = 26, // Items per page
-      sort = "updated", // Sort field (updated, stars, forks, created)
-      order = "desc", // Sort order (asc, desc)
-      languages = "", // Comma-separated list of languages
-      keywords = "", // Comma-separated list of keywords
-    } = req.query
+    // 1) Parse & normalize
+    const q         = req.query.q         || "";
+    const pageNum   = parseInt(req.query.page   || "1",  10);
+    const limitNum  = parseInt(req.query.limit  || "10", 10);
+    const sortField = req.query.sort      || "updated";
+    const order     = (req.query.order    || "desc").toLowerCase() === "asc" ? "asc" : "desc";
+    const languages = (req.query.languages || "")
+                        .split(",").map(s => s.trim().toLowerCase()).filter(Boolean);
+    const keywords  = (req.query.keywords  || "")
+                        .split(",").map(s => s.trim().toLowerCase()).filter(Boolean);
 
-    // Get auth token if available (for accessing private repos the user has access to)
-    const authHeader = req.headers.authorization
-    const headers = {}
-    if (authHeader) {
-      headers.Authorization = authHeader
-    }
-
-    // Build query parameters for Gitea API
-    const repoParams = new URLSearchParams({
+    // 2) Build Gitea search URL (only public repos)
+    const sp = new URLSearchParams({
       q,
-      page,
-      limit,
-      sort: mapSortField(sort),
-      order: sort === "alpha" ? "asc" : "desc", // alpha is sorted asc by default, others desc
+      page:  String(pageNum),
+      limit: String(limitNum),
+      sort:  mapSortField(sortField),
+      order,
       includeDesc: "true",
-    })
+      is_private: "false",
+    });
+    const url = `${GITEA_URL}/api/v1/repos/search?${sp}`;
 
-    // Fetch repositories from Gitea API
-    const repoResponse = await fetch(`${GITEA_URL}/api/v1/repos/search?${repoParams.toString()}`, { headers })
-
-    if (!repoResponse.ok) {
-      throw new Error(`Failed to fetch repositories: ${repoResponse.status} ${repoResponse.statusText}`)
+    // 3) Forward auth header if present
+    const headers = {};
+    if (req.headers.authorization) {
+      headers.Authorization = req.headers.authorization;
     }
 
-    const repoData = await repoResponse.json()
-    let repos = repoData.data || []
-    let totalCount = repoData.total_count || 0
+    // 4) Fetch that page
+    const repoResp = await fetch(url, { headers });
+    if (!repoResp.ok) {
+      return res.status(repoResp.status).json({ message: `Gitea error ${repoResp.status}` });
+    }
+    const body     = await repoResp.json();
+    let repos      = Array.isArray(body.data) ? body.data : [];
+    let totalCount = parseInt(repoResp.headers.get("x-total-count") || "0", 10);
 
-    // Apply language filtering if specified
-    if (languages) {
-      const languageList = languages.split(",").map((lang) => lang.trim().toLowerCase())
-      repos = repos.filter((repo) => repo.language && languageList.includes(repo.language.toLowerCase()))
+    // 5) Apply language filter *in-memory* (if requested)
+    if (languages.length) {
+      repos = repos.filter(r => r.language && languages.includes(r.language.toLowerCase()));
+      totalCount = repos.length;
     }
 
-    // If keyword filtering is specified and we want to search in config.json files
-    if (keywords) {
-      const keywordList = keywords.split(",").map((kw) => kw.trim().toLowerCase())
+    // 6) Apply keyword filter (name/desc + config.json) *in-memory*
+    if (keywords.length) {
+      let matched = repos.filter(r =>
+        keywords.some(kw =>
+          (r.name || "").toLowerCase().includes(kw) ||
+          (r.description || "").toLowerCase().includes(kw)
+        )
+      );
 
-      // First, filter by name and description as usual
-      const filteredRepos = repos.filter((repo) => {
-        const description = (repo.description || "").toLowerCase()
-        const name = repo.name.toLowerCase()
-        return keywordList.some((kw) => description.includes(kw) || name.includes(kw))
-      })
-
-      // For repositories that don't match by name/description, check their config.json
-      const remainingRepos = repos.filter((repo) => !filteredRepos.some((filteredRepo) => filteredRepo.id === repo.id))
-
-      // Only process a reasonable number of repos to avoid too many requests
-      const reposToCheck = remainingRepos.slice(0, 20)
-
-      // Fetch and check config.json for each remaining repo
-      for (const repo of reposToCheck) {
+      // check up to 20 others for config.json
+      const rest = repos.filter(r => !matched.includes(r)).slice(0, 20);
+      await Promise.all(rest.map(async repo => {
         try {
-          const configResponse = await fetch(
+          const c = await fetch(
             `${GITEA_URL}/api/v1/repos/${repo.owner.login}/${repo.name}/contents/config.json`,
-            { headers },
-          )
-
-          if (configResponse.ok) {
-            const configData = await configResponse.json()
-            if (configData.content) {
-              const decodedContent = Buffer.from(configData.content, "base64").toString("utf-8")
-              try {
-                const parsedConfig = JSON.parse(decodedContent)
-
-                // Check if any of the keywords match the config.json keywords
-                if (parsedConfig.keywords && Array.isArray(parsedConfig.keywords)) {
-                  const configKeywords = parsedConfig.keywords.map((kw) =>
-                    typeof kw === "string" ? kw.toLowerCase() : "",
-                  )
-
-                  if (keywordList.some((kw) => configKeywords.includes(kw))) {
-                    // Add this repo to the filtered list
-                    filteredRepos.push(repo)
-
-                    // Store the matching keywords in the repo object for frontend display
-                    repo.matching_keywords = keywordList.filter((kw) => configKeywords.includes(kw))
-                  }
-                }
-              } catch (parseError) {
-                console.error(`Error parsing config.json for ${repo.full_name}:`, parseError)
-              }
+            { headers }
+          );
+          if (!c.ok) return;
+          const cfg = await c.json();
+          if (!cfg.content) return;
+          const txt = Buffer.from(cfg.content, "base64").toString("utf8");
+          const parsed = JSON.parse(txt);
+          if (Array.isArray(parsed.keywords)) {
+            const lower = parsed.keywords.map(k => String(k).toLowerCase());
+            const hits = keywords.filter(kw => lower.includes(kw));
+            if (hits.length) {
+              repo.matching_keywords = hits;
+              matched.push(repo);
             }
           }
-        } catch (error) {
-          console.error(`Error fetching config.json for ${repo.full_name}:`, error)
-        }
-      }
+        } catch {}
+      }));
 
-      // Update the repos list with the filtered results
-      repos = filteredRepos
+      repos = matched;
+      totalCount = repos.length;
+      // **NOTE**: now repos is a *new* array potentially longer than limitNum
+      // so we'll need to slice **below** only if this branch ran
     }
 
-    // If searching usernames is enabled and there's a search query
+    // 7) Optional: merge in user-repos (if q present)
+    let didMerge = false;
     if (q) {
-      // Search for users
-      const userParams = new URLSearchParams({
-        q,
-        page: "1", // Always get first page of users
-        limit: "5", // Limit to 5 users to avoid too many requests
-      })
-
-      const userResponse = await fetch(`${GITEA_URL}/api/v1/users/search?${userParams.toString()}`, { headers })
-
-      if (userResponse.ok) {
-        const userData = await userResponse.json()
-        const users = userData.data || []
-
-        // If users are found, fetch their repositories
-        if (users.length > 0) {
-          const userRepos = []
-
-          // For each user, fetch their repositories
-          for (const user of users) {
-            const userRepoParams = new URLSearchParams({
-              limit: "50", // Limit to 50 repos per user
-            })
-
-            const userRepoResponse = await fetch(
-              `${GITEA_URL}/api/v1/users/${user.login}/repos?${userRepoParams.toString()}`,
-              { headers },
-            )
-
-            if (userRepoResponse.ok) {
-              const userRepoData = await userRepoResponse.json()
-
-              // Filter user repos by language and keywords if needed
-              let filteredUserRepos = userRepoData
-
-              if (languages) {
-                const languageList = languages.split(",").map((lang) => lang.trim().toLowerCase())
-                filteredUserRepos = filteredUserRepos.filter(
-                  (repo) => repo.language && languageList.includes(repo.language.toLowerCase()),
-                )
-              }
-
-              userRepos.push(...filteredUserRepos)
-            }
+      const up = new URLSearchParams({ q, page:"1", limit:"5" });
+      const ur = await fetch(`${GITEA_URL}/api/v1/users/search?${up}`, { headers });
+      if (ur.ok) {
+        const users = (await ur.json()).data || [];
+        const userRepos = [];
+        for (const u of users) {
+          const r = await fetch(
+            `${GITEA_URL}/api/v1/users/${u.login}/repos?limit=50`,
+            { headers }
+          );
+          if (!r.ok) continue;
+          let list = await r.json();
+          if (languages.length) {
+            list = list.filter(r => r.language && languages.includes(r.language.toLowerCase()));
           }
-
-          // Add user repositories to the results if they're not already included
-          // and update the total count
-          const newRepos = userRepos.filter((userRepo) => !repos.some((repo) => repo.id === userRepo.id))
-
-          // Only add user repos if we're on the first page
-          if (Number.parseInt(page) === 1) {
-            // Calculate how many user repos we can add without exceeding the limit
-            const availableSlots = Number.parseInt(limit) - repos.length
-            const reposToAdd = newRepos.slice(0, availableSlots)
-
-            repos = [...repos, ...reposToAdd]
-            totalCount += newRepos.length // Update total count with new repos
-          } else {
-            totalCount += newRepos.length // Still update total count even if not adding to current page
-          }
+          userRepos.push(...list);
         }
+        // only inject on first page
+        if (pageNum === 1) {
+          const slots = limitNum - repos.length;
+          repos = repos.concat(
+            userRepos.filter(r => !repos.find(x => x.id === r.id)).slice(0, slots)
+          );
+        }
+        totalCount += userRepos.length;
+        didMerge = true;
       }
     }
 
-    // Apply sorting (in case we've added repos from user search)
-    repos = sortRepositories(repos, sort)
+    // 8) If we *did* in-memory filtering/merging AND repos is now bigger than limitNum,
+    //    slice it. Otherwise trust the original Gitea page.
+    let pageItems = repos;
+    if ((keywords.length || didMerge) && repos.length > limitNum) {
+      pageItems = repos.slice(0, limitNum);
+    }
 
-    // Return the results
+    // 9) Return
     res.json({
-      data: repos.slice((page - 1) * limit, page * limit), // Paginate the results
+      data:        pageItems,
       total_count: totalCount,
-      page: Number.parseInt(page),
-      limit: Number.parseInt(limit),
-      totalPages: Math.ceil(totalCount / Number.parseInt(limit)),
+      page:        pageNum,
+      limit:       limitNum,
+      totalPages:  Math.ceil(totalCount / limitNum),
+    });
+  }
+  catch (err) {
+    console.error("Search failed:", err);
+    res.status(500).json({ message: "Search failed", error: err.message });
+  }
+});
+
+// Add this new endpoint after your existing /api/public-repos endpoint
+// This will be a lightweight endpoint that only returns the total count
+
+// Get total count of public repositories
+app.get("/api/public-repos/count", async (req, res) => {
+  try {
+    const token = req.headers.authorization?.split(" ")[1] // Get token from header
+    const headers = token ? { Authorization: `token ${token}` } : {}
+
+    const countResponse = await fetch(`${GITEA_URL}/api/v1/repos/search?limit=1`, {
+      headers, // e.g. { Authorization: `token ${token}` }
     })
+
+    if (!countResponse.ok) {
+      throw new Error(`Gitea returned ${countResponse.status} ${countResponse.statusText}`)
+    }
+
+    // Pull the total directly from the headers:
+    const totalCountHeader = countResponse.headers.get("x-total-count")
+    const total_count = totalCountHeader ? Number.parseInt(totalCountHeader, 10) : 0
+
+    res.json({ total_count })
   } catch (error) {
-    console.error("Error searching repositories:", error)
-    res.status(500).json({ message: "Failed to search repositories", error: error.message })
+    console.error("Error fetching repository count:", error)
+    res.status(500).json({ message: "Failed to fetch repository count", error: error.message })
   }
 })
 
