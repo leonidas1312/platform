@@ -18,15 +18,13 @@ import DeleteRepoDialog from "@/components/repo/DeleteRepoDialog"
 import TabsContainer from "@/components/repo/TabsContainer"
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 
-import QubotCardForm from "@/components/CreateQubotCard"
 import QubotCardDisplay from "@/components/QubotCardDisplay"
 import FileExplorer from "@/components/FileExplorer"
 import CodeViewer from "@/components/CodeViewerRepoPage"
 import FileUploadDialog from "@/components/FileUploadDialog"
 import FileSearchDialog from "@/components/FileSearchDialog"
 
-const API = import.meta.env.VITE_API_BASE;
-
+const API = import.meta.env.VITE_API_BASE
 
 // For demo purposes, we retrieve the user token from localStorage.
 const getUserToken = () => localStorage.getItem("gitea_token") || ""
@@ -69,6 +67,7 @@ export default function RepoPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
   const [activeTab, setActiveTab] = useState("qubot")
+
   const [qubotSubTab, setQubotSubTab] = useState("readme")
 
   // Parse the current path from the URL
@@ -140,6 +139,7 @@ export default function RepoPage() {
 
   // File upload for step 2
   const [pythonFileToUpload, setPythonFileToUpload] = useState<File | null>(null)
+  
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Parse the URL to determine current path, branch, and file
@@ -243,9 +243,21 @@ export default function RepoPage() {
         setReadme(data.readme)
         setConfig(data.config)
 
-        // Check if this is a new repository (no config.json and empty or no readme)
-        if (!data.config && (!data.readme || data.readme.trim() === "")) {
+        // Check URL for new=true parameter to force new repo state
+        if (location.search.includes("new=true")) {
           setIsNewRepo(true)
+          console.log("New repository detected from URL parameter")
+
+          // Remove the query parameter by replacing the current URL
+          const newUrl = location.pathname
+          window.history.replaceState({}, document.title, newUrl)
+        }
+
+        // Check if this is a new repository (no config.json)
+        // We're only checking for config.json now since that's the definitive marker of qubot setup
+        if (!data.config) {
+          setIsNewRepo(true)
+          console.log("New repository detected - showing welcome screen")
         }
 
         // Set default branch if not already set
@@ -274,7 +286,7 @@ export default function RepoPage() {
         setError(err.message || "Unknown error")
         setLoading(false)
       })
-  }, [owner, repoName])
+  }, [owner, repoName, location.search])
 
   // Load branches
   const loadBranches = async (repoOwner: string, repoName: string) => {
@@ -345,14 +357,11 @@ export default function RepoPage() {
     console.log(`Loading file content: ${filePath} from branch: ${branch}`)
     setEditorLoading(true)
     try {
-      const fileRes = await fetch(
-        `${API}/repos/${owner}/${repoName}/contents/${filePath}?ref=${branch}`,
-        {
-          headers: {
-            Authorization: `token ${getUserToken()}`,
-          },
+      const fileRes = await fetch(`${API}/repos/${owner}/${repoName}/contents/${filePath}?ref=${branch}`, {
+        headers: {
+          Authorization: `token ${getUserToken()}`,
         },
-      )
+      })
 
       if (fileRes.ok) {
         const fileJson = await fileRes.json()
@@ -603,10 +612,9 @@ export default function RepoPage() {
 
       // Reload the directory contents
       if (currentPath) {
-        const dirResponse = await fetch(
-          `${API}/repos/${owner}/${repoName}/contents/${currentPath}?ref=${branch}`,
-          { headers: { Authorization: `token ${token}` } },
-        )
+        const dirResponse = await fetch(`${API}/repos/${owner}/${repoName}/contents/${currentPath}?ref=${branch}`, {
+          headers: { Authorization: `token ${token}` },
+        })
         if (dirResponse.ok) {
           const dirData = await dirResponse.json()
           setFiles(enhanceFilesWithCommitData(dirData))
@@ -713,21 +721,18 @@ export default function RepoPage() {
       })
 
       // Upload the file
-      const response = await fetch(
-        `${API}/repos/${owner}/${repoName}/contents/${pythonFileToUpload.name}`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `token ${token}`,
-          },
-          body: JSON.stringify({
-            content: fileContent,
-            message: `Add ${pythonFileToUpload.name}`,
-            branch: branch,
-          }),
+      const response = await fetch(`${API}/repos/${owner}/${repoName}/contents/${pythonFileToUpload.name}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `token ${token}`,
         },
-      )
+        body: JSON.stringify({
+          content: fileContent,
+          message: `Add ${pythonFileToUpload.name}`,
+          branch: branch,
+        }),
+      })
 
       if (!response.ok) {
         const errData = await response.json()
@@ -742,8 +747,7 @@ export default function RepoPage() {
         description: "Python file uploaded successfully!",
       })
 
-      // Move to the next step
-      setCurrentSetupStep(3)
+      return true
     } catch (err: any) {
       console.error("Error uploading Python file:", err)
       toast({
@@ -751,6 +755,7 @@ export default function RepoPage() {
         description: err.message || "Failed to upload Python file",
         variant: "destructive",
       })
+      return false
     }
   }
 
@@ -818,6 +823,8 @@ export default function RepoPage() {
 
       // Reload repo data to reflect changes
       await reloadRepoData()
+
+      return true
     } catch (err) {
       console.error("Error completing qubot setup:", err)
       toast({
@@ -825,10 +832,12 @@ export default function RepoPage() {
         description: err.message || "Failed to complete qubot setup",
         variant: "destructive",
       })
+      return false
     } finally {
       setLoading(false)
     }
   }
+
   // Handle path navigation
   const handlePathNavigation = (path: string) => {
     const branch = currentBranch || repo?.default_branch || "main"
@@ -1063,12 +1072,9 @@ export default function RepoPage() {
       // Instead of using a non-existent endpoint, we'll recursively fetch all files
       // starting from the root directory
       const fetchFilesRecursively = async (path = ""): Promise<any[]> => {
-        const response = await fetch(
-          `${API}/repos/${repoOwner}/${repoName}/contents/${path}?ref=${defaultBranch}`,
-          {
-            headers: token ? { Authorization: `token ${token}` } : {},
-          },
-        )
+        const response = await fetch(`${API}/repos/${repoOwner}/${repoName}/contents/${path}?ref=${defaultBranch}`, {
+          headers: token ? { Authorization: `token ${token}` } : {},
+        })
 
         if (!response.ok) {
           console.error(`Failed to load files for path ${path}:`, response.status)
@@ -1184,12 +1190,6 @@ export default function RepoPage() {
           repoName={repoName || ""}
           repo={repo}
           onCreateQubotCard={() => setShowSetupDialog(true)}
-        />
-
-        <SetupDialog
-          open={showSetupDialog}
-          onOpenChange={setShowSetupDialog}
-          onComplete={handleCompleteSetup}
           qubotType={qubotType}
           setQubotType={setQubotType}
           entrypointFile={entrypointFile}
@@ -1202,11 +1202,10 @@ export default function RepoPage() {
           setArxivLinks={setArxivLinks}
           qubotKeywords={qubotKeywords}
           setQubotKeywords={setQubotKeywords}
-          currentSetupStep={currentSetupStep}
-          setCurrentSetupStep={setCurrentSetupStep}
           pythonFileToUpload={pythonFileToUpload}
           setPythonFileToUpload={setPythonFileToUpload}
           handleUploadPythonFile={handleUploadPythonFile}
+          handleCompleteSetup={handleCompleteSetup}
         />
       </Layout>
     )
@@ -1225,6 +1224,8 @@ export default function RepoPage() {
           toggleStar={toggleStar}
           onEditQubotCard={handleEditQubotCard}
           onDeleteRepo={() => setShowDeleteRepoDialog(true)}
+          onSaveQubotCard={handleSaveQubotCard}
+          allRepoFiles={allRepoFiles}
         />
 
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
@@ -1239,13 +1240,7 @@ export default function RepoPage() {
               activeTab={activeTab}
               onTabChange={handleTabChange}
               readmeContent={
-                showCreateForm ? (
-                  <QubotCardForm
-                    initialData={config}
-                    onSave={handleSaveQubotCard}
-                    onCancel={() => setShowCreateForm(false)}
-                  />
-                ) : readme ? (
+                readme ? (
                   <QubotCardDisplay
                     readme={readme}
                     data={config}

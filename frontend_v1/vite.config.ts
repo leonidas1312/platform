@@ -9,7 +9,7 @@ export default defineConfig({
     proxy: {
       // any request that starts with /api will be proxied to http://localhost:4000
       "/api": {
-        target: "http://localhost:4000",
+        target: "http://host.docker.internal:4000",
         changeOrigin: true,
         secure: false,
         // if your backend routes don’t actually have the /api prefix,

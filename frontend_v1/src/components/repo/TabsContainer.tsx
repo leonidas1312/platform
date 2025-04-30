@@ -20,14 +20,14 @@ export default function TabsContainer({ activeTab, onTabChange, readmeContent, f
             value="qubot"
             className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none transition-colors"
           >
-            <Code className="mr-2 h-4 w-4" />
+            
             Readme
           </TabsTrigger>
           <TabsTrigger
             value="files"
             className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none transition-colors"
           >
-            <FileText className="mr-2 h-4 w-4" />
+            
             Files
           </TabsTrigger>
         </TabsList>

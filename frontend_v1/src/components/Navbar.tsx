@@ -19,7 +19,6 @@ import {
   MessageSquare,
   Activity,
 } from "lucide-react" 
-import { ModeToggle } from "./ModeToggle"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import {
@@ -376,7 +375,7 @@ const Navbar = () => {
                     {/* In the DropdownMenuGroup section, add this after the Profile item: */}
                     <DropdownMenuItem onClick={() => setShowCreateRepoDialog(true)}>
                       <Plus className="mr-2 h-4 w-4 text-green-500" />
-                      <span>Create Qubot</span>
+                      <span>New repository</span>
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => navigate(`/u/${user.login}/settings`)}>
                       <Settings className="mr-2 h-4 w-4 text-gray-500" />
@@ -396,7 +395,7 @@ const Navbar = () => {
               </Button>
             )}
 
-            <ModeToggle />
+            
           </motion.div>
         </div>
       </div>

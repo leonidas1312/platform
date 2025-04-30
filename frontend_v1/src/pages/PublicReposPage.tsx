@@ -538,9 +538,7 @@ export default function PublicReposPage() {
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                   />
-                  <Button type="submit" size="sm" className="absolute right-2 top-1/2 -translate-y-1/2 h-8">
-                    Search
-                  </Button>
+                  
                 </form>
               </div>
               {!loading && (

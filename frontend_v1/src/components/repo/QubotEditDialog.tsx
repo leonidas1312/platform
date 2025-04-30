@@ -2,73 +2,137 @@
 
 import type React from "react"
 
-import { useState, useRef } from "react"
+import { useState, useRef, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { FileCode, GitBranch, ChevronRight, ChevronLeft, Check, Upload, Plus, Trash2, X, FileUp } from "lucide-react"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import {
+  ChevronRight,
+  ChevronLeft,
+  Check,
+  X,
+  Plus,
+  Trash2,
+  Upload,
+  FileUp,
+  Sparkles,
+  FileCode,
+  GitBranch,
+} from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/components/ui/use-toast"
-import { cn } from "@/lib/utils"
 
-interface NewRepoWelcomeProps {
+interface QubotEditDialogProps {
+  open: boolean
+  onOpenChange: (open: boolean) => void
   owner: string
   repoName: string
-  repo: any
-  onCreateQubotCard: () => void
-  qubotType: "problem" | "optimizer"
-  setQubotType: (type: "problem" | "optimizer") => void
-  entrypointFile: string | null
-  setEntrypointFile: (file: string | null) => void
-  entrypointClass: string
-  setEntrypointClass: (className: string) => void
-  qubotParameters: Array<{ name: string; value: string }>
-  setQubotParameters: (params: Array<{ name: string; value: string }>) => void
-  arxivLinks: string[]
-  setArxivLinks: (links: string[]) => void
-  qubotKeywords: string[]
-  setQubotKeywords: (keywords: string[]) => void
-  pythonFileToUpload: File | null
-  setPythonFileToUpload: (file: File | null) => void
-  handleUploadPythonFile: () => void
-  handleCompleteSetup: () => void
+  config: any
+  onSaveQubotCard: (formData: any) => Promise<void>
+  allRepoFiles: any[]
 }
 
-export default function NewRepoWelcome({
+export default function QubotEditDialog({
+  open,
+  onOpenChange,
   owner,
   repoName,
-  repo,
-  onCreateQubotCard,
-  qubotType,
-  setQubotType,
-  entrypointFile,
-  setEntrypointFile,
-  entrypointClass,
-  setEntrypointClass,
-  qubotParameters,
-  setQubotParameters,
-  arxivLinks,
-  setArxivLinks,
-  qubotKeywords,
-  setQubotKeywords,
-  pythonFileToUpload,
-  setPythonFileToUpload,
-  handleUploadPythonFile,
-  handleCompleteSetup,
-}: NewRepoWelcomeProps) {
+  config,
+  onSaveQubotCard,
+  allRepoFiles,
+}: QubotEditDialogProps) {
+  const { toast } = useToast()
   const [currentStep, setCurrentStep] = useState(0)
-  const [isUploading, setIsUploading] = useState(false)
-  const [isCompleting, setIsCompleting] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
+  const [fileContent, setFileContent] = useState<string>("")
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // State for qubot configuration
+  const [qubotType, setQubotType] = useState<"problem" | "optimizer">("problem")
+  const [entrypointFile, setEntrypointFile] = useState<string | null>(null)
+  const [entrypointClass, setEntrypointClass] = useState<string>("")
+  const [qubotParameters, setQubotParameters] = useState<Array<{ name: string; value: string }>>([])
+  const [arxivLinks, setArxivLinks] = useState<string[]>([])
+  const [qubotKeywords, setQubotKeywords] = useState<string[]>(["qubot"])
+  const [pythonFileToUpload, setPythonFileToUpload] = useState<File | null>(null)
+
+  // State for form inputs
   const [newParamName, setNewParamName] = useState("")
   const [newParamValue, setNewParamValue] = useState("")
   const [newArxivLink, setNewArxivLink] = useState("")
   const [newKeyword, setNewKeyword] = useState("")
-  const [fileContent, setFileContent] = useState<string>("")
-  const fileInputRef = useRef<HTMLInputElement>(null)
-  const { toast } = useToast()
+
+  // Initialize form with existing config data
+  useEffect(() => {
+    if (config && open) {
+      // Reset step to beginning when dialog opens
+      setCurrentStep(0)
+
+      // Set qubot type
+      if (config.type) {
+        setQubotType(config.type as "problem" | "optimizer")
+      }
+
+      // Set entry point file and class
+      if (config.entry_point) {
+        setEntrypointFile(`${config.entry_point}.py`)
+      }
+      if (config.class_name) {
+        setEntrypointClass(config.class_name)
+      }
+
+      // Set parameters
+      if (config.default_params) {
+        const params = Object.entries(config.default_params).map(([name, value]) => ({
+          name,
+          value: String(value),
+        }))
+        setQubotParameters(params)
+      } else {
+        setQubotParameters([])
+      }
+
+      // Set arxiv links
+      if (config.link_to_arxiv) {
+        setArxivLinks(Array.isArray(config.link_to_arxiv) ? config.link_to_arxiv : [config.link_to_arxiv])
+      } else {
+        setArxivLinks([])
+      }
+
+      // Set keywords
+      if (config.keywords) {
+        setQubotKeywords(config.keywords)
+      } else {
+        setQubotKeywords(["qubot"])
+      }
+
+      // Try to find and load the entry point file content
+      if (config.entry_point) {
+        const entryPointFileName = `${config.entry_point}.py`
+        const entryPointFile = allRepoFiles.find(
+          (file) => file.name === entryPointFileName || file.path.endsWith(entryPointFileName),
+        )
+
+        if (entryPointFile) {
+          // In a real app, you would fetch the file content here
+          // For now, we'll just set a placeholder
+          setFileContent(
+            `# ${entryPointFileName}\n\nclass ${config.class_name}:\n    def __init__(self):\n        pass\n\n    def solve(self):\n        # Implementation here\n        pass`,
+          )
+        }
+      }
+    }
+  }, [config, open, allRepoFiles])
 
   // Handle file selection
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -93,21 +157,6 @@ export default function NewRepoWelcome({
           variant: "destructive",
         })
       }
-    }
-  }
-
-  // Handle uploading the Python file
-  const handleUploadFile = async () => {
-    if (!pythonFileToUpload) return
-
-    setIsUploading(true)
-    try {
-      await handleUploadPythonFile()
-      setCurrentStep(2)
-    } catch (error) {
-      console.error("Error uploading file:", error)
-    } finally {
-      setIsUploading(false)
     }
   }
 
@@ -155,15 +204,42 @@ export default function NewRepoWelcome({
     setQubotKeywords(qubotKeywords.filter((k) => k !== keyword))
   }
 
-  // Handle completing the setup
-  const handleComplete = async () => {
-    setIsCompleting(true)
+  // Handle save
+  const handleSave = async () => {
+    setIsLoading(true)
     try {
-      await handleCompleteSetup()
+      // Create a config object with the proper structure
+      const configData = {
+        type: qubotType,
+        entry_point: entrypointFile ? entrypointFile.replace(/\.[^/.]+$/, "") : "", // Remove file extension
+        class_name: entrypointClass,
+        default_params: {},
+        link_to_arxiv: arxivLinks.length > 0 ? arxivLinks : undefined,
+        keywords: qubotKeywords.length > 0 ? qubotKeywords : ["qubot"],
+      }
+
+      // Add parameters to the config
+      qubotParameters.forEach((param) => {
+        configData.default_params[param.name] = param.value
+      })
+
+      await onSaveQubotCard(configData)
+
+      toast({
+        title: "Success",
+        description: "Qubot card updated successfully",
+      })
+
+      onOpenChange(false)
     } catch (error) {
-      console.error("Error completing setup:", error)
+      console.error("Error saving qubot card:", error)
+      toast({
+        title: "Error",
+        description: "Failed to update qubot card",
+        variant: "destructive",
+      })
     } finally {
-      setIsCompleting(false)
+      setIsLoading(false)
     }
   }
 
@@ -173,7 +249,7 @@ export default function NewRepoWelcome({
       case 0:
         return true // Type selection is always valid
       case 1:
-        return !!pythonFileToUpload && !!entrypointClass
+        return !!entrypointFile && !!entrypointClass
       case 2:
         return true // Parameters are optional
       case 3:
@@ -236,13 +312,13 @@ export default function NewRepoWelcome({
               Upload your main Python file and specify the class that implements your qubot.
             </p>
 
-            {pythonFileToUpload ? (
+            {entrypointFile ? (
               <div className="flex items-center justify-between p-3 border rounded-md bg-muted/30">
                 <div className="flex items-center gap-2">
                   <FileCode className="h-5 w-5 text-primary" />
-                  <span>{pythonFileToUpload.name}</span>
+                  <span>{entrypointFile}</span>
                 </div>
-                <Button variant="ghost" size="sm" onClick={() => setPythonFileToUpload(null)}>
+                <Button variant="ghost" size="sm" onClick={() => setEntrypointFile(null)}>
                   <X className="h-4 w-4" />
                 </Button>
               </div>
@@ -275,7 +351,7 @@ export default function NewRepoWelcome({
               />
             </div>
 
-            {pythonFileToUpload && !fileContent.includes(entrypointClass) && entrypointClass && (
+            {entrypointFile && fileContent && !fileContent.includes(entrypointClass) && entrypointClass && (
               <div className="text-sm text-amber-500 bg-amber-500/10 p-3 rounded-md border border-amber-200">
                 Warning: The class name "{entrypointClass}" was not found in your Python file. Make sure you've entered
                 the correct class name.
@@ -421,22 +497,23 @@ export default function NewRepoWelcome({
                 )}
 
                 <div className="flex gap-2">
-                  <Input
+                <Input
                     value={newArxivLink}
                     onChange={(e) => setNewArxivLink(e.target.value)}
                     placeholder="e.g., https://arxiv.org/abs/2106.12627"
                     onKeyDown={(e) => {
-                      if (e.key === "Enter" && newArxivLink.trim()) {
-                        e.preventDefault()
-                        handleAddArxivLink()
-                      }
+                    if (e.key === "Enter" && newArxivLink.trim()) {
+                        e.preventDefault();
+                        handleAddArxivLink();
+                    }
                     }}
-                  />
-                  <Button onClick={handleAddArxivLink} disabled={!newArxivLink.trim()}>
+                />
+                <Button onClick={handleAddArxivLink} disabled={!newArxivLink.trim()}>
                     <Plus className="h-4 w-4 mr-1" />
                     Add
-                  </Button>
+                </Button>
                 </div>
+
               </div>
             </div>
           </div>
@@ -447,212 +524,185 @@ export default function NewRepoWelcome({
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 mt-32 bg-background text-foreground">
-      <div className="max-w-6xl mx-auto">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="text-center mb-8"
-        >
-          <h1 className="text-3xl font-bold tracking-tight">
-            Welcome to your new repository: <span className="text-primary">{repoName}</span>
-          </h1>
-          <p className="text-muted-foreground mt-2">
-            Let's set up your qubot to make it ready for quantum optimization
-          </p>
-        </motion.div>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-[900px] max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-xl">
+            <div className="p-1.5 rounded-full bg-primary/10">
+              <Sparkles className="h-5 w-5 text-primary" />
+            </div>
+            Edit Qubot Card
+          </DialogTitle>
+          <DialogDescription>
+            Update your qubot configuration to customize how it works and appears to others.
+          </DialogDescription>
+        </DialogHeader>
 
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.5, delay: 0.2 }}
-        >
-          <Card className="border-2 border-dashed border-primary/20 bg-gradient-to-b from-background to-primary/5 overflow-hidden">
-            <CardContent className="p-0">
-              {/* Progress bar */}
-              <div className="px-8 pt-8 pb-4">
-                <div className="flex justify-between mb-2">
-                  {[0, 1, 2, 3].map((step) => (
+        <div className="relative">
+          {/* Progress bar */}
+          <div className="mb-8">
+            <div className="flex justify-between mb-2">
+              {[0, 1, 2, 3].map((step) => (
+                <div
+                  key={step}
+                  className={`flex flex-col items-center ${step <= currentStep ? "text-primary" : "text-muted-foreground"}`}
+                  style={{ width: "25%" }}
+                >
+                  <div
+                    className={`w-8 h-8 rounded-full flex items-center justify-center mb-1 ${
+                      step < currentStep
+                        ? "bg-primary text-primary-foreground"
+                        : step === currentStep
+                          ? "border-2 border-primary text-primary"
+                          : "border-2 border-muted-foreground text-muted-foreground"
+                    }`}
+                  >
+                    {step < currentStep ? <Check className="h-4 w-4" /> : step + 1}
+                  </div>
+                  <span className="text-xs text-center">
+                    {step === 0 && "Type"}
+                    {step === 1 && "Entry Point"}
+                    {step === 2 && "Parameters"}
+                    {step === 3 && "Metadata"}
+                  </span>
+                </div>
+              ))}
+            </div>
+            <div className="w-full bg-muted h-1 rounded-full overflow-hidden">
+              <div
+                className="bg-primary h-full transition-all duration-300 ease-in-out"
+                style={{ width: `${currentStep * 33.33}%` }}
+              ></div>
+            </div>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-6">
+            {/* Left side - Setup steps */}
+            <div>
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={currentStep}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 20 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  {renderStepContent()}
+                </motion.div>
+              </AnimatePresence>
+            </div>
+
+            {/* Right side - Code preview */}
+            <div className="relative bg-gradient-to-br from-primary/20 to-primary/5 p-6 rounded-lg">
+              <div className="absolute inset-0 overflow-hidden opacity-10 rounded-lg">
+                <div className="absolute top-0 left-0 w-full h-full">
+                  {Array.from({ length: 20 }).map((_, i) => (
                     <div
-                      key={step}
-                      className={`flex flex-col items-center ${step <= currentStep ? "text-primary" : "text-muted-foreground"}`}
-                      style={{ width: "25%" }}
-                    >
-                      <div
-                        className={`w-8 h-8 rounded-full flex items-center justify-center mb-1 ${
-                          step < currentStep
-                            ? "bg-primary text-primary-foreground"
-                            : step === currentStep
-                              ? "border-2 border-primary text-primary"
-                              : "border-2 border-muted-foreground text-muted-foreground"
-                        }`}
-                      >
-                        {step < currentStep ? <Check className="h-4 w-4" /> : step + 1}
-                      </div>
-                      <span className="text-xs text-center">
-                        {step === 0 && "Type"}
-                        {step === 1 && "Entry Point"}
-                        {step === 2 && "Parameters"}
-                        {step === 3 && "Metadata"}
-                      </span>
-                    </div>
+                      key={i}
+                      className="absolute rounded-full bg-primary"
+                      style={{
+                        width: `${Math.random() * 10 + 5}px`,
+                        height: `${Math.random() * 10 + 5}px`,
+                        top: `${Math.random() * 100}%`,
+                        left: `${Math.random() * 100}%`,
+                        opacity: Math.random() * 0.5 + 0.2,
+                        animation: `float ${Math.random() * 10 + 10}s linear infinite`,
+                      }}
+                    />
                   ))}
                 </div>
-                <div className="w-full bg-muted h-1 rounded-full overflow-hidden">
-                  <div
-                    className="bg-primary h-full transition-all duration-300 ease-in-out"
-                    style={{ width: `${currentStep * 33.33}%` }}
-                  ></div>
-                </div>
               </div>
-
-              <div className="grid md:grid-cols-2 gap-0">
-                {/* Left side - Setup steps */}
-                <div className="p-8">
-                  <AnimatePresence mode="wait">
-                    <motion.div
-                      key={currentStep}
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      exit={{ opacity: 0, x: 20 }}
-                      transition={{ duration: 0.3 }}
-                      className="min-h-[400px]"
-                    >
-                      {renderStepContent()}
-                    </motion.div>
-                  </AnimatePresence>
-
-                  <div className="flex justify-between mt-8">
-                    <div>
-                      {currentStep > 0 && (
-                        <Button variant="outline" onClick={() => setCurrentStep(currentStep - 1)}>
-                          <ChevronLeft className="h-4 w-4 mr-1" />
-                          Back
-                        </Button>
-                      )}
+              <div className="relative z-10 h-full flex flex-col justify-center">
+                {fileContent ? (
+                  <div className="bg-background/80 backdrop-blur-sm rounded-lg border border-border/50 shadow-lg overflow-hidden">
+                    <div className="flex items-center gap-2 bg-muted/50 px-4 py-2 border-b">
+                      <FileCode className="h-4 w-4 text-primary" />
+                      <span className="font-medium text-sm">{entrypointFile}</span>
                     </div>
-                    <div>
-                      {currentStep < 3 ? (
-                        <Button
-                          onClick={() => {
-                            if (currentStep === 1 && pythonFileToUpload) {
-                              handleUploadFile()
-                            } else {
-                              setCurrentStep(currentStep + 1)
-                            }
-                          }}
-                          disabled={!isCurrentStepValid() || isUploading}
-                        >
-                          {currentStep === 1 && pythonFileToUpload ? (
-                            isUploading ? (
-                              <>Uploading...</>
-                            ) : (
-                              <>Upload & Continue</>
-                            )
-                          ) : (
-                            <>
-                              Next
-                              <ChevronRight className="h-4 w-4 ml-1" />
-                            </>
-                          )}
-                        </Button>
-                      ) : (
-                        <Button onClick={handleComplete} className="bg-primary" disabled={isCompleting}>
-                          <Check className="h-4 w-4 mr-1" />
-                          {isCompleting ? "Completing..." : "Complete Setup"}
-                        </Button>
-                      )}
-                    </div>
+                    <pre className="text-xs p-4 overflow-auto max-h-[400px]">
+                      <code className="language-python">{fileContent}</code>
+                    </pre>
                   </div>
-                </div>
-
-                {/* Right side - Code preview */}
-                <div
-                  className={cn(
-                    "relative bg-gradient-to-br from-primary/20 to-primary/5 p-8",
-                    !fileContent && "hidden md:block",
-                  )}
-                >
-                  <div className="absolute inset-0 overflow-hidden opacity-10">
-                    <div className="absolute top-0 left-0 w-full h-full">
-                      {Array.from({ length: 20 }).map((_, i) => (
-                        <div
-                          key={i}
-                          className="absolute rounded-full bg-primary"
-                          style={{
-                            width: `${Math.random() * 10 + 5}px`,
-                            height: `${Math.random() * 10 + 5}px`,
-                            top: `${Math.random() * 100}%`,
-                            left: `${Math.random() * 100}%`,
-                            opacity: Math.random() * 0.5 + 0.2,
-                            animation: `float ${Math.random() * 10 + 10}s linear infinite`,
-                          }}
-                        />
-                      ))}
+                ) : (
+                  <div className="bg-background/80 backdrop-blur-sm rounded-lg p-6 border border-border/50 shadow-lg">
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className="h-3 w-3 rounded-full bg-red-500"></div>
+                      <div className="h-3 w-3 rounded-full bg-yellow-500"></div>
+                      <div className="h-3 w-3 rounded-full bg-green-500"></div>
+                      <div className="ml-2 text-xs text-muted-foreground">config.json</div>
                     </div>
-                  </div>
-                  <div className="relative z-10 h-full flex flex-col justify-center">
-                    {fileContent ? (
-                      <div className="bg-background/80 backdrop-blur-sm rounded-lg border border-border/50 shadow-lg overflow-hidden">
-                        <div className="flex items-center gap-2 bg-muted/50 px-4 py-2 border-b">
-                          <FileCode className="h-4 w-4 text-primary" />
-                          <span className="font-medium text-sm">{pythonFileToUpload?.name}</span>
-                        </div>
-                        <pre className="text-xs p-4 overflow-auto max-h-[400px]">
-                          <code className="language-python">{fileContent}</code>
-                        </pre>
-                      </div>
-                    ) : (
-                      <div className="bg-background/80 backdrop-blur-sm rounded-lg p-6 border border-border/50 shadow-lg">
-                        <div className="flex items-center gap-2 mb-3">
-                          <div className="h-3 w-3 rounded-full bg-red-500"></div>
-                          <div className="h-3 w-3 rounded-full bg-yellow-500"></div>
-                          <div className="h-3 w-3 rounded-full bg-green-500"></div>
-                          <div className="ml-2 text-xs text-muted-foreground">config.json</div>
-                        </div>
-                        <pre className="text-xs text-left overflow-hidden">
-                          <code className="language-json">
-                            {`{
+                    <pre className="text-xs text-left overflow-hidden">
+                      <code className="language-json">
+                        {`{
   "type": "${qubotType}",
-  "entry_point": "main",
-  "class_name": "TSPSolver",
+  "entry_point": "${entrypointFile ? entrypointFile.replace(/\.[^/.]+$/, "") : "main"}",
+  "class_name": "${entrypointClass || "QubotClass"}",
   "default_params": {
-    "num_cities": 10,
-    "method": "qaoa"
+${qubotParameters.map((param) => `    "${param.name}": ${param.value}`).join(",\n")}
   },
-  "keywords": ["tsp", "qubo", "optimization"]
+  "keywords": [${qubotKeywords.map((k) => `"${k}"`).join(", ")}]
 }`}
-                          </code>
-                        </pre>
-                      </div>
-                    )}
+                      </code>
+                    </pre>
                   </div>
-                </div>
+                )}
               </div>
-            </CardContent>
-          </Card>
-        </motion.div>
+            </div>
+          </div>
+        </div>
 
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.4 }}
-          className="mt-8 text-center"
-        >
-          <p className="text-sm text-muted-foreground">
-            Need help? Check out our{" "}
-            <a href="/docs" className="text-primary hover:underline">
-              documentation
-            </a>{" "}
-            or join the{" "}
-            <a href="/community" className="text-primary hover:underline">
-              community
-            </a>{" "}
-            for assistance.
-          </p>
-        </motion.div>
-      </div>
-    </div>
+        <DialogFooter className="flex justify-between items-center mt-6">
+          <div>
+            {currentStep > 0 && (
+              <Button variant="outline" onClick={() => setCurrentStep(currentStep - 1)} disabled={isLoading}>
+                <ChevronLeft className="h-4 w-4 mr-1" />
+                Back
+              </Button>
+            )}
+          </div>
+          <div>
+            {currentStep < 3 ? (
+              <Button onClick={() => setCurrentStep(currentStep + 1)} disabled={!isCurrentStepValid() || isLoading}>
+                Next
+                <ChevronRight className="h-4 w-4 ml-1" />
+              </Button>
+            ) : (
+              <Button onClick={handleSave} className="bg-primary" disabled={isLoading}>
+                {isLoading ? (
+                  <>
+                    <svg
+                      className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      ></circle>
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      ></path>
+                    </svg>
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <Check className="h-4 w-4 mr-1" />
+                    Save Changes
+                  </>
+                )}
+              </Button>
+            )}
+          </div>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }

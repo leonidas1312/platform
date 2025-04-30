@@ -147,10 +147,7 @@ export default function QubotCardDisplay({
               </div>
             </div>
             <div className="flex items-center">
-              <Button variant="outline" size="sm" onClick={() => setShowSetupDialog(true)} className="gap-1 h-8 mr-2">
-                <Edit className="h-3.5 w-3.5" />
-                Edit Qubot Card
-              </Button>
+              
               <Button variant="outline" size="sm" onClick={handleCopyReadme} className="gap-1 h-8">
                 {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
                 {copied ? "Copied" : "Copy"}

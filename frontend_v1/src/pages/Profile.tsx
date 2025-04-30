@@ -90,10 +90,7 @@ const Profile = () => {
 
   useEffect(() => {
     const token = localStorage.getItem("gitea_token")
-    if (!token) {
-      navigate("/auth")
-      return
-    }
+    
 
     // Fetch current logged-in user data
     const fetchCurrentUser = async () => {
@@ -121,10 +118,7 @@ const Profile = () => {
           headers: { Authorization: `token ${token}` },
         })
 
-        if (!response.ok) {
-          navigate("/auth")
-          return
-        }
+        
 
         const data = await response.json()
         setUser(data)

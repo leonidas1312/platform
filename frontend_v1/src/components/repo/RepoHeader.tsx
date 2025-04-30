@@ -3,9 +3,12 @@
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { DialogTrigger, Dialog } from "@/components/ui/dialog"
-import { Book, Edit, GitFork, MoreVertical, Star, Trash2 } from "lucide-react"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { GitFork, MoreVertical, Star, Trash2, Code, Copy, Check, Share2, Edit } from "lucide-react"
 import { useNavigate } from "react-router-dom"
+import { useState } from "react"
+import { useToast } from "@/components/ui/use-toast"
+import QubotEditDialog from "./QubotEditDialog"
 
 interface RepoHeaderProps {
   owner: string
@@ -21,6 +24,8 @@ interface RepoHeaderProps {
   toggleStar: () => void
   onEditQubotCard: () => void
   onDeleteRepo: () => void
+  onSaveQubotCard: (formData: any) => Promise<void>
+  allRepoFiles: any[]
 }
 
 export default function RepoHeader({
@@ -32,14 +37,35 @@ export default function RepoHeader({
   toggleStar,
   onEditQubotCard,
   onDeleteRepo,
+  onSaveQubotCard,
+  allRepoFiles,
 }: RepoHeaderProps) {
   const navigate = useNavigate()
+  const { toast } = useToast()
+  const [showCodeDialog, setShowCodeDialog] = useState(false)
+  const [showEditDialog, setShowEditDialog] = useState(false)
+  const [copied, setCopied] = useState(false)
+
+  const handleCopyCode = () => {
+    const codeSnippet =
+      config?.type === "optimizer"
+        ? `from qubots.auto_optimizer import AutoOptimizer\noptimizer = AutoOptimizer.from_repo("${owner}/${repoName}")`
+        : `from qubots.auto_problem import AutoProblem\nproblem = AutoProblem.from_repo("${owner}/${repoName}")`
+
+    navigator.clipboard.writeText(codeSnippet)
+    setCopied(true)
+    toast({
+      title: "Copied to clipboard",
+      description: "Code snippet has been copied to your clipboard",
+    })
+
+    setTimeout(() => setCopied(false), 2000)
+  }
 
   return (
     <div className="flex flex-col space-y-4 mb-8 bg-gradient-to-r from-background via-background/80 to-primary/5 rounded-xl p-6 border border-border/40 shadow-sm">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Book className="h-5 w-5 text-primary" />
           <button
             onClick={() => navigate(`/u/${repo.owner.login}`)}
             className="text-muted-foreground hover:text-primary hover:underline transition-colors"
@@ -47,12 +73,9 @@ export default function RepoHeader({
             {repo.owner.login}
           </button>
           <span className="text-muted-foreground">/</span>
-          <button
-            onClick={() => navigate(`/${owner}/${repoName}`)}
-            className="font-semibold hover:text-primary hover:underline transition-colors"
-          >
-            {repo.name}
-          </button>
+
+          {repo.name}
+
           <Badge variant="outline" className="ml-2 bg-background/80 backdrop-blur-sm">
             {repo.private ? "Private" : "Public"}
           </Badge>
@@ -80,31 +103,87 @@ export default function RepoHeader({
               {repo.stars_count}
             </Badge>
           </Button>
-        
+
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+              <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
                 <MoreVertical className="h-4 w-4" />
-                </Button>
+              </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-                <DropdownMenuItem >
+              <DropdownMenuItem onClick={() => setShowEditDialog(true)}>
+                <Edit className="mr-2 h-4 w-4" />
+                Edit qubot card
+              </DropdownMenuItem>
+
+              <DropdownMenuItem onClick={() => setShowCodeDialog(true)}>
+                <Share2 className="mr-2 h-4 w-4" />
+                Use with qubots library
+              </DropdownMenuItem>
+
+              <DropdownMenuItem>
                 <GitFork className="mr-2 h-4 w-4" />
                 Clone Repository
-                </DropdownMenuItem>
-                
-                <DropdownMenuItem
-                onClick={onDeleteRepo}
-                className="text-destructive focus:text-destructive"
-                >
+              </DropdownMenuItem>
+
+              <DropdownMenuItem onClick={onDeleteRepo} className="text-destructive focus:text-destructive">
                 <Trash2 className="mr-2 h-4 w-4" />
                 Delete Repository
-                </DropdownMenuItem>
+              </DropdownMenuItem>
             </DropdownMenuContent>
-            </DropdownMenu>
-
+          </DropdownMenu>
         </div>
       </div>
+
+      {/* Code Dialog */}
+      <Dialog open={showCodeDialog} onOpenChange={setShowCodeDialog}>
+        <DialogContent className="sm:max-w-[550px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Code className="h-5 w-5" />
+              Use with qubots library
+            </DialogTitle>
+          </DialogHeader>
+          <div className="mt-4">
+            <div className="relative">
+              <pre className="bg-muted p-4 rounded-md overflow-x-auto">
+                <code className="text-sm font-mono">
+                  {config?.type === "optimizer" ? (
+                    <>
+                      from qubots.auto_optimizer import AutoOptimizer
+                      <br />
+                      optimizer = AutoOptimizer.from_repo("{owner}/{repoName}")
+                    </>
+                  ) : (
+                    <>
+                      from qubots.auto_problem import AutoProblem
+                      <br />
+                      problem = AutoProblem.from_repo("{owner}/{repoName}")
+                    </>
+                  )}
+                </code>
+              </pre>
+              <Button size="sm" variant="ghost" className="absolute top-2 right-2 h-8 w-8 p-0" onClick={handleCopyCode}>
+                {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+              </Button>
+            </div>
+            <p className="text-sm text-muted-foreground mt-4">
+              This code will automatically download and set up your qubot for use in your Python environment.
+            </p>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Qubot Dialog */}
+      <QubotEditDialog
+        open={showEditDialog}
+        onOpenChange={setShowEditDialog}
+        owner={owner}
+        repoName={repoName}
+        config={config}
+        onSaveQubotCard={onSaveQubotCard}
+        allRepoFiles={allRepoFiles}
+      />
     </div>
   )
 }
