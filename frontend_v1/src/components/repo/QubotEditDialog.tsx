@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import {
   ChevronRight,
   ChevronLeft,
@@ -31,6 +32,21 @@ import {
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/components/ui/use-toast"
+
+// Add these imports at the top with the other imports
+import { PrismLight as SyntaxHighlighter } from "react-syntax-highlighter"
+import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism"
+import python from "react-syntax-highlighter/dist/esm/languages/prism/python"
+import json from "react-syntax-highlighter/dist/esm/languages/prism/json"
+
+// Register languages
+SyntaxHighlighter.registerLanguage("python", python)
+SyntaxHighlighter.registerLanguage("json", json)
+
+const API = import.meta.env.VITE_API_BASE
+
+// For demo purposes, we retrieve the user token from localStorage.
+const getUserToken = () => localStorage.getItem("gitea_token") || ""
 
 interface QubotEditDialogProps {
   open: boolean
@@ -72,6 +88,57 @@ export default function QubotEditDialog({
   const [newArxivLink, setNewArxivLink] = useState("")
   const [newKeyword, setNewKeyword] = useState("")
 
+  // State for file selection
+  const [selectedPythonFile, setSelectedPythonFile] = useState<string | null>(null)
+  const [pythonFiles, setPythonFiles] = useState<any[]>([])
+  const [detectedClassNames, setDetectedClassNames] = useState<string[]>([])
+
+  // Function to extract class names from Python file content
+  const extractClassNames = (content: string): string[] => {
+    const classRegex = /class\s+([a-zA-Z0-9_]+)(?:\s*$$[^)]*$$)?:/g
+    const matches = [...content.matchAll(classRegex)]
+    return matches.map((match) => match[1])
+  }
+
+  // Function to load Python file content
+  const loadPythonFileContent = async (filePath: string) => {
+    if (!owner || !repoName) return
+
+    try {
+      const token = getUserToken()
+      const branch = "main" // You might want to make this dynamic
+
+      const response = await fetch(`${API}/repos/${owner}/${repoName}/contents/${filePath}?ref=${branch}`, {
+        headers: {
+          Authorization: `token ${token}`,
+        },
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        if (data.content) {
+          const decoded = atob(data.content)
+          setFileContent(decoded)
+
+          // Extract class names from the file content
+          const classNames = extractClassNames(decoded)
+          setDetectedClassNames(classNames)
+
+          // If a class name is detected and no class is currently selected, select the first one
+          if (classNames.length > 0 && !entrypointClass) {
+            setEntrypointClass(classNames[0])
+          }
+
+          return decoded
+        }
+      }
+      return null
+    } catch (error) {
+      console.error("Error loading Python file:", error)
+      return null
+    }
+  }
+
   // Initialize form with existing config data
   useEffect(() => {
     if (config && open) {
@@ -83,10 +150,27 @@ export default function QubotEditDialog({
         setQubotType(config.type as "problem" | "optimizer")
       }
 
+      // Filter Python files from all repo files
+      const pyFiles = allRepoFiles.filter((file) => file.name.endsWith(".py") || file.path.endsWith(".py"))
+      setPythonFiles(pyFiles)
+
       // Set entry point file and class
       if (config.entry_point) {
-        setEntrypointFile(`${config.entry_point}.py`)
+        const entryPointFileName = `${config.entry_point}.py`
+        setEntrypointFile(entryPointFileName)
+
+        // Find the entry point file in the repo files
+        const entryPointFile = allRepoFiles.find(
+          (file) => file.name === entryPointFileName || file.path.endsWith(entryPointFileName),
+        )
+
+        if (entryPointFile) {
+          setSelectedPythonFile(entryPointFile.path)
+          // Load the file content
+          loadPythonFileContent(entryPointFile.path)
+        }
       }
+
       if (config.class_name) {
         setEntrypointClass(config.class_name)
       }
@@ -115,22 +199,6 @@ export default function QubotEditDialog({
       } else {
         setQubotKeywords(["qubot"])
       }
-
-      // Try to find and load the entry point file content
-      if (config.entry_point) {
-        const entryPointFileName = `${config.entry_point}.py`
-        const entryPointFile = allRepoFiles.find(
-          (file) => file.name === entryPointFileName || file.path.endsWith(entryPointFileName),
-        )
-
-        if (entryPointFile) {
-          // In a real app, you would fetch the file content here
-          // For now, we'll just set a placeholder
-          setFileContent(
-            `# ${entryPointFileName}\n\nclass ${config.class_name}:\n    def __init__(self):\n        pass\n\n    def solve(self):\n        # Implementation here\n        pass`,
-          )
-        }
-      }
     }
   }, [config, open, allRepoFiles])
 
@@ -146,7 +214,17 @@ export default function QubotEditDialog({
         const reader = new FileReader()
         reader.onload = (event) => {
           if (event.target?.result) {
-            setFileContent(event.target.result as string)
+            const content = event.target.result as string
+            setFileContent(content)
+
+            // Extract class names from the file content
+            const classNames = extractClassNames(content)
+            setDetectedClassNames(classNames)
+
+            // If a class name is detected and no class is currently selected, select the first one
+            if (classNames.length > 0 && !entrypointClass) {
+              setEntrypointClass(classNames[0])
+            }
           }
         }
         reader.readAsText(file)
@@ -158,6 +236,18 @@ export default function QubotEditDialog({
         })
       }
     }
+  }
+
+  // Handle Python file selection from dropdown
+  const handlePythonFileSelect = async (filePath: string) => {
+    setSelectedPythonFile(filePath)
+
+    // Extract file name from path
+    const fileName = filePath.split("/").pop() || ""
+    setEntrypointFile(fileName)
+
+    // Load the file content
+    await loadPythonFileContent(filePath)
   }
 
   // Handle adding a new parameter
@@ -225,6 +315,51 @@ export default function QubotEditDialog({
 
       await onSaveQubotCard(configData)
 
+      // Upload Python file to Gitea if one is selected
+      if (pythonFileToUpload) {
+        try {
+          // Read file content
+          const fileContent = await new Promise((resolve) => {
+            const reader = new FileReader()
+            reader.onload = (e) => resolve(e.target?.result)
+            reader.readAsText(pythonFileToUpload)
+          })
+
+          // Prepare the file upload payload
+          const fileUploadPayload = {
+            content: Buffer.from(fileContent as string).toString("base64"),
+            message: `Add ${pythonFileToUpload.name}`,
+            branch: "main",
+          }
+
+          // Upload the file to Gitea
+          const uploadResponse = await fetch(`${API}/repos/${owner}/${repoName}/contents/${pythonFileToUpload.name}`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `token ${getUserToken()}`,
+            },
+            body: JSON.stringify(fileUploadPayload),
+          })
+
+          if (!uploadResponse.ok) {
+            throw new Error(`Failed to upload file: ${uploadResponse.statusText}`)
+          }
+
+          toast({
+            title: "File uploaded",
+            description: `${pythonFileToUpload.name} has been uploaded to the repository`,
+          })
+        } catch (uploadError) {
+          console.error("Error uploading Python file:", uploadError)
+          toast({
+            title: "File upload failed",
+            description: "Failed to upload Python file to repository",
+            variant: "destructive",
+          })
+        }
+      }
+
       toast({
         title: "Success",
         description: "Qubot card updated successfully",
@@ -284,7 +419,7 @@ export default function QubotEditDialog({
                     Problem
                   </Label>
                   <p className="text-sm text-muted-foreground">
-                    A mathematical problem that can be solved using quantum computing techniques.
+                    A mathematical problem that can be solved using optimization techniques.
                   </p>
                 </div>
               </div>
@@ -297,7 +432,7 @@ export default function QubotEditDialog({
                     Optimizer
                   </Label>
                   <p className="text-sm text-muted-foreground">
-                    An algorithm that optimizes parameters for quantum circuits or problems.
+                    An algorithm that finds solutions to optimization problems.
                   </p>
                 </div>
               </div>
@@ -309,24 +444,44 @@ export default function QubotEditDialog({
           <div className="space-y-6">
             <h3 className="text-lg font-medium">Step 2: Define Entry Point</h3>
             <p className="text-sm text-muted-foreground">
-              Upload your main Python file and specify the class that implements your qubot.
+              Select or upload your main Python file and specify the class that implements your qubot.
             </p>
 
-            {entrypointFile ? (
-              <div className="flex items-center justify-between p-3 border rounded-md bg-muted/30">
-                <div className="flex items-center gap-2">
-                  <FileCode className="h-5 w-5 text-primary" />
-                  <span>{entrypointFile}</span>
+            {/* Python file selection */}
+            {pythonFiles.length > 0 ? (
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="python-file">Select Python File</Label>
+                  <Select value={selectedPythonFile || ""} onValueChange={handlePythonFileSelect}>
+                    <SelectTrigger id="python-file" className="w-full">
+                      <SelectValue placeholder="Select a Python file" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {pythonFiles.map((file) => (
+                        <SelectItem key={file.path} value={file.path}>
+                          {file.path}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
-                <Button variant="ghost" size="sm" onClick={() => setEntrypointFile(null)}>
-                  <X className="h-4 w-4" />
-                </Button>
+
+                <div className="flex items-center">
+                  <div className="flex-grow border-t border-border"></div>
+                  <span className="px-3 text-xs text-muted-foreground">OR</span>
+                  <div className="flex-grow border-t border-border"></div>
+                </div>
               </div>
-            ) : (
+            ) : null}
+
+            {/* File upload option */}
+            {!selectedPythonFile && !pythonFileToUpload ? (
               <div className="flex flex-col items-center justify-center border-2 border-dashed rounded-lg p-6 bg-muted/10">
                 <FileUp className="h-10 w-10 text-muted-foreground mb-3" />
                 <p className="text-sm text-muted-foreground mb-3">
-                  Drag and drop your Python file here, or click to browse
+                  {pythonFiles.length > 0
+                    ? "Upload a new Python file"
+                    : "Drag and drop your Python file here, or click to browse"}
                 </p>
                 <Button variant="outline" onClick={() => fileInputRef.current?.click()}>
                   <Upload className="h-4 w-4 mr-2" />
@@ -334,8 +489,29 @@ export default function QubotEditDialog({
                 </Button>
                 <input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".py" className="hidden" />
               </div>
+            ) : (
+              <div className="flex items-center justify-between p-3 border rounded-md bg-muted/30">
+                <div className="flex items-center gap-2">
+                  <FileCode className="h-5 w-5 text-primary" />
+                  <span>{entrypointFile}</span>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setSelectedPythonFile(null)
+                    setPythonFileToUpload(null)
+                    setEntrypointFile(null)
+                    setFileContent("")
+                    setDetectedClassNames([])
+                  }}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
             )}
 
+            {/* Class name selection */}
             <div className="space-y-2 mt-4">
               <Label htmlFor="class-name" className="text-base">
                 Main Class Name
@@ -343,15 +519,37 @@ export default function QubotEditDialog({
               <p className="text-sm text-muted-foreground mb-2">
                 Specify the name of the main class in your Python file that implements your qubot.
               </p>
-              <Input
-                id="class-name"
-                value={entrypointClass}
-                onChange={(e) => setEntrypointClass(e.target.value)}
-                placeholder="e.g., TSPSolver, QAOAOptimizer"
-              />
+
+              {detectedClassNames.length > 0 ? (
+                <div className="space-y-2">
+                  <Select value={entrypointClass} onValueChange={setEntrypointClass}>
+                    <SelectTrigger id="class-name" className="w-full">
+                      <SelectValue placeholder="Select a class" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {detectedClassNames.map((className) => (
+                        <SelectItem key={className} value={className}>
+                          {className}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    {detectedClassNames.length} class{detectedClassNames.length !== 1 ? "es" : ""} detected in the file
+                  </p>
+                </div>
+              ) : (
+                <Input
+                  id="class-name"
+                  value={entrypointClass}
+                  onChange={(e) => setEntrypointClass(e.target.value)}
+                  placeholder="e.g., TSPSolver, QAOAOptimizer"
+                />
+              )}
             </div>
 
-            {entrypointFile && fileContent && !fileContent.includes(entrypointClass) && entrypointClass && (
+            {/* Warning if class name not found in file */}
+            {fileContent && entrypointClass && !fileContent.includes(`class ${entrypointClass}`) && (
               <div className="text-sm text-amber-500 bg-amber-500/10 p-3 rounded-md border border-amber-200">
                 Warning: The class name "{entrypointClass}" was not found in your Python file. Make sure you've entered
                 the correct class name.
@@ -497,23 +695,22 @@ export default function QubotEditDialog({
                 )}
 
                 <div className="flex gap-2">
-                <Input
+                  <Input
                     value={newArxivLink}
                     onChange={(e) => setNewArxivLink(e.target.value)}
                     placeholder="e.g., https://arxiv.org/abs/2106.12627"
                     onKeyDown={(e) => {
-                    if (e.key === "Enter" && newArxivLink.trim()) {
-                        e.preventDefault();
-                        handleAddArxivLink();
-                    }
+                      if (e.key === "Enter" && newArxivLink.trim()) {
+                        e.preventDefault()
+                        handleAddArxivLink()
+                      }
                     }}
-                />
-                <Button onClick={handleAddArxivLink} disabled={!newArxivLink.trim()}>
+                  />
+                  <Button onClick={handleAddArxivLink} disabled={!newArxivLink.trim()}>
                     <Plus className="h-4 w-4 mr-1" />
                     Add
-                </Button>
+                  </Button>
                 </div>
-
               </div>
             </div>
           </div>
@@ -613,27 +810,57 @@ export default function QubotEditDialog({
                 </div>
               </div>
               <div className="relative z-10 h-full flex flex-col justify-center">
-                {fileContent ? (
-                  <div className="bg-background/80 backdrop-blur-sm rounded-lg border border-border/50 shadow-lg overflow-hidden">
+                {currentStep === 1 && fileContent ? (
+                  <div className="bg-[#282c34] backdrop-blur-sm rounded-lg border border-border/50 shadow-lg overflow-hidden">
                     <div className="flex items-center gap-2 bg-muted/50 px-4 py-2 border-b">
                       <FileCode className="h-4 w-4 text-primary" />
                       <span className="font-medium text-sm">{entrypointFile}</span>
                     </div>
-                    <pre className="text-xs p-4 overflow-auto max-h-[400px]">
-                      <code className="language-python">{fileContent}</code>
-                    </pre>
+                    <div className="overflow-auto max-h-[400px]">
+                      <SyntaxHighlighter
+                        language="python"
+                        style={oneDark}
+                        customStyle={{
+                          margin: 0,
+                          padding: "1rem",
+                          fontSize: "0.75rem",
+                          fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+                          borderRadius: 0,
+                          background: "transparent",
+                        }}
+                        showLineNumbers={true}
+                        lineNumberStyle={{
+                          minWidth: "2rem",
+                          paddingRight: "0.5rem",
+                          textAlign: "right",
+                          color: "#636e7b",
+                          userSelect: "none",
+                        }}
+                      >
+                        {fileContent}
+                      </SyntaxHighlighter>
+                    </div>
                   </div>
                 ) : (
-                  <div className="bg-background/80 backdrop-blur-sm rounded-lg p-6 border border-border/50 shadow-lg">
+                  <div className="bg-[#282c34] backdrop-blur-sm rounded-lg p-6 border border-border/50 shadow-lg">
                     <div className="flex items-center gap-2 mb-3">
                       <div className="h-3 w-3 rounded-full bg-red-500"></div>
                       <div className="h-3 w-3 rounded-full bg-yellow-500"></div>
                       <div className="h-3 w-3 rounded-full bg-green-500"></div>
                       <div className="ml-2 text-xs text-muted-foreground">config.json</div>
                     </div>
-                    <pre className="text-xs text-left overflow-hidden">
-                      <code className="language-json">
-                        {`{
+                    <SyntaxHighlighter
+                      language="json"
+                      style={oneDark}
+                      customStyle={{
+                        margin: 0,
+                        padding: 0,
+                        fontSize: "0.75rem",
+                        fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+                        background: "transparent",
+                      }}
+                    >
+                      {`{
   "type": "${qubotType}",
   "entry_point": "${entrypointFile ? entrypointFile.replace(/\.[^/.]+$/, "") : "main"}",
   "class_name": "${entrypointClass || "QubotClass"}",
@@ -642,8 +869,7 @@ ${qubotParameters.map((param) => `    "${param.name}": ${param.value}`).join(",\
   },
   "keywords": [${qubotKeywords.map((k) => `"${k}"`).join(", ")}]
 }`}
-                      </code>
-                    </pre>
+                    </SyntaxHighlighter>
                   </div>
                 )}
               </div>

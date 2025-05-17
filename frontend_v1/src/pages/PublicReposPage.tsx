@@ -44,6 +44,7 @@ interface GiteaRepo {
   private: boolean
   language?: string
   matching_keywords?: string[] // Added to track keywords matched in config.json
+  qubot_type?: "problem" | "optimizer" // Add this line for the repository type
 }
 
 // If your /api/public-repos returns data like { data, total_count }
@@ -522,7 +523,7 @@ export default function PublicReposPage() {
 
   return (
     <Layout>
-      <div className="min-h-screen bg-background pt-24 pb-12">
+      <div className="min-h-screen bg-background pt-44 pb-12">
         <div className="max-w-[1400px] mx-auto">
           {/* Page Header with Search */}
           <div className="mb-4">
@@ -538,7 +539,6 @@ export default function PublicReposPage() {
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                   />
-                  
                 </form>
               </div>
               {!loading && (
@@ -737,6 +737,20 @@ ${
                               </div>
                             )}
 
+                            {repo.qubot_type && (
+                              <Badge
+                                variant="outline"
+                                className={`px-3 py-1 text-sm font-small border-none text-white ${
+                                  repo.qubot_type === "problem"
+                                    ? "bg-gradient-to-r from-blue-500 to-cyan-500"
+                                    : "bg-gradient-to-r from-orange-500 to-red-500"
+                                }`}
+                              >
+                                
+                                {repo.qubot_type.charAt(0).toUpperCase() + repo.qubot_type.slice(1)}
+                              </Badge>
+                            )}
+
                             <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mt-3 text-sm text-muted-foreground">
                               {repo.language && (
                                 <div className="flex items-center gap-1">
@@ -752,12 +766,7 @@ ${
                                 {repo.stars_count}
                               </div>
 
-                              {repo.forks_count !== undefined && (
-                                <div className="flex items-center gap-1">
-                                  <GitFork className="h-4 w-4" />
-                                  {repo.forks_count}
-                                </div>
-                              )}
+                              
 
                               <Clock className="h-4 w-4 flex-shrink-0" />
                               <span>{timeAgo(repo.updated_at)}</span>
@@ -812,6 +821,24 @@ ${
                                     >
                                       {repo.private ? "Private" : "Public"}
                                     </Badge>
+
+                                    {repo.qubot_type && (
+                                      <Badge
+                                        variant="outline"
+                                        className={`text-xs px-2 h-6 ml-2 ${
+                                          repo.qubot_type === "problem"
+                                            ? "bg-yellow-100 text-yellow-800 border-yellow-300 dark:bg-yellow-900/30 dark:text-yellow-300 dark:border-yellow-800"
+                                            : "bg-blue-100 text-blue-800 border-blue-300 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800"
+                                        }`}
+                                      >
+                                        {repo.qubot_type === "problem" ? (
+                                          <Lightbulb className="h-3 w-3 mr-1" />
+                                        ) : (
+                                          <Cpu className="h-3 w-3 mr-1" />
+                                        )}
+                                        {repo.qubot_type.charAt(0).toUpperCase() + repo.qubot_type.slice(1)}
+                                      </Badge>
+                                    )}
                                   </div>
 
                                   {/* Show matching keywords from config.json if any */}

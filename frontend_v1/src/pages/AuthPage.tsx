@@ -11,62 +11,48 @@ const API = import.meta.env.VITE_API_BASE;
 
 
 const AuthPage = () => {
-  const [isLogin, setIsLogin] = useState(true);
   const [username, setUsername] = useState("");
-  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
-
-
 
   const handleSubmit = async (e: React.FormEvent) => {
 
     e.preventDefault();
     setLoading(true);
-    const endpoint = isLogin ? "login" : "register";
-    const body = isLogin ? { username, password } : { username, email, password };
 
     try {
-      const res = await fetch(`${API}/${endpoint}`, {
+      const res = await fetch(`${API}/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
+        body: JSON.stringify({ username, password }),
       });
 
       const data = await res.json();
 
       if (res.ok) {
-        if (isLogin) {
-          if (data.token) {
-            localStorage.setItem("gitea_token", data.token);
-          }
-          toast({ title: "Success!", description: "Login successful!" });
-          navigate(`/u/${username}`);
-        } else {
-          toast({
-            title: "Success!",
-            description: "Account created. Please check your email for verification.",
-          });
-          navigate("/");
+        if (data.token) {
+          localStorage.setItem("gitea_token", data.token);
         }
+        toast({ title: "Success!", description: "Login successful!" });
+        navigate(`/u/${username}`);
       } else {
+          toast({
+            title: "Error",
+            description: data.message,
+            variant: "destructive",
+          });
+        }
+      } catch (e) {
         toast({
           title: "Error",
-          description: data.message,
+          description: `Operation failed: ${(e as Error).message}`,
           variant: "destructive",
         });
+      } finally {
+        setLoading(false);
       }
-    } catch (e) {
-      toast({
-        title: "Error",
-        description: `Operation failed: ${(e as Error).message}`,
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
+    };
 
   return (
     <Layout hideNavbar>
@@ -77,13 +63,9 @@ const AuthPage = () => {
             <div className="w-full max-w-xs">
               <form onSubmit={handleSubmit} className="flex flex-col gap-6">
                 <div className="flex flex-col items-center gap-2 text-center">
-                  <h1 className="text-2xl font-bold">
-                    {isLogin ? "Welcome Back" : "Create Your Account"}
-                  </h1>
+                  <h1 className="text-2xl font-bold">Welcome Back</h1>
                   <p className="text-sm text-muted-foreground">
-                    {isLogin
-                      ? "Enter your credentials to log in"
-                      : "Enter your details to sign up"}
+                    Enter your credentials to log in
                   </p>
                 </div>
                 <div className="grid gap-4">
@@ -97,19 +79,6 @@ const AuthPage = () => {
                       required
                     />
                   </div>
-                  {!isLogin && (
-                    <div className="grid gap-2">
-                      <Label htmlFor="email">Email</Label>
-                      <Input
-                        id="email"
-                        type="email"
-                        placeholder="m@example.com"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        required
-                      />
-                    </div>
-                  )}
                   <div className="grid gap-2">
                     <Label htmlFor="password">Password</Label>
                     <Input
@@ -122,30 +91,10 @@ const AuthPage = () => {
                     />
                   </div>
                   <Button type="submit" className="w-full" disabled={loading}>
-                    {loading
-                      ? "Processing..."
-                      : isLogin
-                      ? "Login"
-                      : "Create Account"}
+                    {loading ? "Processing..." : "Login"}
                   </Button>
                 </div>
-                <div className="text-center text-sm">
-                  {isLogin
-                    ? "Don't have an account? "
-                    : "Already have an account? "}
-                  <button
-                    type="button"
-                    className="text-primary underline hover:text-primary/80"
-                    onClick={() => {
-                      setIsLogin(!isLogin);
-                      setUsername("");
-                      setEmail("");
-                      setPassword("");
-                    }}
-                  >
-                    {isLogin ? "Sign up" : "Login"}
-                  </button>
-                </div>
+                
               </form>
             </div>
           </div>

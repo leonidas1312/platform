@@ -1,5 +1,7 @@
 backend/gitea
 backend/mysql
+k8s
+Tiltfile
 
 .vscode
 

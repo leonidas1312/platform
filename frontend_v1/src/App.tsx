@@ -20,6 +20,7 @@ import SettingsPage from "./pages/SettingsPage";
 import Roadmap from "./pages/Roadmap";
 import LeaderboardPage from "./pages/Leaderboard";
 import Feed from "./pages/Feed";
+import ExperimentalPreviewPage from "./pages/ExperimentalPreview";
 
 const queryClient = new QueryClient();
 
@@ -44,6 +45,7 @@ const App = () => (
               <Route path="/roadmap" element={<Roadmap />} />
               <Route path="/leaderboard" element={<LeaderboardPage />} />
               <Route path="/feed" element={<Feed />} />
+              <Route path="/experimental-preview" element={<ExperimentalPreviewPage />} />
 
 
               {/* Profile page with username in URL */}

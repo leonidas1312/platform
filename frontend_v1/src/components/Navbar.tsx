@@ -7,18 +7,7 @@ import type React from "react"
 import { useState, useEffect, useRef } from "react"
 import { Link, useLocation, useNavigate } from "react-router-dom"
 import { motion } from "framer-motion"
-import {
-  User,
-  Settings,
-  LogOut,
-  Cpu,
-  Lightbulb,
-  Rocket,
-  GraduationCap,
-  FolderGit,
-  MessageSquare,
-  Activity,
-} from "lucide-react" 
+import { User, Settings, LogOut, Rocket, FolderGit, MessageSquare, Activity, AlertTriangle } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import {
@@ -32,7 +21,7 @@ import {
 import { toast } from "@/components/ui/use-toast"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Loader2, Plus, Boxes, Shell, BookOpenText, ChartLine} from "lucide-react"
+import { Loader2, Plus, Boxes, Shell, BookOpenText } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -51,9 +40,16 @@ import {
   NavigationMenuTrigger,
 } from "@/components/ui/navigation-menu"
 import { cn } from "@/lib/utils"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
-const API = import.meta.env.VITE_API_BASE;
+const API = import.meta.env.VITE_API_BASE
 
+const licenses = [
+  { key: "mit", name: "MIT License" },
+  { key: "apache-2.0", name: "Apache 2.0 License" },
+  { key: "gpl-3.0", name: "GPL 3.0 License" },
+  { key: "bsd-3-clause", name: "BSD 3-Clause License" },
+]
 
 const Navbar = () => {
   const location = useLocation()
@@ -72,6 +68,49 @@ const Navbar = () => {
   const [license, setLicense] = useState("")
   const [isPrivate, setIsPrivate] = useState(false)
   const [isCreatingRepo, setIsCreatingRepo] = useState(false)
+
+  // Add the licenses state and fetch function after the other state variables in the Navbar component
+  // Add this after the line with `const [isCreatingRepo, setIsCreatingRepo] = useState(false)`
+
+  const [licenses, setLicenses] = useState<Array<{ key: string; name: string; url: string }>>([])
+
+  // Add this useEffect to fetch licenses when the dialog is opened
+  useEffect(() => {
+    if (showCreateRepoDialog) {
+      fetchLicenses()
+    }
+  }, [showCreateRepoDialog])
+
+  // Add this function to fetch licenses from the API
+  const fetchLicenses = async () => {
+    try {
+      const response = await fetch(`${API}/licenses`)
+      if (response.ok) {
+        const licensesData = await response.json()
+        setLicenses(licensesData)
+      } else {
+        console.error("Failed to fetch licenses")
+        // Fallback to some common licenses if the API fails
+        setLicenses([
+          { key: "mit", name: "MIT License", url: "" },
+          { key: "apache-2.0", name: "Apache License 2.0", url: "" },
+          { key: "gpl-3.0", name: "GNU General Public License v3.0", url: "" },
+          { key: "bsd-2-clause", name: "BSD 2-Clause License", url: "" },
+          { key: "bsd-3-clause", name: "BSD 3-Clause License", url: "" },
+        ])
+      }
+    } catch (error) {
+      console.error("Error fetching licenses:", error)
+      // Fallback to some common licenses if the API fails
+      setLicenses([
+        { key: "mit", name: "MIT License", url: "" },
+        { key: "apache-2.0", name: "Apache License 2.0", url: "" },
+        { key: "gpl-3.0", name: "GNU General Public License v3.0", url: "" },
+        { key: "bsd-2-clause", name: "BSD 2-Clause License", url: "" },
+        { key: "bsd-3-clause", name: "BSD 3-Clause License", url: "" },
+      ])
+    }
+  }
 
   // User state – if null, not logged in.
   const [user, setUser] = useState<any>(null)
@@ -217,7 +256,7 @@ const Navbar = () => {
             className="flex items-center"
           >
             <Link to="/" className="flex items-center gap-2">
-              <img src="/rastion1.svg" alt="Rastion Logo" className="h-16 w-auto" />
+              <img src="/rastion1.svg" alt="Rastion Logo" className="h-32 w-auto" />
             </Link>
           </motion.div>
 
@@ -251,64 +290,64 @@ const Navbar = () => {
             
             */}
 
-            
+            {/* Community tab - only visible to logged in users */}
+            {user && (
+              <NavigationMenu>
+                <NavigationMenuList>
+                  <NavigationMenuItem>
+                    <NavigationMenuTrigger
+                      className={cn(
+                        "h-9 gap-1 px-3 text-sm",
+                        location.pathname.includes("/feedback") || location.pathname.includes("/roadmap")
+                          ? "bg-muted"
+                          : "",
+                      )}
+                    >
+                      <Shell className="w-4 h-4 text-blue-500" />
+                      Community
+                    </NavigationMenuTrigger>
+                    <NavigationMenuContent>
+                      <ul className="grid gap-3 p-4 w-[200px]">
+                        <li className="row-span-3">
+                          <NavigationMenuLink asChild>
+                            <Button
+                              variant="ghost"
+                              className={`w-full justify-start ${location.pathname === "/feed" ? "bg-muted" : ""}`}
+                              onClick={() => navigate("/feed")}
+                            >
+                              <Activity className="mr-2 h-4 w-4 text-indigo-500" />
+                              News
+                            </Button>
+                          </NavigationMenuLink>
 
-            <NavigationMenu>
-              <NavigationMenuList>
-                <NavigationMenuItem>
-                  <NavigationMenuTrigger
-                    className={cn(
-                      "h-9 gap-1 px-3 text-sm",
-                      location.pathname.includes("/feedback") || location.pathname.includes("/roadmap")
-                        ? "bg-muted"
-                        : "",
-                    )}
-                  >
-                    <Shell className="w-4 h-4 text-blue-500" />
-                    Community
-                  </NavigationMenuTrigger>
-                  <NavigationMenuContent>
-                    <ul className="grid gap-3 p-4 w-[200px]">
-                      <li className="row-span-3">
-                        <NavigationMenuLink asChild>
-                          <Button
-                            variant="ghost"
-                            className={`w-full justify-start ${location.pathname === "/feed" ? "bg-muted" : ""}`}
-                            onClick={() => navigate("/feed")}
-                          >
-                            <Activity className="mr-2 h-4 w-4 text-indigo-500" />
-                            News
-                          </Button>
-                        </NavigationMenuLink>
+                          <NavigationMenuLink asChild>
+                            <Button
+                              variant="ghost"
+                              className="w-full justify-start"
+                              onClick={() => navigate("/feedback")}
+                            >
+                              <MessageSquare className="mr-2 h-4 w-4 text-orange-500" />
+                              <span>Feedback</span>
+                            </Button>
+                          </NavigationMenuLink>
 
-                        <NavigationMenuLink asChild>
-                          <Button
-                            variant="ghost"
-                            className="w-full justify-start"
-                            onClick={() => navigate("/feedback")}
-                          >
-                            <MessageSquare className="mr-2 h-4 w-4 text-orange-500" />
-                            <span>Feedback</span>
-                          </Button>
-                        </NavigationMenuLink>
-                      
-                      
-                        <NavigationMenuLink asChild>
-                          <Button
-                            variant="ghost"
-                            className="w-full justify-start"
-                            onClick={() => navigate("/roadmap")}
-                          >
-                            <Rocket className="mr-2 h-4 w-4 text-red-500" />
-                            <span>Roadmap</span>
-                          </Button>
-                        </NavigationMenuLink>
-                      </li>
-                    </ul>
-                  </NavigationMenuContent>
-                </NavigationMenuItem>
-              </NavigationMenuList>
-            </NavigationMenu>
+                          <NavigationMenuLink asChild>
+                            <Button
+                              variant="ghost"
+                              className="w-full justify-start"
+                              onClick={() => navigate("/roadmap")}
+                            >
+                              <Rocket className="mr-2 h-4 w-4 text-red-500" />
+                              <span>Roadmap</span>
+                            </Button>
+                          </NavigationMenuLink>
+                        </li>
+                      </ul>
+                    </NavigationMenuContent>
+                  </NavigationMenuItem>
+                </NavigationMenuList>
+              </NavigationMenu>
+            )}
 
             <Button
               variant="ghost"
@@ -319,7 +358,17 @@ const Navbar = () => {
               <BookOpenText className="w-4 h-4 text-amber-500" />
               Docs
             </Button>
-            
+
+            <Button
+              variant="ghost"
+              size="sm"
+              className={`h-9 gap-1 px-3 ${location.pathname === "/experimental-preview" ? "bg-muted" : ""}`}
+              onClick={() => navigate("/experimental-preview")}
+            >
+              <AlertTriangle className="w-4 h-4 text-orange-500" />
+              Experimental preview
+            </Button>
+
             {/*}
              <Button
               variant="ghost"
@@ -332,9 +381,6 @@ const Navbar = () => {
             </Button>
 
              */}
-
-            
-            
           </motion.nav>
 
           {/* Actions */}
@@ -394,8 +440,6 @@ const Navbar = () => {
                 Log in
               </Button>
             )}
-
-            
           </motion.div>
         </div>
       </div>
@@ -430,6 +474,48 @@ const Navbar = () => {
               />
               <p className="text-xs text-muted-foreground">
                 Great repository names are short, memorable and easy to understand.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="repo-description" className="text-sm font-medium">
+                Description
+              </Label>
+              <Input
+                id="repo-description"
+                value={repoDescription}
+                onChange={(e) => setRepoDescription(e.target.value)}
+                placeholder="Short description of your qubot"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="license" className="text-sm font-medium">
+                License
+              </Label>
+              <Select value={license} onValueChange={setLicense}>
+                <SelectTrigger id="license">
+                  <SelectValue placeholder="Choose a license" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">None</SelectItem>
+                  {licenses.map((licenseOption) => (
+                    <SelectItem key={licenseOption.key} value={licenseOption.key}>
+                      {licenseOption.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                A license governs what others can and can't do with your code.
+                <a
+                  href="https://choosealicense.com/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-primary hover:underline ml-1"
+                >
+                  Not sure which one is right for your project?
+                </a>
               </p>
             </div>
 

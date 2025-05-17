@@ -6,13 +6,12 @@ import { useEffect, useState, useRef } from "react"
 import { useParams, useNavigate, useLocation } from "react-router-dom"
 import Layout from "@/components/Layout"
 import { useToast } from "@/components/ui/use-toast"
-import { Dialog } from "@/components/ui/dialog"
+import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { Loader2 } from "lucide-react"
 
 // Import components
 import RepoHeader from "@/components/repo/RepoHeader"
 import QubotSidebar from "@/components/repo/QubotSidebar"
-import NewRepoWelcome from "@/components/repo/NewRepoWelcome"
 import SetupDialog from "@/components/repo/SetupDialog"
 import DeleteRepoDialog from "@/components/repo/DeleteRepoDialog"
 import TabsContainer from "@/components/repo/TabsContainer"
@@ -23,6 +22,7 @@ import FileExplorer from "@/components/FileExplorer"
 import CodeViewer from "@/components/CodeViewerRepoPage"
 import FileUploadDialog from "@/components/FileUploadDialog"
 import FileSearchDialog from "@/components/FileSearchDialog"
+import QubotEditDialog from "@/components/repo/QubotEditDialog"
 
 const API = import.meta.env.VITE_API_BASE
 
@@ -79,7 +79,8 @@ export default function RepoPage() {
   const [selectedFileSha, setSelectedFileSha] = useState<string | null>(null)
   const [fileContent, setFileContent] = useState<string>("")
   const [editorLoading, setEditorLoading] = useState(false)
-  const [isEditing, setIsEditing] = useState(false)
+  const [isEditingState, setIsEditingState] = useState<boolean | undefined>(undefined)
+  const isEditing = isEditingState !== undefined ? isEditingState : false
 
   // Qubot Card state
   const [showCreateForm, setShowCreateForm] = useState(false)
@@ -139,7 +140,13 @@ export default function RepoPage() {
 
   // File upload for step 2
   const [pythonFileToUpload, setPythonFileToUpload] = useState<File | null>(null)
-  
+
+  // Welcome dialog state
+  const [showWelcomeDialog, setShowWelcomeDialog] = useState(false)
+
+  // Edit qubot dialog state
+  const [showEditQubotDialog, setShowEditQubotDialog] = useState(false)
+
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Parse the URL to determine current path, branch, and file
@@ -450,6 +457,7 @@ export default function RepoPage() {
 
       await reloadRepoData()
       setShowCreateForm(false)
+      setShowEditQubotDialog(false)
       setConfig(formData)
 
       // If this was a new repo, it's no longer new
@@ -460,9 +468,20 @@ export default function RepoPage() {
 
       // Close the setup dialog if it was open
       setShowSetupDialog(false)
+      setShowWelcomeDialog(false)
+
+      toast({
+        title: "Success",
+        description: "Qubot card updated successfully",
+      })
     } catch (err: any) {
       console.error(err)
       setError(err.message || "Error creating Qubot card")
+      toast({
+        title: "Error",
+        description: err.message || "Failed to update qubot card",
+        variant: "destructive",
+      })
     } finally {
       setLoading(false)
     }
@@ -554,7 +573,7 @@ export default function RepoPage() {
 
       // Reload the file content
       await loadFileContent(selectedFile)
-      setIsEditing(false)
+      setIsEditingState(false)
       toast({
         title: "Success",
         description: "File saved successfully!",
@@ -759,7 +778,7 @@ export default function RepoPage() {
     }
   }
 
-  // Update the handleCompleteSetup function to include the new fields
+  // Let's update the handleCompleteSetup function to handle both uploaded and existing files
   const handleCompleteSetup = async () => {
     if (!entrypointFile || !owner || !repoName) return
 
@@ -815,6 +834,9 @@ export default function RepoPage() {
 
       // Close the setup dialog
       setShowSetupDialog(false)
+
+      // Close the welcome dialog if it's open
+      setShowWelcomeDialog(false)
 
       toast({
         title: "Success",
@@ -1150,8 +1172,13 @@ export default function RepoPage() {
   // Handle edit qubot card
   const handleEditQubotCard = () => {
     setActiveTab("qubot")
-    setShowCreateForm(true)
+    setShowEditQubotDialog(true)
     navigate(`/${owner}/${repoName}`)
+  }
+
+  // Handle setup qubot
+  const handleSetupQubot = () => {
+    setShowWelcomeDialog(true)
   }
 
   if (loading) {
@@ -1181,40 +1208,9 @@ export default function RepoPage() {
     )
   }
 
-  // First-time user experience for new repositories
-  if (isNewRepo) {
-    return (
-      <Layout>
-        <NewRepoWelcome
-          owner={owner || ""}
-          repoName={repoName || ""}
-          repo={repo}
-          onCreateQubotCard={() => setShowSetupDialog(true)}
-          qubotType={qubotType}
-          setQubotType={setQubotType}
-          entrypointFile={entrypointFile}
-          setEntrypointFile={setEntrypointFile}
-          entrypointClass={entrypointClass}
-          setEntrypointClass={setEntrypointClass}
-          qubotParameters={qubotParameters}
-          setQubotParameters={setQubotParameters}
-          arxivLinks={arxivLinks}
-          setArxivLinks={setArxivLinks}
-          qubotKeywords={qubotKeywords}
-          setQubotKeywords={setQubotKeywords}
-          pythonFileToUpload={pythonFileToUpload}
-          setPythonFileToUpload={setPythonFileToUpload}
-          handleUploadPythonFile={handleUploadPythonFile}
-          handleCompleteSetup={handleCompleteSetup}
-        />
-      </Layout>
-    )
-  }
-
-  // Render the main repository view
   return (
     <Layout>
-      <div className="container mx-auto px-4 py-8 mt-32 bg-background text-foreground">
+      <div className="container mx-auto px-4 py-8 mt-44 bg-background text-foreground">
         <RepoHeader
           owner={owner || ""}
           repoName={repoName || ""}
@@ -1282,9 +1278,9 @@ export default function RepoPage() {
                       content={fileContent}
                       isLoading={editorLoading}
                       isEditing={isEditing}
-                      onEdit={() => setIsEditing(true)}
+                      onEdit={() => setIsEditingState(true)}
                       onSave={handleSaveFile}
-                      onCancel={() => setIsEditing(false)}
+                      onCancel={() => setIsEditingState(false)}
                       onChange={setFileContent}
                       onBack={handleBackToFiles}
                       onDelete={handleDeleteFile}
@@ -1327,6 +1323,19 @@ export default function RepoPage() {
         isDeleting={isDeletingRepo}
       />
 
+      {/* Edit Qubot Dialog */}
+      <QubotEditDialog
+        open={showEditQubotDialog}
+        onOpenChange={setShowEditQubotDialog}
+        owner={owner || ""}
+        repoName={repoName || ""}
+        config={config}
+        onSaveQubotCard={handleSaveQubotCard}
+        allRepoFiles={allRepoFiles}
+      />
+
+      
+
       {/* Setup Dialog */}
       <Dialog open={showSetupDialog} onOpenChange={setShowSetupDialog}>
         <SetupDialog
@@ -1352,6 +1361,10 @@ export default function RepoPage() {
           handleUploadPythonFile={handleUploadPythonFile}
         />
       </Dialog>
+
+      
+
+      
     </Layout>
   )
 }

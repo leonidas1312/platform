@@ -1,10 +1,12 @@
+"use client"
+
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
-import { Loader2, Copy, Download, Edit, FileCode, FileText, Check, Eye, ArrowLeft, Trash2 } from "lucide-react"
+import { Loader2, Copy, Download, FileCode, FileText, Check, Eye, ArrowLeft, Trash2 } from "lucide-react"
 import ReactMarkdown from "react-markdown"
 import {
   Dialog,
@@ -14,6 +16,37 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
+import { PrismLight as SyntaxHighlighter } from "react-syntax-highlighter"
+import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism"
+
+// Import language support
+import javascript from "react-syntax-highlighter/dist/esm/languages/prism/javascript"
+import typescript from "react-syntax-highlighter/dist/esm/languages/prism/typescript"
+import python from "react-syntax-highlighter/dist/esm/languages/prism/python"
+import json from "react-syntax-highlighter/dist/esm/languages/prism/json"
+import markdown from "react-syntax-highlighter/dist/esm/languages/prism/markdown"
+import css from "react-syntax-highlighter/dist/esm/languages/prism/css"
+import yaml from "react-syntax-highlighter/dist/esm/languages/prism/yaml"
+import jsx from "react-syntax-highlighter/dist/esm/languages/prism/jsx"
+import tsx from "react-syntax-highlighter/dist/esm/languages/prism/tsx"
+import bash from "react-syntax-highlighter/dist/esm/languages/prism/bash"
+import sql from "react-syntax-highlighter/dist/esm/languages/prism/sql"
+import markup from "react-syntax-highlighter/dist/esm/languages/prism/markup"
+
+// Register languages
+SyntaxHighlighter.registerLanguage("javascript", javascript)
+SyntaxHighlighter.registerLanguage("typescript", typescript)
+SyntaxHighlighter.registerLanguage("python", python)
+SyntaxHighlighter.registerLanguage("json", json)
+SyntaxHighlighter.registerLanguage("markdown", markdown)
+SyntaxHighlighter.registerLanguage("css", css)
+SyntaxHighlighter.registerLanguage("yaml", yaml)
+SyntaxHighlighter.registerLanguage("jsx", jsx)
+SyntaxHighlighter.registerLanguage("tsx", tsx)
+SyntaxHighlighter.registerLanguage("bash", bash)
+SyntaxHighlighter.registerLanguage("sql", sql)
+SyntaxHighlighter.registerLanguage("html", markup)
+SyntaxHighlighter.registerLanguage("xml", markup)
 
 interface CodeViewerProps {
   fileName: string
@@ -39,6 +72,7 @@ const getLanguage = (fileName: string) => {
     case "ts":
       return "typescript"
     case "jsx":
+      return "jsx"
     case "tsx":
       return "tsx"
     case "py":
@@ -54,12 +88,17 @@ const getLanguage = (fileName: string) => {
     case "yml":
     case "yaml":
       return "yaml"
+    case "sh":
+    case "bash":
+      return "bash"
+    case "sql":
+      return "sql"
     default:
       return "plaintext"
   }
 }
 
-// Function to add line numbers to code
+// Function to add line numbers to code (for plaintext files)
 const addLineNumbers = (code: string) => {
   const lines = code.split("\n")
   return lines.map((line, index) => (
@@ -70,6 +109,19 @@ const addLineNumbers = (code: string) => {
       <div className="table-cell pl-4 border-l border-muted whitespace-pre font-mono py-0.5">{line || " "}</div>
     </div>
   ))
+}
+
+// Customize the theme for better visibility
+const customizedTheme = {
+  ...oneDark,
+  'pre[class*="language-"]': {
+    ...oneDark['pre[class*="language-"]'],
+    background: "transparent",
+  },
+  'code[class*="language-"]': {
+    ...oneDark['code[class*="language-"]'],
+    background: "transparent",
+  },
 }
 
 export default function CodeViewer({
@@ -88,6 +140,7 @@ export default function CodeViewer({
   const [copied, setCopied] = useState(false)
   const [viewMode, setViewMode] = useState<"rendered" | "source">("source")
   const isMarkdown = fileName.endsWith(".md")
+  const language = getLanguage(fileName)
 
   const handleCopy = () => {
     navigator.clipboard.writeText(content)
@@ -129,7 +182,7 @@ export default function CodeViewer({
             )}
             <CardTitle className="text-base font-medium">{fileName.split("/").pop()}</CardTitle>
             <Badge variant="outline" className="ml-2 text-xs">
-              {getLanguage(fileName)}
+              {language}
             </Badge>
           </div>
           <div className="flex items-center gap-2">
@@ -156,29 +209,29 @@ export default function CodeViewer({
                   <Download className="h-4 w-4" />
                 </Button>
                 <Dialog>
-                    <DialogTrigger asChild>
-                      <Button variant="ghost" size="sm" className="gap-1">
-                        <Trash2 className="h-4 w-4" />
-                        <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">Delete File</span>
+                  <DialogTrigger asChild>
+                    <Button variant="ghost" size="sm" className="gap-1">
+                      <Trash2 className="h-4 w-4" />
+                      <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">Delete File</span>
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Delete File</DialogTitle>
+                      <DialogDescription>
+                        Are you sure you want to delete this file? This action cannot be undone.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="flex justify-end gap-2 mt-4">
+                      <Button variant="outline" onClick={() => {}}>
+                        Cancel
                       </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>Delete File</DialogTitle>
-                        <DialogDescription>
-                          Are you sure you want to delete this file? This action cannot be undone.
-                        </DialogDescription>
-                      </DialogHeader>
-                      <div className="flex justify-end gap-2 mt-4">
-                        <Button variant="outline" onClick={() => {}}>
-                          Cancel
-                        </Button>
-                        <Button variant="destructive" onClick={onDelete}>
-                          Delete
-                        </Button>
-                      </div>
-                    </DialogContent>
-                  </Dialog>
+                      <Button variant="destructive" onClick={onDelete}>
+                        Delete
+                      </Button>
+                    </div>
+                  </DialogContent>
+                </Dialog>
               </>
             )}
           </div>
@@ -202,12 +255,38 @@ export default function CodeViewer({
           </div>
         ) : (
           <div className="p-0 overflow-auto bg-muted/30">
-            <div className="table w-full text-sm">{addLineNumbers(content)}</div>
+            {language !== "plaintext" ? (
+              <div className="bg-[#282c34] rounded-b-lg">
+                <SyntaxHighlighter
+                  language={language}
+                  style={customizedTheme}
+                  showLineNumbers={true}
+                  customStyle={{
+                    margin: 0,
+                    padding: "1rem",
+                    fontSize: "0.875rem",
+                    fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+                    borderRadius: 0,
+                  }}
+                  lineNumberStyle={{
+                    minWidth: "2.5rem",
+                    paddingRight: "1rem",
+                    textAlign: "right",
+                    color: "#636e7b",
+                    userSelect: "none",
+                  }}
+                  wrapLines={true}
+                  wrapLongLines={false}
+                >
+                  {content}
+                </SyntaxHighlighter>
+              </div>
+            ) : (
+              <div className="table w-full text-sm">{addLineNumbers(content)}</div>
+            )}
           </div>
         )}
       </CardContent>
-      
     </Card>
   )
 }
-

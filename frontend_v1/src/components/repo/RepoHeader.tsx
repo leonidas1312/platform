@@ -4,11 +4,10 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { GitFork, MoreVertical, Star, Trash2, Code, Copy, Check, Share2, Edit } from "lucide-react"
+import { GitFork, MoreVertical, Star, Trash2, Code, Copy, Check, Share2 } from "lucide-react"
 import { useNavigate } from "react-router-dom"
 import { useState } from "react"
 import { useToast } from "@/components/ui/use-toast"
-import QubotEditDialog from "./QubotEditDialog"
 
 interface RepoHeaderProps {
   owner: string
@@ -45,6 +44,7 @@ export default function RepoHeader({
   const [showCodeDialog, setShowCodeDialog] = useState(false)
   const [showEditDialog, setShowEditDialog] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [showCloneDialog, setShowCloneDialog] = useState(false)
 
   const handleCopyCode = () => {
     const codeSnippet =
@@ -111,17 +111,12 @@ export default function RepoHeader({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => setShowEditDialog(true)}>
-                <Edit className="mr-2 h-4 w-4" />
-                Edit qubot card
-              </DropdownMenuItem>
-
               <DropdownMenuItem onClick={() => setShowCodeDialog(true)}>
                 <Share2 className="mr-2 h-4 w-4" />
                 Use with qubots library
               </DropdownMenuItem>
 
-              <DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setShowCloneDialog(true)}>
                 <GitFork className="mr-2 h-4 w-4" />
                 Clone Repository
               </DropdownMenuItem>
@@ -174,16 +169,45 @@ export default function RepoHeader({
         </DialogContent>
       </Dialog>
 
-      {/* Edit Qubot Dialog */}
-      <QubotEditDialog
-        open={showEditDialog}
-        onOpenChange={setShowEditDialog}
-        owner={owner}
-        repoName={repoName}
-        config={config}
-        onSaveQubotCard={onSaveQubotCard}
-        allRepoFiles={allRepoFiles}
-      />
+      {/* Clone Repository Dialog */}
+      <Dialog open={showCloneDialog} onOpenChange={setShowCloneDialog}>
+        <DialogContent className="sm:max-w-[550px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <GitFork className="h-5 w-5" />
+              Clone Repository
+            </DialogTitle>
+          </DialogHeader>
+          <div className="mt-4">
+            <div className="relative">
+              <pre className="bg-muted p-4 rounded-md overflow-x-auto">
+                <code className="text-sm font-mono">
+                  git clone https://hub.rastion.com/{owner}/{repoName}.git
+                </code>
+              </pre>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="absolute top-2 right-2 h-8 w-8 p-0"
+                onClick={() => {
+                  navigator.clipboard.writeText(`git clone https://hub.rastion.com/${owner}/${repoName}.git`)
+                  toast({
+                    title: "Copied to clipboard",
+                    description: "Clone command has been copied to your clipboard",
+                  })
+                  setCopied(true)
+                  setTimeout(() => setCopied(false), 2000)
+                }}
+              >
+                {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+              </Button>
+            </div>
+            <p className="text-sm text-muted-foreground mt-4">
+              Use this command to clone the repository to your local machine.
+            </p>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
@@ -198,7 +222,7 @@ function QubotMetadata({ config }: { config: any }) {
           {config.type && (
             <Badge
               variant="outline"
-              className={`px-3 py-1 text-sm font-medium border-none text-white ${
+              className={`px-3 py-1 text-sm font-small border-none text-white ${
                 config.type === "problem"
                   ? "bg-gradient-to-r from-blue-500 to-cyan-500"
                   : "bg-gradient-to-r from-orange-500 to-red-500"

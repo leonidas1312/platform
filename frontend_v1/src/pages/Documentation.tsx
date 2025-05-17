@@ -4,36 +4,33 @@ import type React from "react"
 
 import { useState, useEffect, useRef } from "react"
 import { useNavigate, useLocation } from "react-router-dom"
-import { motion, AnimatePresence } from "framer-motion"
+import { motion } from "framer-motion"
 import Layout from "@/components/Layout"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import {
-  Search,
-  FileText,
-  Code,
-  BookOpen,
-  Cpu,
-  Lightbulb,
-  ArrowRight,
-  ChevronRight,
-  Home,
-  Menu,
-  X,
-  Copy,
-  Terminal,
-  Info,
-  AlertCircle,
-  Maximize2,
-  Minimize2,
-  ChevronDown,
-} from "lucide-react"
-import { useToast } from "@/components/ui/use-toast"
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { cn } from "@/lib/utils"
-import katex from "katex"
-import renderMathInElement from "katex/contrib/auto-render"
+import { Search, FileText, BookOpen, Cpu, ArrowRight, ChevronRight, Home, Menu, X } from "lucide-react"
+import { DocToc } from "@/components/doc-toc"
+
+// Import all documentation components
+
+import IntroductionDoc from "@/docs/introduction"
+
+import QuickStartDoc from "@/docs/quickstart"
+import WhatAreQubotsDoc from "@/docs/what-are-qubots"
+import CreateQuBotRepositoryDoc from "@/docs/create-qubot-repository"
+import CreateQuBotCardDoc from "@/docs/create-qubot-card"
+import WrapOptimizationToolsDoc from "@/docs/wrap-optimization-tools"
+import ShareQubotsDoc from "@/docs/share-qubots"
+import CreateOptimizationSolutionsDoc from "@/docs/create-optimization-solutions"
+import UseOthersQubotsDoc from "@/docs/use-other-qubots"
+import TspChristofidesDoc from "@/docs/tsp-christofides-tutorials"
+import OrToolsTutorialsDoc from "@/docs/ortools-tutorials"
+import AMPLTutorialsPage from "@/docs/ampl-tutorials"
+import DrakeTutorialsDoc from "@/docs/drake-tutorials"
+import PyomoTutorialsDoc from "@/docs/pyomo-tutorials"
+import ScipTutorialsDoc from "@/docs/scip-tutorials"
+
 // Documentation structure
 const documentationStructure = [
   {
@@ -48,501 +45,122 @@ const documentationStructure = [
     title: "Core Concepts",
     icon: <Cpu className="h-4 w-4" />,
     items: [
-      { title: "Optimization Problems", slug: "optimization-problems" },
-      { title: "QUBO Format", slug: "qubo-format" },
-      { title: "Solvers", slug: "solvers" },
+      { title: "What are qubots?", slug: "what-are-qubots" },
+      { title: "How to create a qubot repository", slug: "create-qubot-repository" },
+      { title: "How to create a qubot card", slug: "create-qubot-card" },
+      { title: "How to wrap my optimization tools as qubots", slug: "wrap-optimization-tools" },
+      { title: "How to share my qubots with the community", slug: "share-qubots" },
+      { title: "How to create optimization solutions using qubots", slug: "create-optimization-solutions" },
+      { title: "How to use qubots uploaded by others", slug: "use-others-qubots" },
     ],
   },
   {
     title: "Tutorials",
     icon: <BookOpen className="h-4 w-4" />,
     items: [
-      { title: "Traveling Salesman Problem", slug: "tsp-tutorial" },
-      { title: "Portfolio Optimization", slug: "portfolio-optimization" },
-      { title: "Job Shop Scheduling", slug: "job-shop-scheduling" },
-      { title: "Vehicle Routing Problem", slug: "vrp-tutorial" },
-    ],
-  },
-  {
-    title: "API Reference",
-    icon: <Code className="h-4 w-4" />,
-    items: [
-      { title: "Problem Class", slug: "problem-class" },
-      { title: "Solver Interface", slug: "solver-interface" },
-      { title: "Utility Functions", slug: "utility-functions" },
-      { title: "Configuration", slug: "configuration" },
-    ],
-  },
-  {
-    title: "Advanced Topics",
-    icon: <Lightbulb className="h-4 w-4" />,
-    items: [
-      { title: "Custom Problem Types", slug: "custom-problem-types" },
-      { title: "Algorithm Integration", slug: "algorithm-integration" },
-      { title: "Performance Optimization", slug: "performance-optimization" },
-      { title: "Deployment", slug: "deployment" },
+      { title: "Solving TSP with Christofides algorithm", slug: "tsp-christofides" },
+      { title: "Qubots with OR tools tutorials", slug: "or-tools-tutorials" },
+      { title: "Qubots with Gamspy tutorials", slug: "gamspy-tutorials" },
+      { title: "Qubots with Fellopy tutorials", slug: "fellopy-tutorials" },
+      { title: "Qubots with CasADi tutorials", slug: "casadi-tutorials" },
+      { title: "Qubots with AMPL tutorials", slug: "ampl-tutorials" },
+      { title: "Qubots with Drake tutorials", slug: "drake-tutorials" },
+      { title: "Qubots with Pyomo tutorials", slug: "pyomo-tutorials" },
+      { title: "Qubots with SCIP tutorials", slug: "scip-tutorials" },
     ],
   },
 ]
 
-// Sample documentation content
-const documentationContent = {
+// Map of slug to component
+const documentationComponents = {
+  introduction: IntroductionDoc,
+  "quick-start": QuickStartDoc,
+  "what-are-qubots": WhatAreQubotsDoc,
+  "create-qubot-repository": CreateQuBotRepositoryDoc,
+  "create-qubot-card": CreateQuBotCardDoc,
+  "wrap-optimization-tools": WrapOptimizationToolsDoc,
+  "share-qubots": ShareQubotsDoc,
+  "create-optimization-solutions": CreateOptimizationSolutionsDoc,
+  "use-others-qubots": UseOthersQubotsDoc,
+  "tsp-christofides": TspChristofidesDoc,
+  "or-tools-tutorials": OrToolsTutorialsDoc,
+  "ampl-tutorials": AMPLTutorialsPage,
+  "drake-tutorials": DrakeTutorialsDoc,
+  "pyomo-tutorials": PyomoTutorialsDoc,
+  "scip-tutorials": ScipTutorialsDoc,
+}
+
+// Map of slug to metadata
+const documentationMetadata = {
   introduction: {
     title: "Introduction",
     description: "Learn about the Qubots platform and how it can help you solve optimization problems.",
-    content: `
-Qubots is a platform designed to help you solve complex optimization problems using quantum-inspired algorithms. Whether you're working on logistics, finance, manufacturing, or any other domain that involves optimization, Qubots provides the tools and infrastructure to model your problems and find high-quality solutions efficiently.
-
-## What is Rastion & qubots?
-
-Rastion is envisioned as an open-source optimization hub for sharing and running optimization problems and solvers. At its core is the open-source Qubots library, a “collaborative optimization framework” that wraps optimization problems and algorithms in a unified interface. This allows any compatible problem and solver to interact via a simple call, regardless of the underlying algorithm.
-
-## Key Features
-
-- **Problem Modeling**: Define your optimization problems using a simple, intuitive API
-- **Solver Integration**: Connect to a variety of solvers, from classical to quantum
-- **Performance Analysis**: Compare different solvers and parameter settings
-- **Visualization**: Visualize your problems and solutions
-- **Extensibility**: Add your own problem types and solvers
-
-## Who is Qubots for?
-
-Qubots is designed for:
-
-- **Researchers** exploring new optimization algorithms
-- **Data Scientists** solving complex optimization problems
-- **Software Engineers** integrating optimization into applications
-- **Domain Experts** in logistics, finance, manufacturing, etc.
-
-## Getting Started
-
-To get started with Qubots, check out the [Installation](/docs/installation) and [Quick Start](/docs/quick-start) guides.
-    `,
   },
-  "quick-start": {
-    title: "Quick Start",
-    description: "Get up and running with Qubots in minutes.",
-    content: `
-# Quick Start
-
-This guide will help you get started with Qubots by walking through a simple example of solving an optimization problem.
-
-## Basic Workflow
-
-The typical workflow with Qubots involves:
-
-1. Define your optimization problem
-2. Convert it to QUBO format
-3. Solve using a quantum-inspired solver
-4. Analyze the results
-
-Let's see this in action with a simple example.
-
-## Example: Solving a MaxCut Problem
-
-The MaxCut problem involves partitioning a graph's vertices into two sets to maximize the number of edges between the sets.
-
-### Step 1: Import Qubots
-
-\`\`\`python
-import qubots as qb
-import networkx as nx
-import numpy as np
-import matplotlib.pyplot as plt
-\`\`\`
-
-### Step 2: Create a Graph
-
-\`\`\`python
-# Create a random graph
-G = nx.random_regular_graph(3, 10)
-
-# Visualize the graph
-plt.figure(figsize=(8, 6))
-nx.draw(G, with_labels=True, node_color='lightblue', 
-       node_size=500, font_weight='bold')
-plt.title("Random Graph")
-plt.show()
-\`\`\`
-
-### Step 3: Define the MaxCut Problem
-
-\`\`\`python
-# Create a MaxCut problem instance
-maxcut = qb.problems.MaxCut(G)
-\`\`\`
-
-### Step 4: Solve the Problem
-
-\`\`\`python
-# Choose a solver
-solver = qb.SimulatedAnnealingSolver(num_reads=100)
-
-# Solve the problem
-result = solver.solve(maxcut.qubo)
-
-# Extract the cut
-cut = maxcut.get_cut_from_solution(result.solution)
-print(f"Cut value: {maxcut.evaluate_cut(cut)}")
-\`\`\`
-
-### Step 5: Visualize the Solution
-
-\`\`\`python
-# Visualize the solution
-plt.figure(figsize=(8, 6))
-maxcut.plot_solution(result.solution)
-plt.title("MaxCut Solution")
-plt.show()
-\`\`\`
-
-## Next Steps
-
-This is just a simple example to get you started. For more complex problems and advanced features, check out the [Tutorials](/docs/tutorials) section.
-    `,
+  "quick-start": { title: "Quick Start", description: "Get up and running with Qubots in minutes." },
+  "what-are-qubots": {
+    title: "What are qubots?",
+    description: "Learn about the core concepts of qubots and how they work.",
   },
-  "qubo-format": {
-    title: "QUBO Format",
-    description: "Learn about the Quadratic Unconstrained Binary Optimization format and how to use it.",
-    content: `
-# QUBO Format
-
-Quadratic Unconstrained Binary Optimization (QUBO) is a formulation used to represent combinatorial optimization problems. It's particularly important because quantum annealing hardware and many quantum-inspired algorithms are designed to solve problems in this format.
-
-## What is QUBO?
-
-A QUBO problem is expressed as minimizing a function of binary variables:
-
-$$\\min f(x) = x^T Q x$$
-
-Where:
-- $x$ is a vector of binary variables (0 or 1)
-- $Q$ is a matrix of weights that defines the problem
-
-## Why QUBO?
-
-QUBO is important for several reasons:
-
-1. **Universality**: Many NP-hard problems can be formulated as QUBO
-2. **Hardware Compatibility**: Quantum annealers like D-Wave are designed to solve QUBO problems
-3. **Algorithm Compatibility**: Many quantum-inspired algorithms are optimized for QUBO
-
-## Converting Problems to QUBO
-
-Qubots provides several ways to convert optimization problems to QUBO format:
-
-### Using the Problem Class
-
-\`\`\`python
-import qubots as qb
-
-# Define your problem
-problem = qb.Problem()
-
-# Add variables
-problem.add_variable('x', [0, 1])
-problem.add_variable('y', [0, 1])
-problem.add_variable('z', [0, 1])
-
-# Add constraints
-problem.add_constraint(lambda vars: vars['x'] + vars['y'] + vars['z'] <= 2)
-
-# Set objective function
-problem.set_objective(lambda vars: 3*vars['x'] + 2*vars['y'] + vars['z'], maximize=True)
-
-# Convert to QUBO
-qubo = qb.convert_to_qubo(problem)
-
-# Print the Q matrix
-print(qubo.Q)
-\`\`\`
-
-### Using Pre-built Problem Types
-
-\`\`\`python
-import qubots as qb
-import networkx as nx
-
-# Create a graph for MaxCut problem
-G = nx.random_regular_graph(3, 10)
-
-# Create a MaxCut problem instance
-maxcut = qb.problems.MaxCut(G)
-
-# The problem is already in QUBO format
-qubo = maxcut.qubo
-\`\`\`
-
-## Handling Constraints
-
-Converting constrained problems to QUBO requires penalty methods. Qubots handles this automatically, but understanding the process helps in fine-tuning:
-
-### Equality Constraints
-
-For a constraint like a = b + c, we add a penalty term:
-
-$$P_{eq} = A(a - b - c)^2$$
-
-Where A is a sufficiently large penalty coefficient.
-
-### Inequality Constraints
-
-For a constraint like a + b ≤ 1, we introduce a slack variable s:
-
-$$a + b + s = 1, \\text{where } s \\geq 0$$
-
-Then we convert this to a penalty term in the QUBO formulation.
-
-## Next Steps
-
-For more details on specific problem types and how to convert them to QUBO, check out the [Tutorials](/docs/tutorials) section.
-    `,
+  "create-qubot-repository": {
+    title: "How to create a qubot repository",
+    description: "Learn how to create and set up a qubot repository.",
   },
-  "tsp-tutorial": {
-    title: "Traveling Salesman Problem Tutorial",
-    description: "Learn how to solve the Traveling Salesman Problem using Qubots.",
-    content: `
-# Solving the Traveling Salesman Problem
-
-The Traveling Salesman Problem (TSP) is one of the most studied combinatorial optimization problems. It asks:
-
-> "Given a list of cities and the distances between each pair of cities, what is the shortest possible route that visits each city exactly once and returns to the origin city?"
-
-This tutorial will show you how to solve TSP using Qubots.
-
-## Problem Overview
-
-TSP has applications in logistics, planning, manufacturing, DNA sequencing, and many other fields. It's an NP-hard problem, meaning it's computationally difficult to solve optimally for large instances.
-
-## Mathematical Formulation
-
-To formulate TSP as a QUBO problem, we need to:
-
-1. Represent the problem using binary variables
-2. Express the objective function (minimize total distance)
-3. Express constraints (visit each city once, complete tour)
-4. Combine everything into a QUBO matrix
-
-### Binary Representation
-
-We use binary variables $x_{i,p}$ where:
-- $x_{i,p} = 1$ if city i is visited at position p in the tour
-- $x_{i,p} = 0$ otherwise
-
-For n cities, we need n² binary variables.
-
-### Constraints
-
-We need to enforce:
-1. Each city is visited exactly once: $\\sum_p x_{i,p} = 1$ for all i
-2. Each position in the tour has exactly one city: $\\sum_i x_{i,p} = 1$ for all p
-
-### Objective Function
-
-The objective is to minimize the total distance:
-
-$$\\min \\sum_{i,j,p} d_{i,j} \\cdot x_{i,p} \\cdot x_{j,(p+1) \\mod n}$$
-
-Where $d_{i,j}$ is the distance between cities i and j.
-
-## Implementation with Qubots
-
-Qubots simplifies this process by providing a built-in TSP problem class:
-
-### Setting Up the Problem
-
-\`\`\`python
-import qubots as qb
-import networkx as nx
-import numpy as np
-import matplotlib.pyplot as plt
-
-# Create a complete graph with distances
-n_cities = 5
-G = nx.complete_graph(n_cities)
-
-# Assign random coordinates to cities
-coords = {i: (np.random.random(), np.random.random()) for i in range(n_cities)}
-
-# Calculate Euclidean distances
-for i, j in G.edges():
-    G[i][j]['weight'] = np.sqrt(
-        (coords[i][0] - coords[j][0])**2 + 
-        (coords[i][1] - coords[j][1])**2
-    )
-
-# Create TSP problem instance
-tsp = qb.problems.TSP(G)
-
-# Visualize the cities
-plt.figure(figsize=(8, 6))
-nx.draw(G, coords, with_labels=True, node_color='lightblue', 
-       node_size=500, font_weight='bold')
-plt.title("Cities and Connections")
-plt.show()
-\`\`\`
-
-### Converting to QUBO
-
-\`\`\`python
-# The TSP class automatically creates the QUBO formulation
-qubo = tsp.qubo
-
-# Examine the QUBO matrix
-print(f"QUBO matrix shape: {qubo.Q.shape}")
-print(f"Number of variables: {qubo.num_variables}")
-
-# Visualize the QUBO matrix structure
-plt.figure(figsize=(8, 6))
-plt.imshow(qubo.Q, cmap='viridis')
-plt.colorbar()
-plt.title("QUBO Matrix for TSP")
-plt.show()
-\`\`\`
-
-### Solving the Problem
-
-\`\`\`python
-# Choose a solver
-solver = qb.SimulatedAnnealingSolver(
-    num_reads=100,
-    temperature_range=(10.0, 0.1)
-)
-
-# Solve the QUBO problem
-result = solver.solve(qubo)
-
-# Extract the tour from the solution
-tour = tsp.get_tour_from_solution(result.solution)
-print(f"Optimal tour: {tour}")
-
-# Calculate the tour length
-tour_length = tsp.evaluate_tour(tour)
-print(f"Tour length: {tour_length:.4f}")
-
-# Visualize the solution
-plt.figure(figsize=(8, 6))
-tsp.plot_solution(result.solution, coords=coords)
-plt.title(f"Optimal TSP Tour (Length: {tour_length:.4f})")
-plt.show()
-\`\`\`
-
-## Advanced Techniques
-
-For larger problems, you might want to use more advanced techniques:
-
-\`\`\`python
-# For larger problems, we can use decomposition techniques
-n_cities = 20
-G_large = nx.complete_graph(n_cities)
-
-# Assign random coordinates
-coords_large = {i: (np.random.random(), np.random.random()) for i in range(n_cities)}
-for i, j in G_large.edges():
-    G_large[i][j]['weight'] = np.sqrt(
-        (coords_large[i][0] - coords_large[j][0])**2 + 
-        (coords_large[i][1] - coords_large[j][1])**2
-    )
-
-# Create TSP problem
-tsp_large = qb.problems.TSP(G_large)
-
-# Use hierarchical solver for large problems
-hierarchical_solver = qb.HierarchicalSolver(
-    base_solver=qb.SimulatedAnnealingSolver(),
-    decomposition_size=10
-)
-
-# Solve
-result_large = hierarchical_solver.solve(tsp_large.qubo)
-
-# Extract and evaluate tour
-tour_large = tsp_large.get_tour_from_solution(result_large.solution)
-length_large = tsp_large.evaluate_tour(tour_large)
-print(f"Large TSP tour length: {length_large:.4f}")
-\`\`\`
-
-## Conclusion
-
-This tutorial showed how to solve the Traveling Salesman Problem using Qubots. The same principles can be applied to many other optimization problems.
-
-For more examples and tutorials, check out the other documentation pages.
-    `,
+  "create-qubot-card": {
+    title: "How to create a qubot card",
+    description: "Learn how to create qubot cards for your optimization tools.",
   },
-}
-
-// Component for rendering a code window
-const CodeWindow = ({ language, code, title }: { language: string; code: string; title?: string }) => {
-  const { toast } = useToast()
-  const [isExpanded, setIsExpanded] = useState(false)
-
-  const handleCopy = () => {
-    navigator.clipboard.writeText(code)
-    toast({
-      title: "Code copied",
-      description: "Code snippet copied to clipboard",
-    })
-  }
-
-  return (
-    <div
-      className={cn(
-        "my-6 rounded-lg overflow-hidden border border-border shadow-md transition-all",
-        isExpanded ? "fixed inset-10 z-50 flex flex-col" : "relative",
-      )}
-    >
-      <div className="bg-muted/80 px-4 py-2 flex items-center justify-between border-b">
-        <div className="flex items-center">
-          <Terminal className="h-4 w-4 mr-2 text-primary" />
-          <span className="text-sm font-medium">{title || language}</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleCopy}>
-            <Copy className="h-4 w-4" />
-          </Button>
-          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setIsExpanded(!isExpanded)}>
-            {isExpanded ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
-          </Button>
-        </div>
-      </div>
-      <div className={cn("bg-muted/30 overflow-auto", isExpanded ? "flex-grow" : "")}>
-        <pre className="p-4 text-sm">
-          <code>{code}</code>
-        </pre>
-      </div>
-    </div>
-  )
-}
-
-// Component for rendering a note or warning box
-const InfoBox = ({ type, children }: { type: "note" | "warning"; children: React.ReactNode }) => {
-  return (
-    <div
-      className={cn(
-        "my-6 p-4 rounded-lg border",
-        type === "warning"
-          ? "bg-amber-50 border-amber-200 dark:bg-amber-950/20 dark:border-amber-800/30"
-          : "bg-blue-50 border-blue-200 dark:bg-blue-950/20 dark:border-blue-800/30",
-      )}
-    >
-      <div className="flex items-center gap-2 mb-2">
-        {type === "warning" ? (
-          <AlertCircle className="h-5 w-5 text-amber-500" />
-        ) : (
-          <Info className="h-5 w-5 text-blue-500" />
-        )}
-        <h3
-          className={cn(
-            "font-medium",
-            type === "warning" ? "text-amber-700 dark:text-amber-400" : "text-blue-700 dark:text-blue-400",
-          )}
-        >
-          {type === "warning" ? "Warning" : "Note"}
-        </h3>
-      </div>
-      <div className="text-sm">{children}</div>
-    </div>
-  )
+  "wrap-optimization-tools": {
+    title: "How to wrap my optimization tools as qubots",
+    description: "Learn how to wrap your existing optimization tools as qubots.",
+  },
+  "share-qubots": {
+    title: "How to share my qubots with the community",
+    description: "Learn how to share your qubots with the community.",
+  },
+  "create-optimization-solutions": {
+    title: "How to create optimization solutions using qubots",
+    description: "Learn how to create optimization solutions using qubots.",
+  },
+  "use-others-qubots": {
+    title: "How to use qubots uploaded by others",
+    description: "Learn how to use qubots that have been shared by the community.",
+  },
+  "tsp-christofides": {
+    title: "Solving TSP with Christofides algorithm",
+    description: "Learn how to solve the Traveling Salesman Problem using the Christofides algorithm.",
+  },
+  "or-tools-tutorials": {
+    title: "Qubots with OR tools tutorials",
+    description: "Learn how to use OR tools with qubots for solving optimization problems.",
+  },
+  "gamspy-tutorials": {
+    title: "Qubots with Gamspy tutorials",
+    description: "Learn how to use Gamspy with qubots for solving optimization problems.",
+  },
+  "fellopy-tutorials": {
+    title: "Qubots with Fellopy tutorials",
+    description: "Learn how to use Fellopy with qubots for solving optimization problems.",
+  },
+  "casadi-tutorials": {
+    title: "Qubots with CasADi tutorials",
+    description: "Learn how to use CasADi with qubots for solving optimization problems.",
+  },
+  "ampl-tutorials": {
+    title: "Qubots with AMPL tutorials",
+    description: "Learn how to use AMPL with qubots for solving optimization problems.",
+  },
+  "drake-tutorials": {
+    title: "Qubots with Drake tutorials",
+    description: "Learn how to use Drake with qubots for solving optimization problems.",
+  },
+  "pyomo-tutorials": {
+    title: "Qubots with Pyomo tutorials",
+    description: "Learn how to use Pyomo with qubots for solving optimization problems.",
+  },
+  "scip-tutorials": {
+    title: "Qubots with SCIP tutorials",
+    description: "Learn how to use SCIP with qubots for solving optimization problems.",
+  },
 }
 
 type DocumentationPageProps = {}
@@ -555,72 +173,19 @@ const DocumentationPage: React.FC<DocumentationPageProps> = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [searchResults, setSearchResults] = useState<Array<{ slug: string; title: string; section: string }>>([])
   const contentRef = useRef<HTMLDivElement>(null)
-  const [expandedDocs, setExpandedDocs] = useState<Record<string, boolean>>({})
-  const [docHeadings, setDocHeadings] = useState<Record<string, Array<{ id: string; text: string; level: number }>>>({})
-
-  // Load KaTeX for LaTeX rendering
-  useEffect(() => {
-    // inject CSS only:
-    const link = document.createElement("link")
-    link.rel = "stylesheet"
-    link.href = "https://cdn.jsdelivr.net/npm/katex@0.16.0/dist/katex.min.css"
-    document.head.appendChild(link)
-  
-    if (contentRef.current) {
-      renderMathInElement(contentRef.current, {
-        delimiters: [
-          { left: "$$", right: "$$", display: true },
-          { left: "$",  right: "$",  display: false },
-        ],
-      })
-    }
-  
-    return () => {
-      document.head.removeChild(link)
-    }
-  }, [currentDoc])
+  const [activeHeading, setActiveHeading] = useState<string>("")
 
   // Extract the slug from the URL if present
   useEffect(() => {
     const pathParts = location.pathname.split("/")
     const slug = pathParts[pathParts.length - 1]
 
-    if (slug && documentationContent[slug]) {
+    if (slug && documentationComponents[slug]) {
       setCurrentDoc(slug)
-      // Auto-expand the current doc's TOC
-      setExpandedDocs((prev) => ({ ...prev, [slug]: true }))
     } else if (location.pathname === "/docs" || location.pathname === "/docs/") {
       setCurrentDoc("introduction")
-      // Auto-expand the introduction TOC
-      setExpandedDocs((prev) => ({ ...prev, introduction: true }))
     }
   }, [location])
-
-  // Extract headings from all docs
-  useEffect(() => {
-    const headings: Record<string, Array<{ id: string; text: string; level: number }>> = {}
-
-    Object.entries(documentationContent).forEach(([slug, doc]) => {
-      const headingRegex = /^(#{1,3})\s+(.+)$/gm
-      const docHeadings: Array<{ id: string; text: string; level: number }> = []
-      let match
-
-      while ((match = headingRegex.exec(doc.content)) !== null) {
-        const level = match[1].length
-        const text = match[2]
-        const id = text
-          .toLowerCase()
-          .replace(/\s+/g, "-")
-          .replace(/[^\w-]/g, "")
-
-        docHeadings.push({ id, text, level })
-      }
-
-      headings[slug] = docHeadings
-    })
-
-    setDocHeadings(headings)
-  }, [])
 
   // Handle search
   useEffect(() => {
@@ -632,9 +197,9 @@ const DocumentationPage: React.FC<DocumentationPageProps> = () => {
     const query = searchQuery.toLowerCase()
     const results: Array<{ slug: string; title: string; section: string }> = []
 
-    // Search in all documentation content
-    Object.entries(documentationContent).forEach(([slug, doc]) => {
-      if (doc.title.toLowerCase().includes(query) || doc.description.toLowerCase().includes(query)) {
+    // Search in all documentation metadata
+    Object.entries(documentationMetadata).forEach(([slug, metadata]) => {
+      if (metadata.title.toLowerCase().includes(query) || metadata.description.toLowerCase().includes(query)) {
         // Find which section this doc belongs to
         let section = ""
         for (const category of documentationStructure) {
@@ -647,7 +212,7 @@ const DocumentationPage: React.FC<DocumentationPageProps> = () => {
 
         results.push({
           slug,
-          title: doc.title,
+          title: metadata.title,
           section,
         })
       }
@@ -663,19 +228,19 @@ const DocumentationPage: React.FC<DocumentationPageProps> = () => {
     setMobileMenuOpen(false)
     setSearchQuery("")
     setSearchResults([])
-
-    // Auto-expand the selected doc's TOC
-    setExpandedDocs((prev) => ({ ...prev, [slug]: true }))
   }
 
-  // Toggle TOC expansion for a doc
-  const toggleDocExpansion = (slug: string, e: React.MouseEvent) => {
-    e.stopPropagation()
-    setExpandedDocs((prev) => ({ ...prev, [slug]: !prev[slug] }))
+  // Navigate to a heading
+  const navigateToHeading = (id: string) => {
+    document.getElementById(id)?.scrollIntoView({
+      behavior: "smooth",
+    })
+    setActiveHeading(id)
   }
 
-  // Get the current documentation content
-  const currentDocContent = documentationContent[currentDoc]
+  // Get the current documentation component
+  const CurrentDocComponent = documentationComponents[currentDoc] || null
+  const currentDocMetadata = documentationMetadata[currentDoc] || { title: "", description: "" }
 
   // Find the current section and item
   let currentSection = ""
@@ -689,162 +254,9 @@ const DocumentationPage: React.FC<DocumentationPageProps> = () => {
     }
   }
 
-  // Process content to render different elements
-  const processContent = (content: string) => {
-    // First, split the content by headers to preserve the structure
-    const headerRegex = /^(#{1,6})\s+(.+)$/gm
-    const sections = content.split(headerRegex)
-
-    const result = []
-    let index = 0
-
-    // Process each section
-    while (index < sections.length) {
-      if (index === 0 && sections[index]) {
-        // This is content before the first header
-        result.push(processSection(sections[index]))
-        index++
-      } else if (index + 2 < sections.length) {
-        // This is a header followed by content
-        const headerLevel = sections[index].length
-        const headerText = sections[index + 1]
-        const sectionContent = sections[index + 2]
-
-        // Create an ID for the header
-        const headerId = headerText
-          .toLowerCase()
-          .replace(/\s+/g, "-")
-          .replace(/[^\w-]/g, "")
-
-        // Add the header
-        result.push(
-          <div key={`header-${index}`} className="group">
-            {renderHeader(headerLevel, headerText, headerId)}
-            {processSection(sectionContent)}
-          </div>,
-        )
-
-        index += 3
-      } else {
-        // Handle any remaining content
-        if (sections[index]) {
-          result.push(processSection(sections[index]))
-        }
-        index++
-      }
-    }
-
-    return result
-  }
-
-  // Process a section of content (between headers)
-  const processSection = (content: string) => {
-    // Process code blocks
-    const codeBlockRegex = /```(\w+)?\n([\s\S]*?)```/g
-    const parts = []
-    let lastIndex = 0
-    let match
-
-    while ((match = codeBlockRegex.exec(content)) !== null) {
-      // Add text before the code block
-      if (match.index > lastIndex) {
-        parts.push(processText(content.substring(lastIndex, match.index)))
-      }
-
-      // Add the code block
-      const language = match[1] || "text"
-      const code = match[2]
-      parts.push(
-        <CodeWindow
-          key={`code-${match.index}`}
-          language={language}
-          code={code}
-          title={`${language.charAt(0).toUpperCase() + language.slice(1)} Code`}
-        />,
-      )
-
-      lastIndex = match.index + match[0].length
-    }
-
-    // Add any remaining text
-    if (lastIndex < content.length) {
-      parts.push(processText(content.substring(lastIndex)))
-    }
-
-    return <div key={`section-${Math.random()}`}>{parts}</div>
-  }
-
-  // Process text content (paragraphs, lists, etc.)
-  const processText = (text: string) => {
-    // Process blockquotes
-    text = text.replace(
-      /^>\s+(.*?)$/gm,
-      '<blockquote class="border-l-4 border-primary/60 pl-4 py-2 my-4 bg-primary/5 rounded-r-md italic">$1</blockquote>',
-    )
-
-    // Process lists
-    text = text.replace(/^\s*-\s+(.*?)$/gm, '<li class="ml-6 list-disc mb-2">$1</li>')
-    text = text.replace(/^\s*\d+\.\s+(.*?)$/gm, '<li class="ml-6 list-decimal mb-2">$1</li>')
-
-    // Wrap lists in ul/ol tags
-    text = text.replace(/(<li class="ml-6 list-disc mb-2">.*?<\/li>)+/gs, '<ul class="my-4">$&</ul>')
-    text = text.replace(/(<li class="ml-6 list-decimal mb-2">.*?<\/li>)+/gs, '<ol class="my-4">$&</ol>')
-
-    // Process bold and italic
-    text = text.replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold">$1</strong>')
-    text = text.replace(/\*(.*?)\*/g, '<em class="italic">$1</em>')
-
-    // Process inline code
-    text = text.replace(/`([^`]+)`/g, '<code class="px-1.5 py-0.5 bg-muted rounded text-sm font-mono">$1</code>')
-
-    // Process links
-    text = text.replace(/\[(.*?)\]$$(.*?)$$/g, '<a href="$2" class="text-primary hover:underline font-medium">$1</a>')
-
-    // Process paragraphs (any text not already in a tag)
-    text = text.replace(/^(?!<[a-z])(.*?)$/gm, (match, p1) =>
-      p1.trim() ? `<p class="mb-4 leading-relaxed">${p1}</p>` : "",
-    )
-
-    return <div dangerouslySetInnerHTML={{ __html: text }} />
-  }
-
-  // Render a header with the appropriate level
-  const renderHeader = (level: number, text: string, id: string) => {
-    const HeaderTag = `h${level}` as keyof JSX.IntrinsicElements
-    const fontSize = level === 1 ? "text-3xl" : level === 2 ? "text-2xl" : "text-xl"
-    const margin = level === 1 ? "mt-8 mb-4" : level === 2 ? "mt-6 mb-3" : "mt-5 mb-2"
-
-    return (
-      <HeaderTag id={id} className={`${fontSize} font-bold ${margin} flex items-center group`}>
-        <a
-          href={`#${id}`}
-          className="absolute -ml-8 pr-2 opacity-0 group-hover:opacity-100 transition-opacity"
-          aria-hidden="true"
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="20"
-            height="20"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="text-muted-foreground"
-          >
-            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
-            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
-          </svg>
-        </a>
-        {text}
-      </HeaderTag>
-    )
-  }
-
   return (
     <Layout>
-      <div className="container mx-auto px-4 py-8 mt-24">
+      <div className="container mx-auto px-4 py-8 mt-16">
         <div className="flex flex-col md:flex-row gap-8">
           {/* Mobile menu button */}
           <div className="md:hidden flex justify-between items-center mb-4">
@@ -915,9 +327,9 @@ const DocumentationPage: React.FC<DocumentationPageProps> = () => {
                 </div>
               </div>
 
-              <Card>
+              <Card className="bg-gray-50 dark:bg-gray-900/50 border-border/40">
                 <CardContent className="p-0">
-                  <ScrollArea className="h-[calc(100vh-200px)]">
+                  <ScrollArea className="h-[calc(100vh-180px)]">
                     <div className="p-4">
                       {documentationStructure.map((section) => (
                         <div key={section.title} className="mb-6">
@@ -925,79 +337,25 @@ const DocumentationPage: React.FC<DocumentationPageProps> = () => {
                             {section.icon}
                             <span className="ml-2">{section.title}</span>
                           </h3>
+
                           <ul className="space-y-1">
                             {section.items.map((item) => (
                               <li key={item.slug}>
-                                <div className="flex flex-col">
-                                  <button
-                                    className={`w-full text-left px-3 py-1.5 rounded-md text-sm flex items-center justify-between ${
-                                      currentDoc === item.slug
-                                        ? "bg-primary/10 text-primary font-medium"
-                                        : "hover:bg-muted"
-                                    }`}
-                                    onClick={() => navigateToDoc(item.slug)}
-                                  >
-                                    <div className="flex items-center">
-                                      {currentDoc === item.slug && (
-                                        <ChevronRight className="h-3 w-3 mr-1 flex-shrink-0" />
-                                      )}
-                                      <span className={currentDoc === item.slug ? "ml-0" : "ml-4"}>{item.title}</span>
-                                    </div>
-                                    {docHeadings[item.slug]?.length > 0 && (
-                                      <button
-                                        onClick={(e) => toggleDocExpansion(item.slug, e)}
-                                        className="p-1 rounded-md hover:bg-muted/50"
-                                      >
-                                        <ChevronDown
-                                          className={`h-4 w-4 transition-transform ${
-                                            expandedDocs[item.slug] ? "rotate-180" : ""
-                                          }`}
-                                        />
-                                      </button>
+                                <button
+                                  className={`w-full text-left px-3 py-1.5 rounded-md text-sm flex items-center ${
+                                    currentDoc === item.slug
+                                      ? "bg-primary/10 text-primary font-medium"
+                                      : "hover:bg-muted"
+                                  }`}
+                                  onClick={() => navigateToDoc(item.slug)}
+                                >
+                                  <div className="flex items-center">
+                                    {currentDoc === item.slug && (
+                                      <ChevronRight className="h-3 w-3 mr-1 flex-shrink-0" />
                                     )}
-                                  </button>
-
-                                  {/* Table of Contents for this doc */}
-                                  <AnimatePresence>
-                                    {expandedDocs[item.slug] && docHeadings[item.slug]?.length > 0 && (
-                                      <motion.div
-                                        initial={{ height: 0, opacity: 0 }}
-                                        animate={{ height: "auto", opacity: 1 }}
-                                        exit={{ height: 0, opacity: 0 }}
-                                        transition={{ duration: 0.2 }}
-                                        className="overflow-hidden"
-                                      >
-                                        <div className="pl-6 pr-2 py-1 space-y-1">
-                                          {docHeadings[item.slug].map((heading, index) => (
-                                            <a
-                                              key={index}
-                                              href={`/docs/${item.slug}#${heading.id}`}
-                                              className={`flex items-center text-sm hover:text-primary transition-colors ${
-                                                heading.level === 1
-                                                  ? "font-medium"
-                                                  : heading.level === 2
-                                                    ? "pl-2 text-muted-foreground"
-                                                    : "pl-4 text-muted-foreground text-xs"
-                                              }`}
-                                              onClick={(e) => {
-                                                e.preventDefault()
-                                                navigateToDoc(item.slug)
-                                                setTimeout(() => {
-                                                  document.getElementById(heading.id)?.scrollIntoView({
-                                                    behavior: "smooth",
-                                                  })
-                                                }, 100)
-                                              }}
-                                            >
-                                              <ChevronRight className="h-3 w-3 mr-1 text-primary/70" />
-                                              {heading.text}
-                                            </a>
-                                          ))}
-                                        </div>
-                                      </motion.div>
-                                    )}
-                                  </AnimatePresence>
-                                </div>
+                                    <span className={currentDoc === item.slug ? "ml-0" : "ml-4"}>{item.title}</span>
+                                  </div>
+                                </button>
                               </li>
                             ))}
                           </ul>
@@ -1012,73 +370,69 @@ const DocumentationPage: React.FC<DocumentationPageProps> = () => {
 
           {/* Main content */}
           <div className="flex-1">
-            {currentDocContent ? (
+            {CurrentDocComponent ? (
               <motion.div
                 key={currentDoc}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.3 }}
+                className="flex flex-col lg:flex-row gap-8"
               >
-                <div className="mb-6">
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
-                    <Button
-                      variant="link"
-                      className="p-0 h-auto text-muted-foreground"
-                      onClick={() => navigateToDoc("introduction")}
-                    >
-                      Docs
-                    </Button>
-                    <ChevronRight className="h-3 w-3" />
-                    <Button variant="link" className="p-0 h-auto text-muted-foreground">
-                      {currentSection}
-                    </Button>
-                    <ChevronRight className="h-3 w-3" />
-                    <span>{currentSectionTitle}</span>
+                <div className="flex-1">
+                  <div className="mb-8">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground mb-3">
+                      <Button
+                        variant="link"
+                        className="p-0 h-auto text-muted-foreground"
+                        onClick={() => navigateToDoc("introduction")}
+                      >
+                        Docs
+                      </Button>
+                      <ChevronRight className="h-3 w-3" />
+                      <Button variant="link" className="p-0 h-auto text-muted-foreground">
+                        {currentSection}
+                      </Button>
+                      <ChevronRight className="h-3 w-3" />
+                      <span>{currentSectionTitle}</span>
+                    </div>
+
+                    <h1 className="text-3xl font-bold tracking-tight mb-3">{currentDocMetadata.title}</h1>
+                    <p className="text-lg text-muted-foreground mb-6">{currentDocMetadata.description}</p>
                   </div>
 
-                  
-                </div>
-
-                {/* Document Window */}
-                <Card className="border border-border/60 shadow-md overflow-hidden">
-                  <div className="bg-muted/80 px-4 py-2 border-b flex items-center justify-between">
-                    <div className="flex items-center">
-                      <FileText className="h-4 w-4 mr-2 text-primary" />
-                      <span className="font-medium">{currentDocContent.title}</span>
-                    </div>
-                    
+                  {/* Document Content */}
+                  <div ref={contentRef}>
+                    <CurrentDocComponent />
                   </div>
-                  <CardContent className="p-6 max-h-[calc(100vh-300px)] overflow-auto" ref={contentRef}>
-                    <div className="prose prose-sm md:prose max-w-none dark:prose-invert">
-                      {processContent(currentDocContent.content)}
-                    </div>
-                  </CardContent>
-                </Card>
 
-                {/* Navigation between docs */}
-                <div className="mt-8 flex flex-col sm:flex-row justify-between gap-4">
-                  {getPreviousDoc(currentDoc) && (
-                    <Button
-                      variant="outline"
-                      className="flex items-center"
-                      onClick={() => navigateToDoc(getPreviousDoc(currentDoc))}
-                    >
-                      <ArrowRight className="h-4 w-4 mr-2 rotate-180" />
-                      Previous: {getPreviousDocTitle(currentDoc)}
-                    </Button>
-                  )}
+                  {/* Navigation between docs */}
+                  <div className="mt-12 flex flex-col sm:flex-row justify-between gap-4 border-t border-border/40 pt-8">
+                    {getPreviousDoc(currentDoc) && (
+                      <Button
+                        variant="outline"
+                        className="flex items-center"
+                        onClick={() => navigateToDoc(getPreviousDoc(currentDoc))}
+                      >
+                        <ArrowRight className="h-4 w-4 mr-2 rotate-180" />
+                        Previous: {getPreviousDocTitle(currentDoc)}
+                      </Button>
+                    )}
 
-                  {getNextDoc(currentDoc) && (
-                    <Button
-                      variant="outline"
-                      className="flex items-center ml-auto"
-                      onClick={() => navigateToDoc(getNextDoc(currentDoc))}
-                    >
-                      Next: {getNextDocTitle(currentDoc)}
-                      <ArrowRight className="h-4 w-4 ml-2" />
-                    </Button>
-                  )}
+                    {getNextDoc(currentDoc) && (
+                      <Button
+                        variant="outline"
+                        className="flex items-center ml-auto"
+                        onClick={() => navigateToDoc(getNextDoc(currentDoc))}
+                      >
+                        Next: {getNextDocTitle(currentDoc)}
+                        <ArrowRight className="h-4 w-4 ml-2" />
+                      </Button>
+                    )}
+                  </div>
                 </div>
+
+                {/* Right sidebar with table of contents */}
+                <DocToc headings={[]} activeId={activeHeading} onHeadingClick={navigateToHeading} />
               </motion.div>
             ) : (
               <div className="flex items-center justify-center h-[60vh]">

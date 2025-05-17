@@ -38,8 +38,7 @@ import {
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 
-const API = import.meta.env.VITE_API_BASE;
-
+const API = import.meta.env.VITE_API_BASE
 
 // Feature type definition
 interface Feature {
@@ -74,6 +73,8 @@ export default function FeatureBacklogPage() {
   const [error, setError] = useState<string | null>(null)
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [currentUser, setCurrentUser] = useState<any>(null)
+  // Add a new state variable to track if the current user is an admin
+  const [isAdmin, setIsAdmin] = useState(false)
 
   // State for pagination
   const [backlogLimit, setBacklogLimit] = useState(10)
@@ -107,7 +108,7 @@ export default function FeatureBacklogPage() {
     }
   }, [])
 
-  // Fetch current user data
+  // Update the fetchCurrentUser function to check if the user is an admin
   const fetchCurrentUser = async (token: string) => {
     try {
       const response = await fetch(`${API}/profile`, {
@@ -119,6 +120,11 @@ export default function FeatureBacklogPage() {
       if (response.ok) {
         const userData = await response.json()
         setCurrentUser(userData)
+
+        // Check if the user is an admin
+        if (userData.is_admin) {
+          setIsAdmin(true)
+        }
       }
     } catch (error) {
       console.error("Error fetching user profile:", error)
@@ -661,10 +667,12 @@ export default function FeatureBacklogPage() {
               />
             </div>
 
-            <Button onClick={() => setShowAddFeatureDialog(true)} className="w-full md:w-auto">
-              <Plus className="mr-2 h-4 w-4" />
-              Suggest Feature
-            </Button>
+            {isAdmin && (
+              <Button onClick={() => setShowAddFeatureDialog(true)} className="w-full md:w-auto">
+                <Plus className="mr-2 h-4 w-4" />
+                Suggest Feature
+              </Button>
+            )}
           </div>
 
           {/* Tags filter */}

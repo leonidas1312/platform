@@ -30,6 +30,7 @@ import {
   Sparkles,
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
+import { useToast } from "@/components/ui/use-toast"
 
 interface SetupDialogProps {
   open: boolean
@@ -51,7 +52,7 @@ interface SetupDialogProps {
   setCurrentSetupStep: (step: number) => void
   pythonFileToUpload: File | null
   setPythonFileToUpload: (file: File | null) => void
-  handleUploadPythonFile: () => void
+  handleUploadPythonFile?: () => void // Make this prop optional
 }
 
 export default function SetupDialog({
@@ -76,6 +77,9 @@ export default function SetupDialog({
   setPythonFileToUpload,
   handleUploadPythonFile,
 }: SetupDialogProps) {
+  const { toast } = useToast()
+  const [isUploading, setIsUploading] = useState(false)
+
   // State for new parameter
   const [newParamName, setNewParamName] = useState("")
   const [newParamValue, setNewParamValue] = useState("")
@@ -170,6 +174,101 @@ export default function SetupDialog({
     }
   }
 
+  // Internal function to upload Python file to Gitea
+  const uploadPythonFileToGitea = async () => {
+    if (!pythonFileToUpload) {
+      return false
+    }
+
+    setIsUploading(true)
+
+    try {
+      // Read file content
+      const fileContent = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = (e) => {
+          if (e.target?.result) {
+            resolve(e.target.result as string)
+          } else {
+            reject(new Error("Failed to read file"))
+          }
+        }
+        reader.onerror = () => reject(reader.error)
+        reader.readAsText(pythonFileToUpload)
+      })
+
+      // Get repository owner and name from URL or props
+      const urlParts = window.location.pathname.split("/")
+      const repoIndex = urlParts.findIndex((part) => part === "r")
+      const owner = urlParts[repoIndex + 1] || ""
+      const repoName = urlParts[repoIndex + 2] || ""
+
+      if (!owner || !repoName) {
+        throw new Error("Could not determine repository owner and name")
+      }
+
+      // Get user token
+      const token = localStorage.getItem("gitea_token")
+      if (!token) {
+        throw new Error("Not authenticated")
+      }
+
+      // Prepare the file upload payload
+      const fileUploadPayload = {
+        content: Buffer.from(fileContent).toString("base64"),
+        message: `Add ${pythonFileToUpload.name}`,
+        branch: "main",
+      }
+
+      // Upload the file to Gitea
+      const API = import.meta.env.VITE_API_BASE
+      const uploadResponse = await fetch(`${API}/repos/${owner}/${repoName}/contents/${pythonFileToUpload.name}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `token ${token}`,
+        },
+        body: JSON.stringify(fileUploadPayload),
+      })
+
+      if (!uploadResponse.ok) {
+        throw new Error(`Failed to upload file: ${uploadResponse.statusText}`)
+      }
+
+      toast({
+        title: "File uploaded",
+        description: `${pythonFileToUpload.name} has been uploaded to the repository`,
+      })
+
+      return true
+    } catch (error) {
+      console.error("Error uploading Python file:", error)
+      toast({
+        title: "File upload failed",
+        description: error instanceof Error ? error.message : "Failed to upload Python file to repository",
+        variant: "destructive",
+      })
+      return false
+    } finally {
+      setIsUploading(false)
+    }
+  }
+
+  // Combined function to handle upload and next step
+  const handleUploadAndContinue = async () => {
+    // If the parent provided a handleUploadPythonFile function, call it
+    if (handleUploadPythonFile) {
+      handleUploadPythonFile()
+      return
+    }
+
+    // Otherwise use our internal implementation
+    const success = await uploadPythonFileToGitea()
+    if (success) {
+      handleNextStep()
+    }
+  }
+
   // Render step content
   const renderStepContent = () => {
     switch (currentSetupStep) {
@@ -192,7 +291,7 @@ export default function SetupDialog({
                       Problem
                     </Label>
                     <p className="text-sm text-muted-foreground">
-                      A mathematical problem that can be solved using quantum computing techniques.
+                      A mathematical problem that can be solved using optimization techniques.
                     </p>
                   </div>
                 </div>
@@ -205,7 +304,7 @@ export default function SetupDialog({
                       Optimizer
                     </Label>
                     <p className="text-sm text-muted-foreground">
-                      An algorithm that optimizes parameters for quantum circuits or problems.
+                      An algorithm that finds a solution to an optimization problem.
                     </p>
                   </div>
                 </div>
@@ -431,7 +530,7 @@ export default function SetupDialog({
             </div>
             Setup Your Qubot
           </DialogTitle>
-          <DialogDescription>Configure your qubot to make it ready for quantum optimization.</DialogDescription>
+          <DialogDescription>Configure your qubot to make it shareable to the community.</DialogDescription>
         </DialogHeader>
 
         <div className="relative">
@@ -489,7 +588,7 @@ export default function SetupDialog({
         <DialogFooter className="flex justify-between items-center">
           <div>
             {currentSetupStep > 1 && (
-              <Button variant="outline" onClick={handlePrevStep}>
+              <Button variant="outline" onClick={handlePrevStep} disabled={isUploading}>
                 <ChevronLeft className="h-4 w-4 mr-1" />
                 Back
               </Button>
@@ -498,11 +597,37 @@ export default function SetupDialog({
           <div>
             {currentSetupStep < 4 ? (
               <Button
-                onClick={currentSetupStep === 2 && pythonFileToUpload ? handleUploadPythonFile : handleNextStep}
-                disabled={!isCurrentStepValid()}
+                onClick={currentSetupStep === 2 && pythonFileToUpload ? handleUploadAndContinue : handleNextStep}
+                disabled={!isCurrentStepValid() || isUploading}
               >
                 {currentSetupStep === 2 && pythonFileToUpload ? (
-                  <>Upload & Continue</>
+                  isUploading ? (
+                    <>
+                      <svg
+                        className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                      >
+                        <circle
+                          className="opacity-25"
+                          cx="12"
+                          cy="12"
+                          r="10"
+                          stroke="currentColor"
+                          strokeWidth="4"
+                        ></circle>
+                        <path
+                          className="opacity-75"
+                          fill="currentColor"
+                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                        ></path>
+                      </svg>
+                      Uploading...
+                    </>
+                  ) : (
+                    <>Upload & Continue</>
+                  )
                 ) : (
                   <>
                     Next
@@ -511,7 +636,7 @@ export default function SetupDialog({
                 )}
               </Button>
             ) : (
-              <Button onClick={onComplete} className="bg-primary">
+              <Button onClick={onComplete} className="bg-primary" disabled={isUploading}>
                 <Check className="h-4 w-4 mr-1" />
                 Complete Setup
               </Button>

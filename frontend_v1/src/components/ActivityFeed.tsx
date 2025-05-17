@@ -417,7 +417,7 @@ export default function ActivityFeed({ username, avatar_url }: ActivityFeedProps
                         <Button
                           variant="link"
                           className="p-0 h-auto text-primary font-medium"
-                          onClick={() => navigate(`/community`)}
+                          onClick={() => navigate(`/feedback`)}
                         >
                           community
                         </Button>
