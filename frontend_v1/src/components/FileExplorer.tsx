@@ -21,6 +21,9 @@ import {
   X,
 } from "lucide-react"
 
+const API = import.meta.env.VITE_API_BASE;
+
+
 interface FileExplorerProps {
   files: any[]
   onFileClick: (file: any) => void
@@ -151,7 +154,7 @@ export default function FileExplorer({
       setIsCommitLoading(true)
       try {
         const token = localStorage.getItem("gitea_token")
-        const response = await fetch(`http://localhost:4000/api/repos/${repoOwner}/${repoName}/commits?limit=1`, {
+        const response = await fetch(`${API}/repos/${repoOwner}/${repoName}/commits?limit=1`, {
           headers: {
             Authorization: `token ${token}`,
           },

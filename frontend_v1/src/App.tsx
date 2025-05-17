@@ -5,7 +5,6 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { LazyMotion, domAnimation } from "framer-motion";
 import Index from "./pages/Index";
-import QubotProblems from "./pages/QubotProblems";
 import Feedback from "./pages/Feedback";
 import Documentation from "./pages/Documentation";
 import BlogsPage from "./pages/Blogs";
@@ -21,6 +20,7 @@ import SettingsPage from "./pages/SettingsPage";
 import Roadmap from "./pages/Roadmap";
 import LeaderboardPage from "./pages/Leaderboard";
 import Feed from "./pages/Feed";
+import ExperimentalPreviewPage from "./pages/ExperimentalPreview";
 
 const queryClient = new QueryClient();
 
@@ -34,7 +34,6 @@ const App = () => (
           <BrowserRouter>
             <Routes>
               <Route path="/" element={<Index />} />
-              <Route path="/qubot-problems" element={<QubotProblems />} />
               <Route path="/feedback" element={<Feedback />} />
               <Route path="/blogs" element={<BlogsPage />} />
               <Route path="/blogs/:id" element={<BlogDetails />} />
@@ -46,6 +45,7 @@ const App = () => (
               <Route path="/roadmap" element={<Roadmap />} />
               <Route path="/leaderboard" element={<LeaderboardPage />} />
               <Route path="/feed" element={<Feed />} />
+              <Route path="/experimental-preview" element={<ExperimentalPreviewPage />} />
 
 
               {/* Profile page with username in URL */}

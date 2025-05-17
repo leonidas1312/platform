@@ -38,6 +38,8 @@ import {
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 
+const API = import.meta.env.VITE_API_BASE
+
 // Feature type definition
 interface Feature {
   id: string
@@ -71,6 +73,8 @@ export default function FeatureBacklogPage() {
   const [error, setError] = useState<string | null>(null)
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [currentUser, setCurrentUser] = useState<any>(null)
+  // Add a new state variable to track if the current user is an admin
+  const [isAdmin, setIsAdmin] = useState(false)
 
   // State for pagination
   const [backlogLimit, setBacklogLimit] = useState(10)
@@ -104,10 +108,10 @@ export default function FeatureBacklogPage() {
     }
   }, [])
 
-  // Fetch current user data
+  // Update the fetchCurrentUser function to check if the user is an admin
   const fetchCurrentUser = async (token: string) => {
     try {
-      const response = await fetch("http://localhost:4000/api/profile", {
+      const response = await fetch(`${API}/profile`, {
         headers: {
           Authorization: `token ${token}`,
         },
@@ -116,6 +120,11 @@ export default function FeatureBacklogPage() {
       if (response.ok) {
         const userData = await response.json()
         setCurrentUser(userData)
+
+        // Check if the user is an admin
+        if (userData.is_admin) {
+          setIsAdmin(true)
+        }
       }
     } catch (error) {
       console.error("Error fetching user profile:", error)
@@ -139,7 +148,7 @@ export default function FeatureBacklogPage() {
         headers["Authorization"] = `token ${token}`
       }
 
-      const response = await fetch("http://localhost:4000/api/features", { headers })
+      const response = await fetch(`${API}/features`, { headers })
 
       if (!response.ok) {
         throw new Error("Failed to fetch features")
@@ -249,7 +258,7 @@ export default function FeatureBacklogPage() {
 
     try {
       const token = localStorage.getItem("gitea_token")
-      const response = await fetch("http://localhost:4000/api/features", {
+      const response = await fetch(`${API}/features`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -308,7 +317,7 @@ export default function FeatureBacklogPage() {
 
     try {
       const token = localStorage.getItem("gitea_token")
-      const response = await fetch(`http://localhost:4000/api/features/${selectedFeature.id}`, {
+      const response = await fetch(`${API}/features/${selectedFeature.id}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -354,7 +363,7 @@ export default function FeatureBacklogPage() {
   const handleDeleteFeature = async (featureId: string) => {
     try {
       const token = localStorage.getItem("gitea_token")
-      const response = await fetch(`http://localhost:4000/api/features/${featureId}`, {
+      const response = await fetch(`${API}/features/${featureId}`, {
         method: "DELETE",
         headers: {
           Authorization: `token ${token}`,
@@ -395,7 +404,7 @@ export default function FeatureBacklogPage() {
 
     try {
       const token = localStorage.getItem("gitea_token")
-      const response = await fetch(`http://localhost:4000/api/features/${featureId}/vote`, {
+      const response = await fetch(`${API}/features/${featureId}/vote`, {
         method: "POST",
         headers: {
           Authorization: `token ${token}`,
@@ -436,7 +445,7 @@ export default function FeatureBacklogPage() {
     setIsLoadingComments(true)
 
     try {
-      const response = await fetch(`http://localhost:4000/api/features/${featureId}/comments`)
+      const response = await fetch(`${API}/features/${featureId}/comments`)
 
       if (!response.ok) {
         throw new Error("Failed to fetch comments")
@@ -472,7 +481,7 @@ export default function FeatureBacklogPage() {
 
     try {
       const token = localStorage.getItem("gitea_token")
-      const response = await fetch(`http://localhost:4000/api/features/${selectedFeature.id}/comments`, {
+      const response = await fetch(`${API}/features/${selectedFeature.id}/comments`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -530,7 +539,7 @@ export default function FeatureBacklogPage() {
 
     try {
       const token = localStorage.getItem("gitea_token")
-      const response = await fetch(`http://localhost:4000/api/features/${featureId}/status`, {
+      const response = await fetch(`${API}/features/${featureId}/status`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -658,10 +667,12 @@ export default function FeatureBacklogPage() {
               />
             </div>
 
-            <Button onClick={() => setShowAddFeatureDialog(true)} className="w-full md:w-auto">
-              <Plus className="mr-2 h-4 w-4" />
-              Suggest Feature
-            </Button>
+            {isAdmin && (
+              <Button onClick={() => setShowAddFeatureDialog(true)} className="w-full md:w-auto">
+                <Plus className="mr-2 h-4 w-4" />
+                Suggest Feature
+              </Button>
+            )}
           </div>
 
           {/* Tags filter */}

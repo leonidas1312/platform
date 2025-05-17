@@ -3,6 +3,12 @@
 import { useEffect, useRef } from "react"
 import { motion, useAnimation, useInView } from "framer-motion"
 import { ChevronDown } from "lucide-react"
+import { PrismLight as SyntaxHighlighter } from "react-syntax-highlighter"
+import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism"
+import python from "react-syntax-highlighter/dist/esm/languages/prism/python"
+
+// Register Python language
+SyntaxHighlighter.registerLanguage("python", python)
 
 const pythonSnippets = [
   {
@@ -39,6 +45,19 @@ print("Best Cost:", best_cost)`,
   },
 ]
 
+// Customize the theme for better visibility
+const customizedTheme = {
+  ...oneDark,
+  'pre[class*="language-"]': {
+    ...oneDark['pre[class*="language-"]'],
+    background: "transparent",
+  },
+  'code[class*="language-"]': {
+    ...oneDark['code[class*="language-"]'],
+    background: "transparent",
+  },
+}
+
 export default function CodeFlowHero() {
   const controls = useAnimation()
   const ref = useRef(null)
@@ -53,8 +72,6 @@ export default function CodeFlowHero() {
   return (
     <div className="w-full py-12 md:py-24" ref={ref}>
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-        
-
         <div className="space-y-8">
           {pythonSnippets.map((snippet, index) => (
             <div key={index} className="relative">
@@ -71,9 +88,30 @@ export default function CodeFlowHero() {
                     <h3 className="font-semibold text-primary">{snippet.title}</h3>
                   </div>
                   <div className="p-4 bg-black/90 text-white overflow-hidden h-full">
-                    <pre className="text-xs md:text-sm font-mono overflow-x-auto whitespace-pre">
-                      <code>{snippet.code}</code>
-                    </pre>
+                    <SyntaxHighlighter
+                      language="python"
+                      style={customizedTheme}
+                      showLineNumbers={true}
+                      customStyle={{
+                        margin: 0,
+                        padding: "1rem",
+                        fontSize: "0.875rem",
+                        fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+                        borderRadius: 0,
+                        background: "transparent",
+                      }}
+                      lineNumberStyle={{
+                        minWidth: "2.5rem",
+                        paddingRight: "1rem",
+                        textAlign: "right",
+                        color: "#636e7b",
+                        userSelect: "none",
+                      }}
+                      wrapLines={true}
+                      wrapLongLines={false}
+                    >
+                      {snippet.code}
+                    </SyntaxHighlighter>
                   </div>
                 </div>
 

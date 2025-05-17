@@ -26,7 +26,6 @@ import {
   GitFork,
   Calendar,
   ArrowUpRight,
-  Plus,
   FileText,
   Clock,
   UserPlus,
@@ -53,6 +52,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox"
 import ActivityFeed from "@/components/ActivityFeed"
 import { ScrollArea } from "@/components/ui/scroll-area"
+
+const API = import.meta.env.VITE_API_BASE
 
 const Profile = () => {
   // Get username from URL params
@@ -84,96 +85,108 @@ const Profile = () => {
 
   const navigate = useNavigate()
 
+  const [isOwnProfile, setIsOwnProfile] = useState(false)
+
+  // Add a new state variable to track if the user is logged in
+  const [isLoggedIn, setIsLoggedIn] = useState(false)
+
+  // Update the useEffect that fetches user data to check for login status
   useEffect(() => {
     const token = localStorage.getItem("gitea_token")
-    if (!token) {
-      navigate("/auth")
-      return
-    }
+    setIsLoggedIn(!!token)
 
-    // Fetch current logged-in user data
-    const fetchCurrentUser = async () => {
-      try {
-        const response = await fetch("http://localhost:4000/api/profile", {
-          headers: { Authorization: `token ${token}` },
-        })
+    // Only proceed with fetching data if the user is logged in
+    if (token) {
+      // Fetch current logged-in user data
+      const fetchCurrentUser = async () => {
+        try {
+          const response = await fetch(`${API}/profile`, {
+            headers: { Authorization: `token ${token}` },
+          })
 
-        if (response.ok) {
-          const userData = await response.json()
-          setCurrentUserData(userData)
+          if (response.ok) {
+            const userData = await response.json()
+            setCurrentUserData(userData)
+          }
+        } catch (error) {
+          console.error("Failed to fetch current user", error)
         }
-      } catch (error) {
-        console.error("Failed to fetch current user", error)
       }
-    }
 
-    // Fetch user profile - if username is provided, fetch that user's profile
-    // otherwise fetch the current user's profile
-    const fetchUserProfile = async () => {
-      try {
-        const endpoint = username ? `http://localhost:4000/api/users/${username}` : "http://localhost:4000/api/profile"
+      // Fetch user profile - if username is provided, fetch that user's profile
+      // otherwise fetch the current user's profile
+      const fetchUserProfile = async () => {
+        try {
+          const endpoint = username ? `${API}/users/${username}` : `${API}/profile`
 
-        const response = await fetch(endpoint, {
-          headers: { Authorization: `token ${token}` },
-        })
+          const response = await fetch(endpoint, {
+            headers: { Authorization: `token ${token}` },
+          })
 
-        if (!response.ok) {
-          navigate("/auth")
-          return
+          const data = await response.json()
+          setUser(data)
+
+          // Check if current user is following this user
+          if (username && username !== currentUserData?.login) {
+            checkFollowStatus(username)
+          }
+
+          // Fetch followers and following
+          fetchFollowers(username || data.login)
+          fetchFollowing(username || data.login)
+        } catch (error) {
+          console.error("Failed to fetch user", error)
+        } finally {
+          setLoading(false)
         }
-
-        const data = await response.json()
-        setUser(data)
-
-        // Check if current user is following this user
-        if (username && username !== currentUserData?.login) {
-          checkFollowStatus(username)
-        }
-
-        // Fetch followers and following
-        fetchFollowers(username || data.login)
-        fetchFollowing(username || data.login)
-      } catch (error) {
-        console.error("Failed to fetch user", error)
-        navigate("/auth")
-      } finally {
-        setLoading(false)
       }
-    }
 
-    // Fetch user repositories - if username is provided, fetch that user's repos
-    // otherwise fetch the current user's repos
-    const fetchUserRepos = async () => {
-      try {
-        const endpoint = username
-          ? `http://localhost:4000/api/users/${username}/repos`
-          : "http://localhost:4000/api/user-repos"
+      // Fetch user repositories - if username is provided, fetch that user's repos
+      // otherwise fetch the current user's repos
+      const fetchUserRepos = async () => {
+        try {
+          const endpoint = username ? `${API}/users/${username}/repos` : `${API}/user-repos`
 
-        const res = await fetch(endpoint, {
-          headers: { Authorization: `token ${token}` },
-        })
+          const res = await fetch(endpoint, {
+            headers: { Authorization: `token ${token}` },
+          })
 
-        if (res.ok) {
-          const data = await res.json()
-          setRepos(data)
+          if (res.ok) {
+            const data = await res.json()
+            setRepos(data)
+          }
+        } catch (error) {
+          console.error("Failed to fetch repos", error)
+        } finally {
+          setReposLoading(false)
         }
-      } catch (error) {
-        console.error("Failed to fetch repos", error)
-      } finally {
-        setReposLoading(false)
       }
-    }
 
-    fetchCurrentUser()
-    fetchUserProfile()
-    fetchUserRepos()
+      fetchCurrentUser()
+      fetchUserProfile()
+      fetchUserRepos()
+    } else {
+      // If not logged in, set loading to false
+      setLoading(false)
+    }
   }, [navigate, username, currentUserData?.login])
+
+  // Reset active tab if viewing someone else's profile and current tab is 'activity'
+  useEffect(() => {
+    if (!isOwnProfile && activeTab === "activity") {
+      setActiveTab("about")
+    }
+  }, [isOwnProfile, activeTab])
+
+  useEffect(() => {
+    setIsOwnProfile(!username || username === currentUserData?.login)
+  }, [username, currentUserData?.login])
 
   // Check if current user is following the profile user
   const checkFollowStatus = async (targetUsername: string) => {
     try {
       const token = localStorage.getItem("gitea_token")
-      const response = await fetch(`http://localhost:4000/api/user/following/${targetUsername}`, {
+      const response = await fetch(`${API}/user/following/${targetUsername}`, {
         headers: { Authorization: `token ${token}` },
       })
 
@@ -188,7 +201,7 @@ const Profile = () => {
     setFollowersLoading(true)
     try {
       const token = localStorage.getItem("gitea_token")
-      const response = await fetch(`http://localhost:4000/api/users/${targetUsername}/followers`, {
+      const response = await fetch(`${API}/users/${targetUsername}/followers`, {
         headers: { Authorization: `token ${token}` },
       })
 
@@ -208,7 +221,7 @@ const Profile = () => {
     setFollowingLoading(true)
     try {
       const token = localStorage.getItem("gitea_token")
-      const response = await fetch(`http://localhost:4000/api/users/${targetUsername}/following`, {
+      const response = await fetch(`${API}/users/${targetUsername}/following`, {
         headers: { Authorization: `token ${token}` },
       })
 
@@ -232,7 +245,7 @@ const Profile = () => {
       const token = localStorage.getItem("gitea_token")
       const method = isFollowing ? "DELETE" : "PUT"
 
-      const response = await fetch(`http://localhost:4000/api/user/following/${username}`, {
+      const response = await fetch(`${API}/user/following/${username}`, {
         method,
         headers: { Authorization: `token ${token}` },
       })
@@ -261,6 +274,7 @@ const Profile = () => {
     }
   }
 
+  // Replace the loading check in the render function with this combined check
   if (loading) {
     return (
       <Layout>
@@ -268,6 +282,33 @@ const Profile = () => {
           <div className="flex flex-col items-center gap-4">
             <Loader2 className="animate-spin w-10 h-10 text-primary" />
             <span className="text-muted-foreground">Loading Profile...</span>
+          </div>
+        </div>
+      </Layout>
+    )
+  }
+
+  // Add this check after the loading check and before the "if (!user) return null" check
+  if (!isLoggedIn) {
+    return (
+      <Layout>
+        <div className="min-h-screen flex items-center justify-center bg-background">
+          <div className="max-w-md w-full p-8 bg-card rounded-xl shadow-lg border border-border/40 text-center space-y-6">
+            <div className="w-20 h-20 mx-auto rounded-full bg-primary/10 flex items-center justify-center">
+              <User className="w-10 h-10 text-primary/70" />
+            </div>
+            <h2 className="text-2xl font-bold">Authentication Required</h2>
+            <p className="text-muted-foreground">
+              You need to be logged in to view Rastion profiles and user information.
+            </p>
+            <div className="pt-4">
+              <Button
+                onClick={() => navigate("/auth")}
+                className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary"
+              >
+                Log in to continue
+              </Button>
+            </div>
           </div>
         </div>
       </Layout>
@@ -296,7 +337,7 @@ const Profile = () => {
 
       // Only send the PATCH request if there are profile fields to update
       if (Object.keys(updatedData).length > 0) {
-        const patchResponse = await fetch("http://localhost:4000/api/profile", {
+        const patchResponse = await fetch(`${API}/profile`, {
           method: "PATCH",
           headers: {
             Authorization: `token ${token}`,
@@ -312,7 +353,7 @@ const Profile = () => {
       }
 
       // Always fetch the updated profile to get the latest avatar
-      const getResponse = await fetch("http://localhost:4000/api/profile", {
+      const getResponse = await fetch(`${API}/profile`, {
         headers: { Authorization: `token ${token}` },
       })
 
@@ -370,7 +411,7 @@ const Profile = () => {
         throw new Error("Authentication required")
       }
 
-      const response = await fetch("http://localhost:4000/api/create-repo", {
+      const response = await fetch(`${API}/create-repo`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -398,7 +439,7 @@ const Profile = () => {
 
       setShowCreateModal(false)
       // Refresh the repositories list
-      const res = await fetch("http://localhost:4000/api/user-repos", {
+      const res = await fetch(`${API}/user-repos`, {
         headers: { Authorization: `token ${token}` },
       })
       if (res.ok) {
@@ -418,13 +459,10 @@ const Profile = () => {
     }
   }
 
-  // Check if viewing own profile
-  const isOwnProfile = !username || username === currentUserData?.login
-
   return (
     <Layout>
       <main className="min-h-screen bg-gradient-to-b from-background to-background/95 py-32 text-foreground">
-        <div className="max-w-6xl mx-auto px-4 space-y-8">
+        <div className="max-w-6xl mx-auto mt-14 px-4 space-y-8">
           {/* Profile Header with subtle gradient background */}
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
             {/* Left Column - Profile Info with enhanced styling */}
@@ -582,13 +620,15 @@ const Profile = () => {
                     <FolderGit className="w-4 h-4" />
                     Qubots
                   </TabsTrigger>
-                  <TabsTrigger
-                    value="activity"
-                    className="flex items-center gap-1 data-[state=active]:bg-primary/10 data-[state=active]:text-primary"
-                  >
-                    <Clock className="w-4 h-4" />
-                    Activity
-                  </TabsTrigger>
+                  {isOwnProfile && (
+                    <TabsTrigger
+                      value="activity"
+                      className="flex items-center gap-1 data-[state=active]:bg-primary/10 data-[state=active]:text-primary"
+                    >
+                      <Clock className="w-4 h-4" />
+                      Activity
+                    </TabsTrigger>
+                  )}
                 </TabsList>
 
                 {/* Repositories Tab with enhanced styling */}
@@ -600,7 +640,6 @@ const Profile = () => {
                         <FolderGit className="w-5 h-5 text-primary" />
                         Qubots
                       </h2>
-                      
                     </div>
 
                     {reposLoading ? (
@@ -621,9 +660,7 @@ const Profile = () => {
                                 <h3 className="font-semibold flex items-center gap-2 text-foreground text-lg group-hover:text-primary transition-colors">
                                   <FileCog2 className="w-4 h-4 text-primary" /> {repo.name}
                                 </h3>
-                                <p className="mt-2 text-sm text-muted-foreground group-hover:text-muted-foreground/80 transition-colors">
-                                  {repo.description || "No description provided."}
-                                </p>
+                                
                               </div>
                               <Badge
                                 variant={repo.private ? "outline" : "secondary"}
@@ -650,15 +687,7 @@ const Profile = () => {
                                 {repo.stars_count || 0}
                               </div>
 
-                              <div className="flex items-center gap-1">
-                                <GitFork className="w-3 h-3" />
-                                {repo.forks_count || 0}
-                              </div>
-
-                              <div className="flex items-center gap-1">
-                                <Eye className="w-3 h-3" />
-                                {repo.watchers_count || 0}
-                              </div>
+                              
 
                               {repo.updated_at && (
                                 <div className="flex items-center gap-1">
@@ -681,15 +710,6 @@ const Profile = () => {
                             ? "Create your first repository to get started with optimization problems and solutions"
                             : `${username} hasn't created any repositories yet`}
                         </p>
-                        {isOwnProfile && (
-                          <Button
-                            onClick={handleCreateRepoClick}
-                            className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary shadow-sm"
-                          >
-                            <Plus className="w-4 h-4 mr-1" />
-                            New Qubot Repository
-                          </Button>
-                        )}
                       </div>
                     )}
                   </div>

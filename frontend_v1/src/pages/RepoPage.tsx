@@ -6,24 +6,25 @@ import { useEffect, useState, useRef } from "react"
 import { useParams, useNavigate, useLocation } from "react-router-dom"
 import Layout from "@/components/Layout"
 import { useToast } from "@/components/ui/use-toast"
-import { Dialog } from "@/components/ui/dialog"
+import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { Loader2 } from "lucide-react"
 
 // Import components
 import RepoHeader from "@/components/repo/RepoHeader"
 import QubotSidebar from "@/components/repo/QubotSidebar"
-import NewRepoWelcome from "@/components/repo/NewRepoWelcome"
 import SetupDialog from "@/components/repo/SetupDialog"
 import DeleteRepoDialog from "@/components/repo/DeleteRepoDialog"
 import TabsContainer from "@/components/repo/TabsContainer"
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 
-import QubotCardForm from "@/components/CreateQubotCard"
 import QubotCardDisplay from "@/components/QubotCardDisplay"
 import FileExplorer from "@/components/FileExplorer"
 import CodeViewer from "@/components/CodeViewerRepoPage"
 import FileUploadDialog from "@/components/FileUploadDialog"
 import FileSearchDialog from "@/components/FileSearchDialog"
+import QubotEditDialog from "@/components/repo/QubotEditDialog"
+
+const API = import.meta.env.VITE_API_BASE
 
 // For demo purposes, we retrieve the user token from localStorage.
 const getUserToken = () => localStorage.getItem("gitea_token") || ""
@@ -66,6 +67,7 @@ export default function RepoPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
   const [activeTab, setActiveTab] = useState("qubot")
+
   const [qubotSubTab, setQubotSubTab] = useState("readme")
 
   // Parse the current path from the URL
@@ -77,7 +79,8 @@ export default function RepoPage() {
   const [selectedFileSha, setSelectedFileSha] = useState<string | null>(null)
   const [fileContent, setFileContent] = useState<string>("")
   const [editorLoading, setEditorLoading] = useState(false)
-  const [isEditing, setIsEditing] = useState(false)
+  const [isEditingState, setIsEditingState] = useState<boolean | undefined>(undefined)
+  const isEditing = isEditingState !== undefined ? isEditingState : false
 
   // Qubot Card state
   const [showCreateForm, setShowCreateForm] = useState(false)
@@ -137,6 +140,13 @@ export default function RepoPage() {
 
   // File upload for step 2
   const [pythonFileToUpload, setPythonFileToUpload] = useState<File | null>(null)
+
+  // Welcome dialog state
+  const [showWelcomeDialog, setShowWelcomeDialog] = useState(false)
+
+  // Edit qubot dialog state
+  const [showEditQubotDialog, setShowEditQubotDialog] = useState(false)
+
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Parse the URL to determine current path, branch, and file
@@ -222,7 +232,7 @@ export default function RepoPage() {
 
     const token = getUserToken()
 
-    fetch(`http://localhost:4000/api/repos/${owner}/${repoName}`, {
+    fetch(`${API}/repos/${owner}/${repoName}`, {
       headers: {
         ...(token && { Authorization: `token ${token}` }),
       },
@@ -240,9 +250,21 @@ export default function RepoPage() {
         setReadme(data.readme)
         setConfig(data.config)
 
-        // Check if this is a new repository (no config.json and empty or no readme)
-        if (!data.config && (!data.readme || data.readme.trim() === "")) {
+        // Check URL for new=true parameter to force new repo state
+        if (location.search.includes("new=true")) {
           setIsNewRepo(true)
+          console.log("New repository detected from URL parameter")
+
+          // Remove the query parameter by replacing the current URL
+          const newUrl = location.pathname
+          window.history.replaceState({}, document.title, newUrl)
+        }
+
+        // Check if this is a new repository (no config.json)
+        // We're only checking for config.json now since that's the definitive marker of qubot setup
+        if (!data.config) {
+          setIsNewRepo(true)
+          console.log("New repository detected - showing welcome screen")
         }
 
         // Set default branch if not already set
@@ -271,12 +293,12 @@ export default function RepoPage() {
         setError(err.message || "Unknown error")
         setLoading(false)
       })
-  }, [owner, repoName])
+  }, [owner, repoName, location.search])
 
   // Load branches
   const loadBranches = async (repoOwner: string, repoName: string) => {
     try {
-      const response = await fetch(`http://localhost:4000/api/repos/${repoOwner}/${repoName}/branches`)
+      const response = await fetch(`${API}/repos/${repoOwner}/${repoName}/branches`)
       if (response.ok) {
         const branchesData = await response.json()
         setBranches(branchesData.map((branch: any) => branch.name))
@@ -306,7 +328,7 @@ export default function RepoPage() {
 
   const reloadRepoData = async () => {
     if (!owner || !repoName) return
-    const res = await fetch(`http://localhost:4000/api/repos/${owner}/${repoName}`)
+    const res = await fetch(`${API}/repos/${owner}/${repoName}`)
     const data = await res.json()
     setRepo(data.repo)
     setReadme(data.readme)
@@ -321,7 +343,7 @@ export default function RepoPage() {
 
     const token = getUserToken()
     if (token !== "") {
-      const resStar = await fetch(`http://localhost:4000/api/hasStar/${owner}/${repoName}`, {
+      const resStar = await fetch(`${API}/hasStar/${owner}/${repoName}`, {
         headers: {
           Authorization: `token ${token}`,
         },
@@ -342,14 +364,11 @@ export default function RepoPage() {
     console.log(`Loading file content: ${filePath} from branch: ${branch}`)
     setEditorLoading(true)
     try {
-      const fileRes = await fetch(
-        `http://localhost:4000/api/repos/${owner}/${repoName}/contents/${filePath}?ref=${branch}`,
-        {
-          headers: {
-            Authorization: `token ${getUserToken()}`,
-          },
+      const fileRes = await fetch(`${API}/repos/${owner}/${repoName}/contents/${filePath}?ref=${branch}`, {
+        headers: {
+          Authorization: `token ${getUserToken()}`,
         },
-      )
+      })
 
       if (fileRes.ok) {
         const fileJson = await fileRes.json()
@@ -393,7 +412,7 @@ export default function RepoPage() {
     console.log("test")
     if (!owner || !repoName) return
     try {
-      const starRes = await fetch(`http://localhost:4000/api/toggleStar/${owner}/${repoName}`, {
+      const starRes = await fetch(`${API}/toggleStar/${owner}/${repoName}`, {
         method: "POST",
         headers: {
           Authorization: `token ${getUserToken()}`,
@@ -418,7 +437,7 @@ export default function RepoPage() {
       const token = getUserToken()
 
       // Save config.json
-      const configResponse = await fetch(`http://localhost:4000/api/repos/${owner}/${repoName}/contents/config.json`, {
+      const configResponse = await fetch(`${API}/repos/${owner}/${repoName}/contents/config.json`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -438,6 +457,7 @@ export default function RepoPage() {
 
       await reloadRepoData()
       setShowCreateForm(false)
+      setShowEditQubotDialog(false)
       setConfig(formData)
 
       // If this was a new repo, it's no longer new
@@ -448,9 +468,20 @@ export default function RepoPage() {
 
       // Close the setup dialog if it was open
       setShowSetupDialog(false)
+      setShowWelcomeDialog(false)
+
+      toast({
+        title: "Success",
+        description: "Qubot card updated successfully",
+      })
     } catch (err: any) {
       console.error(err)
       setError(err.message || "Error creating Qubot card")
+      toast({
+        title: "Error",
+        description: err.message || "Failed to update qubot card",
+        variant: "destructive",
+      })
     } finally {
       setLoading(false)
     }
@@ -470,7 +501,7 @@ export default function RepoPage() {
 
       // Immediately load the directory contents
       const branch = currentBranch || repo?.default_branch || "main"
-      const apiUrl = `http://localhost:4000/api/repos/${owner}/${repoName}/contents/${newPath}?ref=${branch}`
+      const apiUrl = `${API}/repos/${owner}/${repoName}/contents/${newPath}?ref=${branch}`
       setLoading(true)
 
       fetch(apiUrl)
@@ -522,7 +553,7 @@ export default function RepoPage() {
       setEditorLoading(true)
       const token = getUserToken()
       const encodedContent = btoa(fileContent)
-      const response = await fetch(`http://localhost:4000/api/repos/${owner}/${repoName}/contents/${selectedFile}`, {
+      const response = await fetch(`${API}/repos/${owner}/${repoName}/contents/${selectedFile}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -542,7 +573,7 @@ export default function RepoPage() {
 
       // Reload the file content
       await loadFileContent(selectedFile)
-      setIsEditing(false)
+      setIsEditingState(false)
       toast({
         title: "Success",
         description: "File saved successfully!",
@@ -567,7 +598,7 @@ export default function RepoPage() {
       setEditorLoading(true)
       const token = getUserToken()
 
-      const response = await fetch(`http://localhost:4000/api/repos/${owner}/${repoName}/contents/${selectedFile}`, {
+      const response = await fetch(`${API}/repos/${owner}/${repoName}/contents/${selectedFile}`, {
         method: "DELETE",
         headers: {
           "Content-Type": "application/json",
@@ -600,10 +631,9 @@ export default function RepoPage() {
 
       // Reload the directory contents
       if (currentPath) {
-        const dirResponse = await fetch(
-          `http://localhost:4000/api/repos/${owner}/${repoName}/contents/${currentPath}?ref=${branch}`,
-          { headers: { Authorization: `token ${token}` } },
-        )
+        const dirResponse = await fetch(`${API}/repos/${owner}/${repoName}/contents/${currentPath}?ref=${branch}`, {
+          headers: { Authorization: `token ${token}` },
+        })
         if (dirResponse.ok) {
           const dirData = await dirResponse.json()
           setFiles(enhanceFilesWithCommitData(dirData))
@@ -636,7 +666,7 @@ export default function RepoPage() {
     setIsDeletingRepo(true)
     try {
       const token = getUserToken()
-      const response = await fetch(`http://localhost:4000/api/repos/${owner}/${repoName}`, {
+      const response = await fetch(`${API}/repos/${owner}/${repoName}`, {
         method: "DELETE",
         headers: {
           Authorization: `token ${token}`,
@@ -710,21 +740,18 @@ export default function RepoPage() {
       })
 
       // Upload the file
-      const response = await fetch(
-        `http://localhost:4000/api/repos/${owner}/${repoName}/contents/${pythonFileToUpload.name}`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `token ${token}`,
-          },
-          body: JSON.stringify({
-            content: fileContent,
-            message: `Add ${pythonFileToUpload.name}`,
-            branch: branch,
-          }),
+      const response = await fetch(`${API}/repos/${owner}/${repoName}/contents/${pythonFileToUpload.name}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `token ${token}`,
         },
-      )
+        body: JSON.stringify({
+          content: fileContent,
+          message: `Add ${pythonFileToUpload.name}`,
+          branch: branch,
+        }),
+      })
 
       if (!response.ok) {
         const errData = await response.json()
@@ -739,8 +766,7 @@ export default function RepoPage() {
         description: "Python file uploaded successfully!",
       })
 
-      // Move to the next step
-      setCurrentSetupStep(3)
+      return true
     } catch (err: any) {
       console.error("Error uploading Python file:", err)
       toast({
@@ -748,10 +774,11 @@ export default function RepoPage() {
         description: err.message || "Failed to upload Python file",
         variant: "destructive",
       })
+      return false
     }
   }
 
-  // Update the handleCompleteSetup function to include the new fields
+  // Let's update the handleCompleteSetup function to handle both uploaded and existing files
   const handleCompleteSetup = async () => {
     if (!entrypointFile || !owner || !repoName) return
 
@@ -778,7 +805,7 @@ export default function RepoPage() {
       const formattedJson = JSON.stringify(configData, null, 2)
 
       // Save the config to config.json
-      const configResponse = await fetch(`http://localhost:4000/api/repos/${owner}/${repoName}/contents/config.json`, {
+      const configResponse = await fetch(`${API}/repos/${owner}/${repoName}/contents/config.json`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -808,6 +835,9 @@ export default function RepoPage() {
       // Close the setup dialog
       setShowSetupDialog(false)
 
+      // Close the welcome dialog if it's open
+      setShowWelcomeDialog(false)
+
       toast({
         title: "Success",
         description: "Qubot setup completed successfully!",
@@ -815,6 +845,8 @@ export default function RepoPage() {
 
       // Reload repo data to reflect changes
       await reloadRepoData()
+
+      return true
     } catch (err) {
       console.error("Error completing qubot setup:", err)
       toast({
@@ -822,10 +854,12 @@ export default function RepoPage() {
         description: err.message || "Failed to complete qubot setup",
         variant: "destructive",
       })
+      return false
     } finally {
       setLoading(false)
     }
   }
+
   // Handle path navigation
   const handlePathNavigation = (path: string) => {
     const branch = currentBranch || repo?.default_branch || "main"
@@ -888,7 +922,7 @@ export default function RepoPage() {
       const filePath = currentPath ? `${currentPath}/${file.name}` : file.name
 
       // Call your server's API to create/update the file using a PUT request
-      const response = await fetch(`http://localhost:4000/api/repos/${owner}/${repoName}/contents/${filePath}`, {
+      const response = await fetch(`${API}/repos/${owner}/${repoName}/contents/${filePath}`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -909,7 +943,7 @@ export default function RepoPage() {
       // Reload the current directory to show the new file
       if (currentPath) {
         const dirResponse = await fetch(
-          `http://localhost:4000/api/repos/${owner}/${repoName}/contents/${currentPath}?ref=${branch || currentBranch || repo?.default_branch || "main"}`,
+          `${API}/repos/${owner}/${repoName}/contents/${currentPath}?ref=${branch || currentBranch || repo?.default_branch || "main"}`,
           { headers: { Authorization: `token ${token}` } },
         )
         if (dirResponse.ok) {
@@ -970,8 +1004,8 @@ export default function RepoPage() {
 
     // Immediately load the parent directory contents
     const apiUrl = parentPath
-      ? `http://localhost:4000/api/repos/${owner}/${repoName}/contents/${parentPath}?ref=${branch}`
-      : `http://localhost:4000/api/repos/${owner}/${repoName}`
+      ? `${API}/repos/${owner}/${repoName}/contents/${parentPath}?ref=${branch}`
+      : `${API}/repos/${owner}/${repoName}`
 
     setLoading(true)
 
@@ -1024,7 +1058,7 @@ export default function RepoPage() {
         const filePath = currentPath ? `${currentPath}/${file.name}` : file.name
 
         const commitResponse = await fetch(
-          `http://localhost:4000/api/repos/${owner}/${repoName}/commits?path=${encodeURIComponent(filePath)}&limit=1&ref=${branch}`,
+          `${API}/repos/${owner}/${repoName}/commits?path=${encodeURIComponent(filePath)}&limit=1&ref=${branch}`,
           {
             headers: token ? { Authorization: `token ${token}` } : {},
           },
@@ -1060,12 +1094,9 @@ export default function RepoPage() {
       // Instead of using a non-existent endpoint, we'll recursively fetch all files
       // starting from the root directory
       const fetchFilesRecursively = async (path = ""): Promise<any[]> => {
-        const response = await fetch(
-          `http://localhost:4000/api/repos/${repoOwner}/${repoName}/contents/${path}?ref=${defaultBranch}`,
-          {
-            headers: token ? { Authorization: `token ${token}` } : {},
-          },
-        )
+        const response = await fetch(`${API}/repos/${repoOwner}/${repoName}/contents/${path}?ref=${defaultBranch}`, {
+          headers: token ? { Authorization: `token ${token}` } : {},
+        })
 
         if (!response.ok) {
           console.error(`Failed to load files for path ${path}:`, response.status)
@@ -1106,7 +1137,7 @@ export default function RepoPage() {
     if (!owner || !repoName) return
 
     try {
-      const response = await fetch(`http://localhost:4000/api/repos/${owner}/${repoName}/connections`)
+      const response = await fetch(`${API}/repos/${owner}/${repoName}/connections`)
 
       if (response.ok) {
         const data = await response.json()
@@ -1141,8 +1172,13 @@ export default function RepoPage() {
   // Handle edit qubot card
   const handleEditQubotCard = () => {
     setActiveTab("qubot")
-    setShowCreateForm(true)
+    setShowEditQubotDialog(true)
     navigate(`/${owner}/${repoName}`)
+  }
+
+  // Handle setup qubot
+  const handleSetupQubot = () => {
+    setShowWelcomeDialog(true)
   }
 
   if (loading) {
@@ -1172,47 +1208,9 @@ export default function RepoPage() {
     )
   }
 
-  // First-time user experience for new repositories
-  if (isNewRepo) {
-    return (
-      <Layout>
-        <NewRepoWelcome
-          owner={owner || ""}
-          repoName={repoName || ""}
-          repo={repo}
-          onCreateQubotCard={() => setShowSetupDialog(true)}
-        />
-
-        <SetupDialog
-          open={showSetupDialog}
-          onOpenChange={setShowSetupDialog}
-          onComplete={handleCompleteSetup}
-          qubotType={qubotType}
-          setQubotType={setQubotType}
-          entrypointFile={entrypointFile}
-          setEntrypointFile={setEntrypointFile}
-          entrypointClass={entrypointClass}
-          setEntrypointClass={setEntrypointClass}
-          qubotParameters={qubotParameters}
-          setQubotParameters={setQubotParameters}
-          arxivLinks={arxivLinks}
-          setArxivLinks={setArxivLinks}
-          qubotKeywords={qubotKeywords}
-          setQubotKeywords={setQubotKeywords}
-          currentSetupStep={currentSetupStep}
-          setCurrentSetupStep={setCurrentSetupStep}
-          pythonFileToUpload={pythonFileToUpload}
-          setPythonFileToUpload={setPythonFileToUpload}
-          handleUploadPythonFile={handleUploadPythonFile}
-        />
-      </Layout>
-    )
-  }
-
-  // Render the main repository view
   return (
     <Layout>
-      <div className="container mx-auto px-4 py-8 mt-32 bg-background text-foreground">
+      <div className="container mx-auto px-4 py-8 mt-44 bg-background text-foreground">
         <RepoHeader
           owner={owner || ""}
           repoName={repoName || ""}
@@ -1222,6 +1220,8 @@ export default function RepoPage() {
           toggleStar={toggleStar}
           onEditQubotCard={handleEditQubotCard}
           onDeleteRepo={() => setShowDeleteRepoDialog(true)}
+          onSaveQubotCard={handleSaveQubotCard}
+          allRepoFiles={allRepoFiles}
         />
 
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
@@ -1236,13 +1236,7 @@ export default function RepoPage() {
               activeTab={activeTab}
               onTabChange={handleTabChange}
               readmeContent={
-                showCreateForm ? (
-                  <QubotCardForm
-                    initialData={config}
-                    onSave={handleSaveQubotCard}
-                    onCancel={() => setShowCreateForm(false)}
-                  />
-                ) : readme ? (
+                readme ? (
                   <QubotCardDisplay
                     readme={readme}
                     data={config}
@@ -1284,9 +1278,9 @@ export default function RepoPage() {
                       content={fileContent}
                       isLoading={editorLoading}
                       isEditing={isEditing}
-                      onEdit={() => setIsEditing(true)}
+                      onEdit={() => setIsEditingState(true)}
                       onSave={handleSaveFile}
-                      onCancel={() => setIsEditing(false)}
+                      onCancel={() => setIsEditingState(false)}
                       onChange={setFileContent}
                       onBack={handleBackToFiles}
                       onDelete={handleDeleteFile}
@@ -1329,6 +1323,19 @@ export default function RepoPage() {
         isDeleting={isDeletingRepo}
       />
 
+      {/* Edit Qubot Dialog */}
+      <QubotEditDialog
+        open={showEditQubotDialog}
+        onOpenChange={setShowEditQubotDialog}
+        owner={owner || ""}
+        repoName={repoName || ""}
+        config={config}
+        onSaveQubotCard={handleSaveQubotCard}
+        allRepoFiles={allRepoFiles}
+      />
+
+      
+
       {/* Setup Dialog */}
       <Dialog open={showSetupDialog} onOpenChange={setShowSetupDialog}>
         <SetupDialog
@@ -1354,6 +1361,10 @@ export default function RepoPage() {
           handleUploadPythonFile={handleUploadPythonFile}
         />
       </Dialog>
+
+      
+
+      
     </Layout>
   )
 }

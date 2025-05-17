@@ -26,6 +26,8 @@ import { useToast } from "@/hooks/use-toast"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Skeleton } from "@/components/ui/skeleton"
 
+const API = import.meta.env.VITE_API_BASE
+
 // Types
 interface User {
   id: number
@@ -35,9 +37,11 @@ interface User {
   email: string
 }
 
+// Update the Post interface to include the type field
 interface Post {
   id: number
   content: string
+  type: "general" | "feature_request" | "question" | "new_qubot"
   author: User
   created_at: string
   likes: number
@@ -53,7 +57,9 @@ const Community = () => {
   const { toast } = useToast()
   // Change the initial activeTab state from "feed" to "latest"
   const [activeTab, setActiveTab] = useState("latest")
+  // Add a new state variable for the post type after the postText state
   const [postText, setPostText] = useState("")
+  const [postType, setPostType] = useState<"general" | "feature_request" | "question" | "new_qubot">("general")
   const [isExpanded, setIsExpanded] = useState(false)
   const [posts, setPosts] = useState<Post[]>([])
   const [searchQuery, setSearchQuery] = useState("")
@@ -78,7 +84,7 @@ const Community = () => {
 
     const fetchCurrentUser = async () => {
       try {
-        const response = await fetch("http://localhost:4000/api/profile", {
+        const response = await fetch(`${API}/profile`, {
           headers: {
             Authorization: `token ${token}`,
           },
@@ -121,13 +127,17 @@ const Community = () => {
         }
 
         // CHANGED: Actually fetch from our new backend route
-        const response = await fetch("http://localhost:4000/api/community/posts", { headers })
+        const response = await fetch(`${API}/community/posts`, { headers })
 
         if (!response.ok) {
           throw new Error(`Failed to fetch posts: ${response.statusText}`)
         }
 
         const data = await response.json() // This should be an array of posts
+        
+        // Add this console log to see what we're receiving
+        console.log("Received posts from server:", data)
+        
         setPosts(data)
       } catch (error) {
         console.error("Error fetching posts:", error)
@@ -159,7 +169,7 @@ const Community = () => {
         }
 
         // Fetch users from Gitea
-        const response = await fetch("http://localhost:4000/api/public-repos", {
+        const response = await fetch(`${API}/public-repos`, {
           headers,
         })
 
@@ -196,7 +206,7 @@ const Community = () => {
     fetchActiveUsers()
   }, [toast])
 
-  // Handle post submission
+  // Update the handlePostSubmit function to include the post type
   const handlePostSubmit = async () => {
     if (!postText.trim()) return
 
@@ -214,53 +224,57 @@ const Community = () => {
       const token = localStorage.getItem("gitea_token")
       if (!token) throw new Error("Missing token")
 
+      // Add this console log to see what we're sending
+      console.log("Sending post with type:", postType)
+
       // CHANGED: Actually POST to our new endpoint:
-      const response = await fetch("http://localhost:4000/api/community/posts", {
+      const response = await fetch(`${API}/community/posts`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `token ${token}`,
         },
-        body: JSON.stringify({ content: postText }),
+        body: JSON.stringify({
+          content: postText,
+          type: postType,
+        }),
       })
 
-      if (!response.ok) {
-        const errData = await response.json()
-        throw new Error(errData.message || "Failed to create post.")
-      }
-
-      // The server returns the newly created post (DB row).
-      const createdPost = await response.json()
-
-      // We still need to shape it for the front-end
-      // Typically we'd re-fetch osts, or we can patch it in manually:all p
-      setPosts((prevPosts) => [
-        {
-          id: createdPost.id,
-          content: createdPost.content,
-          // For now, set the user info from the already known user
-          author: {
-            id: currentUser?.id ?? 0,
-            login: currentUser?.login ?? "",
-            full_name: currentUser?.full_name ?? "",
-            avatar_url: currentUser?.avatar_url ?? "",
-            email: currentUser?.email ?? "",
+      // After receiving the response, add this console log:
+      if (response.ok) {
+        const createdPost = await response.json()
+        console.log("Received post from server:", createdPost)
+        
+        // Ensure we're explicitly using the type from the response
+        setPosts((prevPosts) => [
+          {
+            id: createdPost.id,
+            content: createdPost.content,
+            type: createdPost.type || "general", // Make sure we're using the type from the response
+            author: {
+              id: currentUser?.id ?? 0,
+              login: currentUser?.login ?? "",
+              full_name: currentUser?.full_name ?? "",
+              avatar_url: currentUser?.avatar_url ?? "",
+              email: currentUser?.email ?? "",
+            },
+            created_at: createdPost.created_at,
+            likes: createdPost.likes_count || 0,
+            comments: createdPost.comments_count || 0,
+            isLiked: false,
           },
-          created_at: createdPost.created_at,
-          likes: createdPost.likes_count || 0,
-          comments: createdPost.comments_count || 0,
-          isLiked: false,
-        },
-        ...prevPosts,
-      ])
+          ...prevPosts,
+        ])
 
       setPostText("")
+      setPostType("general")
       setIsExpanded(false)
 
       toast({
         title: "Post shared!",
         description: "Your post has been shared with the community",
       })
+    }
     } catch (error) {
       console.error("Error creating post:", error)
       toast({
@@ -286,9 +300,10 @@ const Community = () => {
     }
   }
 
-  // Handle cancel post
+  // Add the handleCancelPost function to reset the post type as well
   const handleCancelPost = () => {
     setPostText("")
+    setPostType("general")
     setIsExpanded(false)
   }
 
@@ -308,7 +323,7 @@ const Community = () => {
       if (!token) throw new Error("Authentication token missing")
 
       // Call the API endpoint to toggle like (similar to feature vote)
-      const response = await fetch(`http://localhost:4000/api/community/posts/${postId}/like`, {
+      const response = await fetch(`${API}/community/posts/${postId}/like`, {
         method: "POST",
         headers: {
           Authorization: `token ${token}`,
@@ -367,7 +382,7 @@ const Community = () => {
       const token = localStorage.getItem("gitea_token")
       if (!token) throw new Error("Authentication token missing")
 
-      const response = await fetch(`http://localhost:4000/api/community/posts/${postId}/comments`, {
+      const response = await fetch(`${API}/community/posts/${postId}/comments`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -487,6 +502,7 @@ const Community = () => {
                         <AvatarFallback>{currentUser ? currentUser.full_name.charAt(0) : "G"}</AvatarFallback>
                       )}
                     </Avatar>
+                    {/* Update the textarea section in the render function to include post type selection */}
                     <div className="flex-1">
                       <Textarea
                         ref={textareaRef}
@@ -497,7 +513,7 @@ const Community = () => {
                         onChange={(e) => setPostText(e.target.value)}
                         onFocus={handleTextareaFocus}
                         className="min-h-[40px] resize-none border-none shadow-none focus-visible:ring-0 p-0 text-base"
-                        maxLength={500}
+                        maxLength={5000}
                         disabled={!isAuthenticated || isPosting}
                       />
 
@@ -509,29 +525,64 @@ const Community = () => {
                             exit={{ opacity: 0, height: 0 }}
                             className="mt-3"
                           >
-                            <div className="flex items-center justify-end">
-                              <span className="text-xs text-muted-foreground mr-2">{postText.length}/500</span>
-                              <Button variant="ghost" size="sm" onClick={handleCancelPost} disabled={isPosting}>
-                                Cancel
-                              </Button>
-                              <Button
-                                size="sm"
-                                onClick={handlePostSubmit}
-                                disabled={!postText.trim() || isPosting}
-                                className="gap-1 ml-2"
-                              >
-                                {isPosting ? (
-                                  <>
-                                    <Loader2 size={14} className="animate-spin" />
-                                    Posting...
-                                  </>
-                                ) : (
-                                  <>
-                                    <Send size={14} />
-                                    Post
-                                  </>
-                                )}
-                              </Button>
+                            <div className="flex flex-col space-y-3">
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-medium">Post type:</span>
+                                <div className="flex flex-wrap gap-2">
+                                  <Badge
+                                    variant={postType === "general" ? "default" : "outline"}
+                                    className="cursor-pointer"
+                                    onClick={() => setPostType("general")}
+                                  >
+                                    General
+                                  </Badge>
+                                  <Badge
+                                    variant={postType === "feature_request" ? "default" : "outline"}
+                                    className="cursor-pointer"
+                                    onClick={() => setPostType("feature_request")}
+                                  >
+                                    Feature Request
+                                  </Badge>
+                                  <Badge
+                                    variant={postType === "question" ? "default" : "outline"}
+                                    className="cursor-pointer"
+                                    onClick={() => setPostType("question")}
+                                  >
+                                    Question
+                                  </Badge>
+                                  <Badge
+                                    variant={postType === "new_qubot" ? "default" : "outline"}
+                                    className="cursor-pointer"
+                                    onClick={() => setPostType("new_qubot")}
+                                  >
+                                    New Qubot
+                                  </Badge>
+                                </div>
+                              </div>
+                              <div className="flex items-center justify-end">
+                                <span className="text-xs text-muted-foreground mr-2">{postText.length}/5000</span>
+                                <Button variant="ghost" size="sm" onClick={handleCancelPost} disabled={isPosting}>
+                                  Cancel
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  onClick={handlePostSubmit}
+                                  disabled={!postText.trim() || isPosting}
+                                  className="gap-1 ml-2"
+                                >
+                                  {isPosting ? (
+                                    <>
+                                      <Loader2 size={14} className="animate-spin" />
+                                      Posting...
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Send size={14} />
+                                      Post
+                                    </>
+                                  )}
+                                </Button>
+                              </div>
                             </div>
                           </motion.div>
                         )}
@@ -734,7 +785,7 @@ const Community = () => {
         return
       }
 
-      const response = await fetch(`http://localhost:4000/api/community/posts/${postId}`, {
+      const response = await fetch(`${API}/community/posts/${postId}`, {
         method: "DELETE",
         headers: {
           Authorization: `token ${token}`,
@@ -775,11 +826,9 @@ const PostCard = ({ post, currentUser, onLike, formatDate, onDelete }) => {
 
   // Fetch comments when the comments section is opened
   const fetchComments = async () => {
-    if (!showComments) return
-
     setIsLoadingComments(true)
     try {
-      const response = await fetch(`http://localhost:4000/api/community/posts/${post.id}/comments`)
+      const response = await fetch(`${API}/community/posts/${post.id}/comments`)
 
       if (!response.ok) {
         throw new Error("Failed to fetch comments")
@@ -801,8 +850,24 @@ const PostCard = ({ post, currentUser, onLike, formatDate, onDelete }) => {
 
   // Fetch comments when the comments section is opened
   useEffect(() => {
-    fetchComments()
-  }, [showComments])
+    let isMounted = true;
+
+    const fetchCommentsWrapper = async () => {
+      if (showComments) {
+        try {
+          await fetchComments();
+        } catch (error) {
+          console.error("Error in fetchCommentsWrapper:", error);
+        }
+      }
+    };
+
+    fetchCommentsWrapper();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [showComments]);
 
   // Handle adding a comment
   const handleAddComment = async () => {
@@ -820,7 +885,7 @@ const PostCard = ({ post, currentUser, onLike, formatDate, onDelete }) => {
         return
       }
 
-      const response = await fetch(`http://localhost:4000/api/community/posts/${post.id}/comments`, {
+      const response = await fetch(`${API}/community/posts/${post.id}/comments`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -875,7 +940,7 @@ const PostCard = ({ post, currentUser, onLike, formatDate, onDelete }) => {
         return
       }
 
-      const response = await fetch(`http://localhost:4000/api/community/posts/${postId}`, {
+      const response = await fetch(`${API}/community/posts/${postId}`, {
         method: "DELETE",
         headers: {
           Authorization: `token ${token}`,
@@ -929,7 +994,6 @@ const PostCard = ({ post, currentUser, onLike, formatDate, onDelete }) => {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                
                 {currentUser && currentUser.login === post.author.login && (
                   <DropdownMenuItem
                     className="text-destructive focus:text-destructive"
@@ -948,6 +1012,26 @@ const PostCard = ({ post, currentUser, onLike, formatDate, onDelete }) => {
           </div>
         </CardHeader>
         <CardContent className="pb-3">
+          <Badge
+            variant="outline"
+            className={`mb-2 ${
+              post.type === "feature_request"
+                ? "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400"
+                : post.type === "question"
+                  ? "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400"
+                  : post.type === "new_qubot"
+                    ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
+                    : ""
+            }`}
+          >
+            {post.type === "feature_request"
+              ? "Feature Request"
+              : post.type === "question"
+                ? "Question"
+                : post.type === "new_qubot"
+                  ? "New Qubot"
+                  : "General"}
+          </Badge>
           <p className="text-base whitespace-pre-wrap">{post.content}</p>
         </CardContent>
         <CardFooter className="flex justify-between py-3 border-t">

@@ -2,10 +2,11 @@
 
 import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
-import { Loader2, MessageSquare, FolderGit, ThumbsUp, Clock, Code, User, Star } from "lucide-react"
+import { Loader2, MessageSquare, FolderGit, ThumbsUp, Clock, Code, User, Star, ShieldAlert } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 
 type ActivityItem = {
   id: string
@@ -53,12 +54,52 @@ interface ActivityFeedProps {
   avatar_url?: string
 }
 
+const API = import.meta.env.VITE_API_BASE
+
 export default function ActivityFeed({ username, avatar_url }: ActivityFeedProps) {
   const [activities, setActivities] = useState<ActivityItem[]>([])
   const [loading, setLoading] = useState(true)
   const navigate = useNavigate()
+  const [currentUser, setCurrentUser] = useState<string | null>(null)
+  const [isAuthorized, setIsAuthorized] = useState<boolean>(false)
 
-  // Update the fetchActivity function to include real follow and star activities
+  const checkAuthorization = async () => {
+    const token = localStorage.getItem("gitea_token")
+    if (!token) {
+      setIsAuthorized(false)
+      return
+    }
+
+    try {
+      const response = await fetch(`${API}/profile`, {
+        headers: { Authorization: `token ${token}` },
+      })
+
+      if (response.ok) {
+        const userData = await response.json()
+        setCurrentUser(userData.login)
+
+        // Only authorize if the current user matches the requested username
+        setIsAuthorized(userData.login === username)
+      } else {
+        setIsAuthorized(false)
+      }
+    } catch (error) {
+      console.error("Error checking authorization:", error)
+      setIsAuthorized(false)
+    }
+  }
+
+  useEffect(() => {
+    checkAuthorization()
+  }, [username])
+
+  useEffect(() => {
+    if (isAuthorized) {
+      fetchActivity()
+    }
+  }, [isAuthorized, username])
+
   const fetchActivity = async () => {
     setLoading(true)
     try {
@@ -72,7 +113,7 @@ export default function ActivityFeed({ username, avatar_url }: ActivityFeedProps
         return
       }
 
-      const reposResponse = await fetch(`http://localhost:4000/api/users/${username}/repos`, {
+      const reposResponse = await fetch(`${API}/users/${username}/repos`, {
         headers: { Authorization: `token ${token}` },
       })
 
@@ -83,7 +124,7 @@ export default function ActivityFeed({ username, avatar_url }: ActivityFeedProps
       const repos = (await reposResponse.ok) ? await reposResponse.json() : []
 
       // Fetch user's comments from feature backlog
-      const commentsResponse = await fetch(`http://localhost:4000/api/features`, {
+      const commentsResponse = await fetch(`${API}/features`, {
         headers: { Authorization: `token ${token}` },
       })
 
@@ -92,7 +133,7 @@ export default function ActivityFeed({ username, avatar_url }: ActivityFeedProps
       // Simulate fetching comments for each feature
       let featureComments: any[] = []
       for (const feature of features.slice(0, 3)) {
-        const featureCommentsResponse = await fetch(`http://localhost:4000/api/features/${feature.id}/comments`, {
+        const featureCommentsResponse = await fetch(`${API}/features/${feature.id}/comments`, {
           headers: { Authorization: `token ${token}` },
         })
 
@@ -121,7 +162,7 @@ export default function ActivityFeed({ username, avatar_url }: ActivityFeedProps
       }
 
       // Simulate fetching community posts and comments
-      const postsResponse = await fetch(`http://localhost:4000/api/community/posts`, {
+      const postsResponse = await fetch(`${API}/community/posts`, {
         headers: { Authorization: `token ${token}` },
       })
 
@@ -195,7 +236,7 @@ export default function ActivityFeed({ username, avatar_url }: ActivityFeedProps
       let starredActivities: any[] = []
 
       try {
-        const activitiesResponse = await fetch(`http://localhost:4000/api/users/${username}/activities`, {
+        const activitiesResponse = await fetch(`${API}/users/${username}/activities`, {
           headers: { Authorization: `token ${token}` },
         })
 
@@ -258,10 +299,6 @@ export default function ActivityFeed({ username, avatar_url }: ActivityFeedProps
     }
   }
 
-  useEffect(() => {
-    fetchActivity()
-  }, [username])
-
   // Format date for display
   const formatDate = (dateString: string) => {
     const date = new Date(dateString)
@@ -293,6 +330,8 @@ export default function ActivityFeed({ username, avatar_url }: ActivityFeedProps
       day: "numeric",
     })
   }
+
+  
 
   if (loading) {
     return (
@@ -378,7 +417,7 @@ export default function ActivityFeed({ username, avatar_url }: ActivityFeedProps
                         <Button
                           variant="link"
                           className="p-0 h-auto text-primary font-medium"
-                          onClick={() => navigate(`/community`)}
+                          onClick={() => navigate(`/feedback`)}
                         >
                           community
                         </Button>

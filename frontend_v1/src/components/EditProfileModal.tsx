@@ -19,6 +19,9 @@ interface EditProfileModalProps {
   onSave: (updatedData: any) => void
 }
 
+const API = import.meta.env.VITE_API_BASE;
+
+
 export default function EditProfileModal({ isOpen, onClose, user, onSave }: EditProfileModalProps) {
   const [formData, setFormData] = useState({
     full_name: user?.full_name || "",
@@ -28,6 +31,8 @@ export default function EditProfileModal({ isOpen, onClose, user, onSave }: Edit
     description: user?.description || "",
     visibility: user?.visibility || "public",
   })
+
+  
 
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false)
@@ -98,7 +103,7 @@ export default function EditProfileModal({ isOpen, onClose, user, onSave }: Edit
           }
 
           // Make API call to update avatar
-          const response = await fetch("http://localhost:4000/api/update-avatar", {
+          const response = await fetch(`${API}/update-avatar`, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",

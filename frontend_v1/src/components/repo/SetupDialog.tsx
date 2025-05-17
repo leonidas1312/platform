@@ -3,19 +3,39 @@
 import type React from "react"
 
 import { useState, useRef } from "react"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { motion, AnimatePresence } from "framer-motion"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import {
+  ChevronRight,
+  ChevronLeft,
+  FileCode,
+  Settings,
+  Check,
+  X,
+  Plus,
+  Trash2,
+  Upload,
+  FileUp,
+  Sparkles,
+} from "lucide-react"
 import { Badge } from "@/components/ui/badge"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { FileText, FileUp, Plus, Trash2, X } from "lucide-react"
+import { useToast } from "@/components/ui/use-toast"
 
 interface SetupDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  onComplete: () => Promise<void>
-  // Setup state
+  onComplete: () => void
   qubotType: "problem" | "optimizer"
   setQubotType: (type: "problem" | "optimizer") => void
   entrypointFile: string | null
@@ -28,13 +48,11 @@ interface SetupDialogProps {
   setArxivLinks: (links: string[]) => void
   qubotKeywords: string[]
   setQubotKeywords: (keywords: string[]) => void
-  // Step state
   currentSetupStep: number
   setCurrentSetupStep: (step: number) => void
-  // File upload
   pythonFileToUpload: File | null
   setPythonFileToUpload: (file: File | null) => void
-  handleUploadPythonFile: () => Promise<void>
+  handleUploadPythonFile?: () => void // Make this prop optional
 }
 
 export default function SetupDialog({
@@ -59,490 +77,572 @@ export default function SetupDialog({
   setPythonFileToUpload,
   handleUploadPythonFile,
 }: SetupDialogProps) {
-  const [newParameterName, setNewParameterName] = useState("")
-  const [newParameterValue, setNewParameterValue] = useState("")
-  const [newArxivLink, setNewArxivLink] = useState<string>("")
-  const [newKeyword, setNewKeyword] = useState<string>("")
+  const { toast } = useToast()
+  const [isUploading, setIsUploading] = useState(false)
+
+  // State for new parameter
+  const [newParamName, setNewParamName] = useState("")
+  const [newParamValue, setNewParamValue] = useState("")
+
+  // State for new arxiv link
+  const [newArxivLink, setNewArxivLink] = useState("")
+
+  // State for new keyword
+  const [newKeyword, setNewKeyword] = useState("")
+
+  // File input ref
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const handlePythonFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Handle adding a new parameter
+  const handleAddParameter = () => {
+    if (newParamName.trim() && newParamValue.trim()) {
+      setQubotParameters([...qubotParameters, { name: newParamName.trim(), value: newParamValue.trim() }])
+      setNewParamName("")
+      setNewParamValue("")
+    }
+  }
+
+  // Handle removing a parameter
+  const handleRemoveParameter = (index: number) => {
+    const updatedParams = [...qubotParameters]
+    updatedParams.splice(index, 1)
+    setQubotParameters(updatedParams)
+  }
+
+  // Handle adding a new arxiv link
+  const handleAddArxivLink = () => {
+    if (newArxivLink.trim()) {
+      setArxivLinks([...arxivLinks, newArxivLink.trim()])
+      setNewArxivLink("")
+    }
+  }
+
+  // Handle removing an arxiv link
+  const handleRemoveArxivLink = (index: number) => {
+    const updatedLinks = [...arxivLinks]
+    updatedLinks.splice(index, 1)
+    setArxivLinks(updatedLinks)
+  }
+
+  // Handle adding a new keyword
+  const handleAddKeyword = () => {
+    if (newKeyword.trim() && !qubotKeywords.includes(newKeyword.trim())) {
+      setQubotKeywords([...qubotKeywords, newKeyword.trim()])
+      setNewKeyword("")
+    }
+  }
+
+  // Handle removing a keyword
+  const handleRemoveKeyword = (keyword: string) => {
+    setQubotKeywords(qubotKeywords.filter((k) => k !== keyword))
+  }
+
+  // Handle file selection
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       const file = e.target.files[0]
       if (file.name.endsWith(".py")) {
         setPythonFileToUpload(file)
-        // Set the entrypoint file name
         setEntrypointFile(file.name)
-      } else {
-        // Show error toast (would need to be passed in as a prop)
-        console.error("Please select a Python (.py) file")
       }
+    }
+  }
+
+  // Handle next step
+  const handleNextStep = () => {
+    setCurrentSetupStep(currentSetupStep + 1)
+  }
+
+  // Handle previous step
+  const handlePrevStep = () => {
+    setCurrentSetupStep(currentSetupStep - 1)
+  }
+
+  // Check if current step is valid
+  const isCurrentStepValid = () => {
+    switch (currentSetupStep) {
+      case 1:
+        return true // Type selection is always valid
+      case 2:
+        return !!entrypointFile && !!entrypointClass
+      case 3:
+        return true // Parameters are optional
+      case 4:
+        return true // Keywords and arxiv links are optional
+      default:
+        return false
+    }
+  }
+
+  // Internal function to upload Python file to Gitea
+  const uploadPythonFileToGitea = async () => {
+    if (!pythonFileToUpload) {
+      return false
+    }
+
+    setIsUploading(true)
+
+    try {
+      // Read file content
+      const fileContent = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = (e) => {
+          if (e.target?.result) {
+            resolve(e.target.result as string)
+          } else {
+            reject(new Error("Failed to read file"))
+          }
+        }
+        reader.onerror = () => reject(reader.error)
+        reader.readAsText(pythonFileToUpload)
+      })
+
+      // Get repository owner and name from URL or props
+      const urlParts = window.location.pathname.split("/")
+      const repoIndex = urlParts.findIndex((part) => part === "r")
+      const owner = urlParts[repoIndex + 1] || ""
+      const repoName = urlParts[repoIndex + 2] || ""
+
+      if (!owner || !repoName) {
+        throw new Error("Could not determine repository owner and name")
+      }
+
+      // Get user token
+      const token = localStorage.getItem("gitea_token")
+      if (!token) {
+        throw new Error("Not authenticated")
+      }
+
+      // Prepare the file upload payload
+      const fileUploadPayload = {
+        content: Buffer.from(fileContent).toString("base64"),
+        message: `Add ${pythonFileToUpload.name}`,
+        branch: "main",
+      }
+
+      // Upload the file to Gitea
+      const API = import.meta.env.VITE_API_BASE
+      const uploadResponse = await fetch(`${API}/repos/${owner}/${repoName}/contents/${pythonFileToUpload.name}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `token ${token}`,
+        },
+        body: JSON.stringify(fileUploadPayload),
+      })
+
+      if (!uploadResponse.ok) {
+        throw new Error(`Failed to upload file: ${uploadResponse.statusText}`)
+      }
+
+      toast({
+        title: "File uploaded",
+        description: `${pythonFileToUpload.name} has been uploaded to the repository`,
+      })
+
+      return true
+    } catch (error) {
+      console.error("Error uploading Python file:", error)
+      toast({
+        title: "File upload failed",
+        description: error instanceof Error ? error.message : "Failed to upload Python file to repository",
+        variant: "destructive",
+      })
+      return false
+    } finally {
+      setIsUploading(false)
+    }
+  }
+
+  // Combined function to handle upload and next step
+  const handleUploadAndContinue = async () => {
+    // If the parent provided a handleUploadPythonFile function, call it
+    if (handleUploadPythonFile) {
+      handleUploadPythonFile()
+      return
+    }
+
+    // Otherwise use our internal implementation
+    const success = await uploadPythonFileToGitea()
+    if (success) {
+      handleNextStep()
+    }
+  }
+
+  // Render step content
+  const renderStepContent = () => {
+    switch (currentSetupStep) {
+      case 1:
+        return (
+          <div className="space-y-6 py-4">
+            <div className="space-y-2">
+              <Label className="text-base">Select Qubot Type</Label>
+              <RadioGroup
+                value={qubotType}
+                onValueChange={(value) => setQubotType(value as "problem" | "optimizer")}
+                className="mt-2 space-y-3"
+              >
+                <div
+                  className={`flex items-start space-x-3 rounded-lg border p-4 ${qubotType === "problem" ? "border-primary bg-primary/5" : "border-border"}`}
+                >
+                  <RadioGroupItem value="problem" id="problem" className="mt-1" />
+                  <div className="space-y-1">
+                    <Label htmlFor="problem" className="text-base font-medium">
+                      Problem
+                    </Label>
+                    <p className="text-sm text-muted-foreground">
+                      A mathematical problem that can be solved using optimization techniques.
+                    </p>
+                  </div>
+                </div>
+                <div
+                  className={`flex items-start space-x-3 rounded-lg border p-4 ${qubotType === "optimizer" ? "border-primary bg-primary/5" : "border-border"}`}
+                >
+                  <RadioGroupItem value="optimizer" id="optimizer" className="mt-1" />
+                  <div className="space-y-1">
+                    <Label htmlFor="optimizer" className="text-base font-medium">
+                      Optimizer
+                    </Label>
+                    <p className="text-sm text-muted-foreground">
+                      An algorithm that finds a solution to an optimization problem.
+                    </p>
+                  </div>
+                </div>
+              </RadioGroup>
+            </div>
+          </div>
+        )
+      case 2:
+        return (
+          <div className="space-y-6 py-4">
+            <div className="space-y-2">
+              <Label className="text-base">Python Entry Point</Label>
+              <p className="text-sm text-muted-foreground mb-4">
+                Upload or select the main Python file that contains your qubot implementation.
+              </p>
+
+              {pythonFileToUpload ? (
+                <div className="flex items-center justify-between p-3 border rounded-md bg-muted/30">
+                  <div className="flex items-center gap-2">
+                    <FileCode className="h-5 w-5 text-primary" />
+                    <span>{pythonFileToUpload.name}</span>
+                  </div>
+                  <Button variant="ghost" size="sm" onClick={() => setPythonFileToUpload(null)}>
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center border-2 border-dashed rounded-lg p-8 bg-muted/10">
+                  <FileUp className="h-10 w-10 text-muted-foreground mb-3" />
+                  <p className="text-sm text-muted-foreground mb-3">
+                    Drag and drop your Python file here, or click to browse
+                  </p>
+                  <Button variant="outline" onClick={() => fileInputRef.current?.click()}>
+                    <Upload className="h-4 w-4 mr-2" />
+                    Browse Files
+                  </Button>
+                  <input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".py" className="hidden" />
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-2 mt-6">
+              <Label htmlFor="class-name" className="text-base">
+                Main Class Name
+              </Label>
+              <p className="text-sm text-muted-foreground mb-2">
+                Specify the name of the main class in your Python file that implements your qubot.
+              </p>
+              <Input
+                id="class-name"
+                value={entrypointClass}
+                onChange={(e) => setEntrypointClass(e.target.value)}
+                placeholder="e.g., TSPSolver, QAOAOptimizer"
+              />
+            </div>
+          </div>
+        )
+      case 3:
+        return (
+          <div className="space-y-6 py-4">
+            <div className="space-y-2">
+              <Label className="text-base">Default Parameters</Label>
+              <p className="text-sm text-muted-foreground mb-4">
+                Define the default parameters for your qubot. These will be used when someone runs your qubot without
+                specifying custom parameters.
+              </p>
+
+              {qubotParameters.length > 0 && (
+                <div className="space-y-2 mb-4">
+                  {qubotParameters.map((param, index) => (
+                    <div key={index} className="flex items-center justify-between p-3 border rounded-md bg-muted/30">
+                      <div className="flex items-center gap-2">
+                        <Settings className="h-4 w-4 text-primary" />
+                        <span className="font-medium">{param.name}:</span>
+                        <span className="text-muted-foreground">{param.value}</span>
+                      </div>
+                      <Button variant="ghost" size="sm" onClick={() => handleRemoveParameter(index)}>
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div className="grid grid-cols-5 gap-2">
+                <div className="col-span-2">
+                  <Label htmlFor="param-name">Parameter Name</Label>
+                  <Input
+                    id="param-name"
+                    value={newParamName}
+                    onChange={(e) => setNewParamName(e.target.value)}
+                    placeholder="e.g., num_iterations"
+                  />
+                </div>
+                <div className="col-span-2">
+                  <Label htmlFor="param-value">Default Value</Label>
+                  <Input
+                    id="param-value"
+                    value={newParamValue}
+                    onChange={(e) => setNewParamValue(e.target.value)}
+                    placeholder="e.g., 100"
+                  />
+                </div>
+                <div className="flex items-end">
+                  <Button
+                    onClick={handleAddParameter}
+                    disabled={!newParamName.trim() || !newParamValue.trim()}
+                    className="w-full"
+                  >
+                    <Plus className="h-4 w-4 mr-1" />
+                    Add
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )
+      case 4:
+        return (
+          <div className="space-y-6 py-4">
+            <div className="space-y-2">
+              <Label className="text-base">Keywords</Label>
+              <p className="text-sm text-muted-foreground mb-2">Add keywords to help others discover your qubot.</p>
+
+              <div className="flex flex-wrap gap-2 mb-3">
+                {qubotKeywords.map((keyword) => (
+                  <Badge key={keyword} variant="secondary" className="flex items-center gap-1 py-1 px-3">
+                    {keyword}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleRemoveKeyword(keyword)}
+                      className="h-4 w-4 p-0 ml-1"
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </Badge>
+                ))}
+              </div>
+
+              <div className="flex gap-2">
+                <Input
+                  value={newKeyword}
+                  onChange={(e) => setNewKeyword(e.target.value)}
+                  placeholder="e.g., optimization, tsp, qaoa"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && newKeyword.trim()) {
+                      e.preventDefault()
+                      handleAddKeyword()
+                    }
+                  }}
+                />
+                <Button
+                  onClick={handleAddKeyword}
+                  disabled={!newKeyword.trim() || qubotKeywords.includes(newKeyword.trim())}
+                >
+                  <Plus className="h-4 w-4 mr-1" />
+                  Add
+                </Button>
+              </div>
+            </div>
+
+            <div className="space-y-2 mt-6">
+              <Label className="text-base">arXiv Links</Label>
+              <p className="text-sm text-muted-foreground mb-2">
+                Add links to relevant arXiv papers that describe your algorithm or problem.
+              </p>
+
+              {arxivLinks.length > 0 && (
+                <div className="space-y-2 mb-4">
+                  {arxivLinks.map((link, index) => (
+                    <div key={index} className="flex items-center justify-between p-3 border rounded-md bg-muted/30">
+                      <div className="flex items-center gap-2 overflow-hidden">
+                        <a
+                          href={link}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-primary truncate hover:underline"
+                        >
+                          {link}
+                        </a>
+                      </div>
+                      <Button variant="ghost" size="sm" onClick={() => handleRemoveArxivLink(index)}>
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div className="flex gap-2">
+                <Input
+                  value={newArxivLink}
+                  onChange={(e) => setNewArxivLink(e.target.value)}
+                  placeholder="e.g., https://arxiv.org/abs/2106.12627"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && newArxivLink.trim()) {
+                      e.preventDefault()
+                      handleAddArxivLink()
+                    }
+                  }}
+                />
+                <Button onClick={handleAddArxivLink} disabled={!newArxivLink.trim()}>
+                  <Plus className="h-4 w-4 mr-1" />
+                  Add
+                </Button>
+              </div>
+            </div>
+          </div>
+        )
+      default:
+        return null
     }
   }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Qubot Setup</DialogTitle>
-          <DialogDescription>
-            Configure your qubot to make it shareable and usable with the qubots library
-          </DialogDescription>
+          <DialogTitle className="flex items-center gap-2 text-xl">
+            <div className="p-1.5 rounded-full bg-primary/10">
+              <Sparkles className="h-5 w-5 text-primary" />
+            </div>
+            Setup Your Qubot
+          </DialogTitle>
+          <DialogDescription>Configure your qubot to make it shareable to the community.</DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-8 py-4">
-          {/* Step 1: Select Qubot Type */}
-          <div
-            className={`space-y-4 rounded-lg border p-5 ${
-              currentSetupStep === 1 ? "border-primary bg-primary/5" : "border-muted bg-background"
-            }`}
-          >
-            <div className="flex items-center gap-3">
-              <div
-                className={`flex h-8 w-8 items-center justify-center rounded-full ${
-                  currentSetupStep >= 1 ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
-                }`}
-              >
-                1
-              </div>
-              <h3 className="text-lg font-medium">Select Qubot Type</h3>
-            </div>
-
-            <div className={currentSetupStep === 1 ? "block" : "hidden"}>
-              <div className="space-y-2 mt-4">
-                <Label htmlFor="qubotType">Qubot Type</Label>
-                <Select value={qubotType} onValueChange={(value: "problem" | "optimizer") => setQubotType(value)}>
-                  <SelectTrigger id="qubotType" className="w-full">
-                    <SelectValue placeholder="Select qubot type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="problem">Problem</SelectItem>
-                    <SelectItem value="optimizer">Optimizer</SelectItem>
-                  </SelectContent>
-                </Select>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {qubotType === "problem"
-                    ? "A qubot problem defines an optimization problem to be solved"
-                    : "A qubot optimizer implements an optimization algorithm that solves a qubot problem"}
-                </p>
-              </div>
-
-              <div className="flex justify-end mt-4">
-                <Button
-                  onClick={() => setCurrentSetupStep(2)}
-                  className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary"
+        <div className="relative">
+          {/* Progress bar */}
+          <div className="mb-8">
+            <div className="flex justify-between mb-2">
+              {[1, 2, 3, 4].map((step) => (
+                <div
+                  key={step}
+                  className={`flex flex-col items-center ${step <= currentSetupStep ? "text-primary" : "text-muted-foreground"}`}
+                  style={{ width: "25%" }}
                 >
-                  Next Step
-                </Button>
-              </div>
-            </div>
-
-            {currentSetupStep !== 1 && (
-              <div className="flex justify-between items-center">
-                <div className="text-sm">{qubotType === "problem" ? "Problem" : "Optimizer"}</div>
-                <Button variant="ghost" size="sm" onClick={() => setCurrentSetupStep(1)}>
-                  Edit
-                </Button>
-              </div>
-            )}
-          </div>
-
-          {/* Step 2: Upload Python File */}
-          <div
-            className={`space-y-4 rounded-lg border p-5 ${
-              currentSetupStep === 2 ? "border-primary bg-primary/5" : "border-muted bg-background"
-            }`}
-          >
-            <div className="flex items-center gap-3">
-              <div
-                className={`flex h-8 w-8 items-center justify-center rounded-full ${
-                  currentSetupStep >= 2 ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
-                }`}
-              >
-                2
-              </div>
-              <h3 className="text-lg font-medium">Upload Python File</h3>
-            </div>
-
-            <div className={currentSetupStep === 2 ? "block" : "hidden"}>
-              <div className="space-y-4 mt-4">
-                <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-8 text-center hover:border-primary/50 transition-colors">
-                  <input
-                    type="file"
-                    accept=".py"
-                    onChange={handlePythonFileChange}
-                    className="hidden"
-                    ref={fileInputRef}
-                  />
-                  <div className="flex flex-col items-center justify-center space-y-4">
-                    <FileUp className="h-10 w-10 text-muted-foreground/70" />
-                    <div className="space-y-2">
-                      <h3 className="font-medium text-lg">Upload your Python file</h3>
-                      <p className="text-sm text-muted-foreground">
-                        This file should contain your {qubotType === "problem" ? "BaseProblem" : "BaseOptimizer"} class
-                      </p>
-                    </div>
-                    <Button variant="outline" onClick={() => fileInputRef.current?.click()} className="mt-2">
-                      Select File
-                    </Button>
-                  </div>
-                </div>
-
-                {pythonFileToUpload && (
-                  <div className="bg-muted/20 p-4 rounded-md border flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <FileText className="h-5 w-5 text-primary" />
-                      <span className="font-medium">{pythonFileToUpload.name}</span>
-                      <span className="text-xs text-muted-foreground">
-                        ({Math.round(pythonFileToUpload.size / 1024)} KB)
-                      </span>
-                    </div>
-                    <Button variant="ghost" size="sm" onClick={() => setPythonFileToUpload(null)}>
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-                )}
-
-                <div className="space-y-2 mt-4">
-                  <Label htmlFor="entrypointClass">Class Name</Label>
-                  <Input
-                    id="entrypointClass"
-                    placeholder={qubotType === "problem" ? "MyProblem" : "MyOptimizer"}
-                    value={entrypointClass}
-                    onChange={(e) => setEntrypointClass(e.target.value)}
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">
-                    The name of the {qubotType === "problem" ? "BaseProblem" : "BaseOptimizer"} class in your Python
-                    file
-                  </p>
-                </div>
-
-                <div className="flex justify-between mt-4">
-                  <Button onClick={() => setCurrentSetupStep(1)} variant="outline">
-                    Previous Step
-                  </Button>
-                  <Button
-                    onClick={handleUploadPythonFile}
-                    disabled={!pythonFileToUpload || !entrypointClass}
-                    className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary"
+                  <div
+                    className={`w-8 h-8 rounded-full flex items-center justify-center mb-1 ${
+                      step < currentSetupStep
+                        ? "bg-primary text-primary-foreground"
+                        : step === currentSetupStep
+                          ? "border-2 border-primary text-primary"
+                          : "border-2 border-muted-foreground text-muted-foreground"
+                    }`}
                   >
-                    Upload & Continue
-                  </Button>
+                    {step < currentSetupStep ? <Check className="h-4 w-4" /> : step}
+                  </div>
+                  <span className="text-xs text-center">
+                    {step === 1 && "Type"}
+                    {step === 2 && "Entry Point"}
+                    {step === 3 && "Parameters"}
+                    {step === 4 && "Metadata"}
+                  </span>
                 </div>
-              </div>
+              ))}
             </div>
-
-            {currentSetupStep !== 2 && currentSetupStep > 2 && (
-              <div className="flex justify-between items-center">
-                <div className="text-sm">
-                  {entrypointFile ? (
-                    <div className="flex flex-col">
-                      <span className="font-mono">{entrypointFile}</span>
-                      <span className="text-xs text-muted-foreground">Class: {entrypointClass}</span>
-                    </div>
-                  ) : (
-                    <span className="text-muted-foreground">Not uploaded</span>
-                  )}
-                </div>
-                <Button variant="ghost" size="sm" onClick={() => setCurrentSetupStep(2)}>
-                  Edit
-                </Button>
-              </div>
-            )}
-          </div>
-
-          {/* Step 3: Define Default Parameters */}
-          <div
-            className={`space-y-4 rounded-lg border p-5 ${
-              currentSetupStep === 3 ? "border-primary bg-primary/5" : "border-muted bg-background"
-            }`}
-          >
-            <div className="flex items-center gap-3">
+            <div className="w-full bg-muted h-1 rounded-full overflow-hidden">
               <div
-                className={`flex h-8 w-8 items-center justify-center rounded-full ${
-                  currentSetupStep >= 3 ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
-                }`}
-              >
-                3
-              </div>
-              <h3 className="text-lg font-medium">Define Default Parameters</h3>
+                className="bg-primary h-full transition-all duration-300 ease-in-out"
+                style={{ width: `${(currentSetupStep - 1) * 33.33}%` }}
+              ></div>
             </div>
-
-            <div className={currentSetupStep === 3 ? "block" : "hidden"}>
-              <div className="space-y-4 mt-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="paramName">Parameter Name</Label>
-                    <Input
-                      id="paramName"
-                      placeholder="e.g., data_file"
-                      value={newParameterName}
-                      onChange={(e) => setNewParameterName(e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="paramValue">Default Value</Label>
-                    <Input
-                      id="paramValue"
-                      placeholder="e.g., data.csv"
-                      value={newParameterValue}
-                      onChange={(e) => setNewParameterValue(e.target.value)}
-                    />
-                  </div>
-                </div>
-
-                <Button
-                  onClick={() => {
-                    if (newParameterName.trim()) {
-                      setQubotParameters([
-                        ...qubotParameters,
-                        { name: newParameterName.trim(), value: newParameterValue.trim() },
-                      ])
-                      setNewParameterName("")
-                      setNewParameterValue("")
-                    }
-                  }}
-                  disabled={!newParameterName.trim()}
-                  variant="outline"
-                  className="w-full"
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Parameter
-                </Button>
-              </div>
-
-              {qubotParameters.length > 0 && (
-                <div className="border rounded-md mt-4">
-                  <div className="p-3 border-b bg-muted/30">
-                    <h4 className="font-medium">Added Parameters</h4>
-                  </div>
-                  <div className="divide-y">
-                    {qubotParameters.map((param, index) => (
-                      <div key={index} className="p-3 flex justify-between items-center">
-                        <div>
-                          <span className="font-mono text-sm text-primary">{param.name}</span>
-                          <span className="text-sm text-muted-foreground mx-2">=</span>
-                          <span className="font-mono text-sm">{param.value}</span>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            const newParams = [...qubotParameters]
-                            newParams.splice(index, 1)
-                            setQubotParameters(newParams)
-                          }}
-                        >
-                          <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              <div className="flex justify-between mt-4">
-                <Button onClick={() => setCurrentSetupStep(2)} variant="outline">
-                  Previous Step
-                </Button>
-                <Button
-                  onClick={() => setCurrentSetupStep(4)}
-                  className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary"
-                >
-                  Next Step
-                </Button>
-              </div>
-            </div>
-
-            {currentSetupStep !== 3 && currentSetupStep > 3 && (
-              <div className="flex justify-between items-center">
-                <div className="text-sm">
-                  {qubotParameters.length > 0 ? (
-                    <span>
-                      {qubotParameters.length} parameter{qubotParameters.length !== 1 ? "s" : ""} defined
-                    </span>
-                  ) : (
-                    <span className="text-muted-foreground">No parameters defined</span>
-                  )}
-                </div>
-                <Button variant="ghost" size="sm" onClick={() => setCurrentSetupStep(3)}>
-                  Edit
-                </Button>
-              </div>
-            )}
           </div>
 
-          {/* Step 4: Additional Information */}
-          <div
-            className={`space-y-4 rounded-lg border p-5 ${
-              currentSetupStep === 4 ? "border-primary bg-primary/5" : "border-muted bg-background"
-            }`}
-          >
-            <div className="flex items-center gap-3">
-              <div
-                className={`flex h-8 w-8 items-center justify-center rounded-full ${
-                  currentSetupStep >= 4 ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
-                }`}
-              >
-                4
-              </div>
-              <h3 className="text-lg font-medium">Additional Information</h3>
-            </div>
-
-            <div className={currentSetupStep === 4 ? "block" : "hidden"}>
-              <div className="space-y-4 mt-4">
-                {/* ArXiv Links */}
-                <div className="space-y-2">
-                  <Label>arXiv Links</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      value={newArxivLink}
-                      onChange={(e) => setNewArxivLink(e.target.value)}
-                      placeholder="https://arxiv.org/abs/XXXX.XXXXX"
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          e.preventDefault()
-                          if (newArxivLink.trim() && !arxivLinks.includes(newArxivLink.trim())) {
-                            setArxivLinks([...arxivLinks, newArxivLink.trim()])
-                            setNewArxivLink("")
-                          }
-                        }
-                      }}
-                    />
-                    <Button
-                      type="button"
-                      onClick={() => {
-                        if (newArxivLink.trim() && !arxivLinks.includes(newArxivLink.trim())) {
-                          setArxivLinks([...arxivLinks, newArxivLink.trim()])
-                          setNewArxivLink("")
-                        }
-                      }}
-                      size="sm"
-                    >
-                      <Plus className="h-4 w-4" />
-                    </Button>
-                  </div>
-                  <p className="text-xs text-muted-foreground">Add links to relevant arXiv papers</p>
-
-                  {arxivLinks.length > 0 && (
-                    <div className="flex flex-col gap-2 mt-2 bg-muted/20 p-3 rounded-md border">
-                      {arxivLinks.map((link, index) => (
-                        <div key={index} className="flex items-center justify-between">
-                          <a
-                            href={link}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-sm text-primary hover:underline truncate max-w-[90%]"
-                          >
-                            {link}
-                          </a>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => {
-                              const newLinks = [...arxivLinks]
-                              newLinks.splice(index, 1)
-                              setArxivLinks(newLinks)
-                            }}
-                          >
-                            <X className="h-3.5 w-3.5 text-destructive" />
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {/* Keywords */}
-                <div className="space-y-2">
-                  <Label>Keywords</Label>
-                  <div className="flex flex-wrap gap-2 mb-2">
-                    {qubotKeywords.map((keyword, index) => (
-                      <Badge key={index} variant="secondary" className="flex items-center gap-1">
-                        {keyword}
-                        <X
-                          className="h-3 w-3 cursor-pointer"
-                          onClick={() => {
-                            const newKeywords = [...qubotKeywords]
-                            newKeywords.splice(index, 1)
-                            setQubotKeywords(newKeywords)
-                          }}
-                        />
-                      </Badge>
-                    ))}
-                  </div>
-                  <div className="flex gap-2">
-                    <Input
-                      value={newKeyword}
-                      onChange={(e) => setNewKeyword(e.target.value)}
-                      placeholder="Add keyword"
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          e.preventDefault()
-                          if (newKeyword.trim() && !qubotKeywords.includes(newKeyword.trim())) {
-                            setQubotKeywords([...qubotKeywords, newKeyword.trim()])
-                            setNewKeyword("")
-                          }
-                        }
-                      }}
-                    />
-                    <Button
-                      type="button"
-                      onClick={() => {
-                        if (newKeyword.trim() && !qubotKeywords.includes(newKeyword.trim())) {
-                          setQubotKeywords([...qubotKeywords, newKeyword.trim()])
-                          setNewKeyword("")
-                        }
-                      }}
-                      size="sm"
-                    >
-                      <Plus className="h-4 w-4" />
-                    </Button>
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Add keywords to help others find your qubot (e.g., optimization, quantum, scheduling)
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex justify-between mt-6">
-                <Button onClick={() => setCurrentSetupStep(3)} variant="outline">
-                  Previous Step
-                </Button>
-                <Button
-                  onClick={onComplete}
-                  className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700"
-                >
-                  Complete Setup
-                </Button>
-              </div>
-            </div>
-
-            {currentSetupStep !== 4 && currentSetupStep > 4 && (
-              <div className="flex justify-between items-center">
-                <div className="text-sm">
-                  <div className="flex gap-2">
-                    {arxivLinks.length > 0 && (
-                      <span>
-                        {arxivLinks.length} link{arxivLinks.length !== 1 ? "s" : ""}
-                      </span>
-                    )}
-                    {qubotKeywords.length > 0 && (
-                      <span>
-                        {qubotKeywords.length} keyword{qubotKeywords.length !== 1 ? "s" : ""}
-                      </span>
-                    )}
-                    {arxivLinks.length === 0 && qubotKeywords.length === 0 && (
-                      <span className="text-muted-foreground">No additional information</span>
-                    )}
-                  </div>
-                </div>
-                <Button variant="ghost" size="sm" onClick={() => setCurrentSetupStep(4)}>
-                  Edit
-                </Button>
-              </div>
-            )}
-          </div>
+          {/* Step content */}
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={currentSetupStep}
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.3 }}
+            >
+              {renderStepContent()}
+            </motion.div>
+          </AnimatePresence>
         </div>
+
+        <DialogFooter className="flex justify-between items-center">
+          <div>
+            {currentSetupStep > 1 && (
+              <Button variant="outline" onClick={handlePrevStep} disabled={isUploading}>
+                <ChevronLeft className="h-4 w-4 mr-1" />
+                Back
+              </Button>
+            )}
+          </div>
+          <div>
+            {currentSetupStep < 4 ? (
+              <Button
+                onClick={currentSetupStep === 2 && pythonFileToUpload ? handleUploadAndContinue : handleNextStep}
+                disabled={!isCurrentStepValid() || isUploading}
+              >
+                {currentSetupStep === 2 && pythonFileToUpload ? (
+                  isUploading ? (
+                    <>
+                      <svg
+                        className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                      >
+                        <circle
+                          className="opacity-25"
+                          cx="12"
+                          cy="12"
+                          r="10"
+                          stroke="currentColor"
+                          strokeWidth="4"
+                        ></circle>
+                        <path
+                          className="opacity-75"
+                          fill="currentColor"
+                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                        ></path>
+                      </svg>
+                      Uploading...
+                    </>
+                  ) : (
+                    <>Upload & Continue</>
+                  )
+                ) : (
+                  <>
+                    Next
+                    <ChevronRight className="h-4 w-4 ml-1" />
+                  </>
+                )}
+              </Button>
+            ) : (
+              <Button onClick={onComplete} className="bg-primary" disabled={isUploading}>
+                <Check className="h-4 w-4 mr-1" />
+                Complete Setup
+              </Button>
+            )}
+          </div>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   )
