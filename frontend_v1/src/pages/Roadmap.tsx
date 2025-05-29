@@ -174,15 +174,17 @@ export default function FeatureBacklogPage() {
       const query = searchQuery.toLowerCase()
       result = result.filter(
         (feature) =>
-          feature.title.toLowerCase().includes(query) ||
-          feature.description.toLowerCase().includes(query) ||
-          feature.tags.some((tag) => tag.toLowerCase().includes(query)),
+          feature.title?.toLowerCase().includes(query) ||
+          feature.description?.toLowerCase().includes(query) ||
+          (feature.tags && Array.isArray(feature.tags) && feature.tags.some((tag) => tag.toLowerCase().includes(query))),
       )
     }
 
     // Filter by tags
     if (selectedTags.length > 0) {
-      result = result.filter((feature) => selectedTags.every((tag) => feature.tags.includes(tag)))
+      result = result.filter((feature) =>
+        feature.tags && Array.isArray(feature.tags) && selectedTags.every((tag) => feature.tags.includes(tag))
+      )
     }
 
     // Filter by priority
@@ -197,7 +199,10 @@ export default function FeatureBacklogPage() {
   const getAllTags = () => {
     const tags = new Set<string>()
     features.forEach((feature) => {
-      feature.tags.forEach((tag) => tags.add(tag))
+      // Add null check for feature.tags
+      if (feature.tags && Array.isArray(feature.tags)) {
+        feature.tags.forEach((tag) => tags.add(tag))
+      }
     })
     return Array.from(tags)
   }
@@ -584,7 +589,7 @@ export default function FeatureBacklogPage() {
       title: feature.title,
       description: feature.description,
       priority: feature.priority,
-      tags: [...feature.tags],
+      tags: feature.tags && Array.isArray(feature.tags) ? [...feature.tags] : [],
       status: feature.status,
     })
 
@@ -623,7 +628,7 @@ export default function FeatureBacklogPage() {
 
   return (
     <Layout>
-      <div className="container mx-auto px-4 py-24 md:py-32">
+      <div className="container mx-auto px-4 py-8">
         <div className="max-w-7xl mx-auto">
           {/* Hero Section */}
           <motion.div

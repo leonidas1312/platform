@@ -1,0 +1,931 @@
+/**
+ * Qubots Streaming Execution Service
+ *
+ * Provides real-time log streaming for qubots optimization execution.
+ * Captures logs from within the optimization process and streams them via WebSocket.
+ */
+
+const k8s = require('@kubernetes/client-node')
+const crypto = require('crypto')
+const WebSocket = require('ws')
+
+class QubotStreamingExecutionService {
+  constructor() {
+    this.kc = new k8s.KubeConfig()
+    this.kc.loadFromDefault()
+
+    this.batchV1Api = this.kc.makeApiClient(k8s.BatchV1Api)
+    this.coreV1Api = this.kc.makeApiClient(k8s.CoreV1Api)
+
+    // Use same configuration as working execution service
+    this.namespace = process.env.PLAYGROUND_NAMESPACE || 'playground'
+    this.baseImage = process.env.PLAYGROUND_IMAGE || 'registry.digitalocean.com/rastion/qubots-playground:latest'
+    this.jobTimeout = 300 // 5 minutes
+
+    // Store active executions and their WebSocket connections
+    this.activeExecutions = new Map()
+  }
+
+  /**
+   * Execute qubots optimization with real-time log streaming
+   * @param {Object} params - Execution parameters
+   * @param {WebSocket} ws - WebSocket connection for streaming logs
+   * @returns {Promise<Object>} Execution result
+   */
+  async executeOptimizationWithStreaming(params, ws) {
+    const {
+      problemName,
+      optimizerName,
+      problemUsername = 'default',
+      optimizerUsername = 'default',
+      problemParams = {},
+      optimizerParams = {},
+      timeout = 30000
+    } = params
+
+    const jobId = this.generateJobId()
+    const jobName = `qubots-stream-${jobId}`
+    const executionId = crypto.randomUUID()
+
+    console.log(`🚀 Starting streaming qubots execution: ${jobName}`)
+    console.log(`📊 Problem: ${problemUsername}/${problemName}`)
+    console.log(`🔧 Optimizer: ${optimizerUsername}/${optimizerName}`)
+
+    // Store execution info
+    this.activeExecutions.set(executionId, {
+      jobName,
+      ws,
+      startTime: Date.now(),
+      params
+    })
+
+    try {
+      // Send initial log
+      this.sendLog(ws, 'info', 'Starting optimization execution...', 'system')
+
+      // Create Kubernetes job for execution with streaming support
+      const job = await this.createStreamingExecutionJob(jobName, params, executionId)
+
+      this.sendLog(ws, 'info', `Execution job created: ${jobName}`, 'system')
+
+      // Start log streaming from the pod
+      const result = await this.waitForJobCompletionWithStreaming(jobName, executionId, ws)
+
+      this.sendLog(ws, 'info', 'Optimization completed successfully!', 'system')
+
+      // Clean up job
+      await this.deleteJob(jobName)
+
+      return result
+
+    } catch (error) {
+      console.error(`❌ Streaming execution error: ${error.message}`)
+      this.sendLog(ws, 'error', `Execution failed: ${error.message}`, 'system')
+
+      // Clean up job on error
+      try {
+        await this.deleteJob(jobName)
+      } catch (cleanupError) {
+        console.error(`Failed to cleanup job ${jobName}:`, cleanupError)
+      }
+
+      throw error
+    } finally {
+      // Clean up execution tracking
+      this.activeExecutions.delete(executionId)
+    }
+  }
+
+  /**
+   * Create Kubernetes job with streaming support
+   */
+  async createStreamingExecutionJob(jobName, params, executionId) {
+    const jobSpec = {
+      metadata: {
+        name: jobName,
+        namespace: this.namespace,
+        labels: {
+          'app': 'qubots-streaming-execution',
+          'execution-id': executionId
+        }
+      },
+      spec: {
+        template: {
+          metadata: {
+            labels: {
+              'app': 'qubots-streaming-execution',
+              'job': jobName,
+              'execution-id': executionId
+            }
+          },
+          spec: {
+            containers: [{
+              name: 'qubots-executor',
+              image: this.baseImage,
+              command: ['python3', '-u', '-c'],  // -u flag for unbuffered output
+              args: [this.generateStreamingExecutionScript(params, executionId)],
+              env: [
+                { name: 'PROBLEM_REPO', value: params.problemName },
+                { name: 'OPTIMIZER_REPO', value: params.optimizerName },
+                { name: 'PROBLEM_USERNAME', value: params.problemUsername },
+                { name: 'OPTIMIZER_USERNAME', value: params.optimizerUsername },
+                { name: 'EXECUTION_ID', value: executionId },
+                { name: 'GITEA_URL', value: process.env.GITEA_URL || 'http://gitea:3000' },
+                { name: 'STREAMING_ENABLED', value: 'true' },
+                { name: 'PYTHONUNBUFFERED', value: '1' },  // Force unbuffered output
+                { name: 'PYTHONIOENCODING', value: 'utf-8' },  // Ensure proper encoding
+                { name: 'PYTHONFLUSHOUTPUT', value: '1' }  // Additional flush control
+              ],
+              resources: {
+                limits: {
+                  cpu: '1',
+                  memory: '2Gi'
+                },
+                requests: {
+                  cpu: '250m',
+                  memory: '512Mi'
+                }
+              }
+            }],
+            restartPolicy: 'Never'
+          }
+        },
+        backoffLimit: 1,
+        activeDeadlineSeconds: this.jobTimeout
+      }
+    }
+
+    const response = await this.batchV1Api.createNamespacedJob(this.namespace, jobSpec)
+    return response.body
+  }
+
+  /**
+   * Generate Python script for streaming execution
+   */
+  generateStreamingExecutionScript(params, executionId) {
+    const script = `
+import sys
+import json
+import time
+import traceback
+import os
+from datetime import datetime
+
+# Force unbuffered output for real-time streaming in Kubernetes
+import io
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, line_buffering=True)
+sys.stderr = io.TextIOWrapper(sys.stderr.buffer, line_buffering=True)
+
+# Add qubots to path
+sys.path.insert(0, '/app')
+
+# Set execution ID for this run
+execution_id = '${executionId}'
+
+def stream_log(level, message, source='qubots'):
+    """Stream log message as JSON to stdout for real-time pickup"""
+    log_entry = {
+        'timestamp': datetime.now().isoformat(),
+        'level': level,
+        'message': message,
+        'source': source,
+        'execution_id': '${executionId}'
+    }
+
+    # Write to log file for backup
+    log_file = f'/tmp/qubots_logs_{execution_id}.jsonl'
+    try:
+        with open(log_file, 'a') as f:
+            f.write(json.dumps(log_entry) + '\\n')
+            f.flush()
+            os.fsync(f.fileno())  # Force write to disk
+    except Exception as e:
+        pass  # Don't fail on log file issues
+
+    # Print with STREAM_LOG prefix for reliable parsing
+    print(f"STREAM_LOG: {json.dumps(log_entry)}", flush=True)
+    sys.stdout.flush()
+
+# Enhanced log callback that captures all optimizer logs
+def enhanced_log_callback(level, message, source='optimizer'):
+    """Enhanced log callback that ensures all optimizer logs are captured"""
+    # Stream the log immediately (this will handle all output)
+    stream_log(level, message, source)
+
+try:
+    stream_log('info', 'Initializing qubots execution environment...', 'system')
+
+    # Import qubots with streaming support
+    import qubots
+    from qubots.playground_integration import execute_playground_optimization
+
+    # Test the log streaming immediately
+    stream_log('debug', 'Log streaming test - this should appear in terminal', 'system')
+    stream_log('info', 'Setting up enhanced logging for optimizer feedback...', 'system')
+
+    stream_log('info', 'Starting optimization with real-time logging...', 'system')
+
+    # Execute optimization with enhanced streaming
+    result = execute_playground_optimization(
+        problem_name='${params.problemName}',
+        optimizer_name='${params.optimizerName}',
+        problem_username='${params.problemUsername}',
+        optimizer_username='${params.optimizerUsername}',
+        problem_params=${this.convertToPythonDict(params.problemParams)},
+        optimizer_params=${this.convertToPythonDict(params.optimizerParams)},
+        log_callback=enhanced_log_callback
+    )
+
+    stream_log('info', 'Optimization execution completed', 'system')
+
+    # Log key results for immediate feedback
+    if result and isinstance(result, dict):
+        if result.get('success'):
+            stream_log('info', '✅ Optimization completed successfully!', 'results')
+            if 'best_value' in result:
+                stream_log('info', f'🎯 Best value achieved: {result["best_value"]}', 'results')
+            if 'iterations' in result:
+                stream_log('info', f'🔄 Total iterations: {result["iterations"]}', 'results')
+            if 'execution_time' in result:
+                stream_log('info', f'⏱️ Execution time: {result["execution_time"]:.3f}s', 'results')
+        else:
+            stream_log('error', '❌ Optimization failed', 'results')
+            if 'error_message' in result:
+                stream_log('error', f'Error: {result["error_message"]}', 'results')
+
+    # Write final result
+    result_file = f'/tmp/qubots_result_{execution_id}.json'
+    with open(result_file, 'w') as f:
+        json.dump(result, f, indent=2, default=str)
+
+    stream_log('info', f'Results written to {result_file}', 'system')
+
+except Exception as e:
+    error_msg = f"Execution failed: {str(e)}"
+    stream_log('error', error_msg, 'system')
+    stream_log('debug', f'Traceback: {traceback.format_exc()}', 'system')
+
+    # Write error result
+    error_result = {
+        'success': False,
+        'error_message': str(e),
+        'error_type': type(e).__name__,
+        'timestamp': datetime.now().isoformat()
+    }
+
+    result_file = f'/tmp/qubots_result_{execution_id}.json'
+    with open(result_file, 'w') as f:
+        json.dump(error_result, f, indent=2, default=str)
+
+    sys.exit(1)
+`
+    return script
+  }
+
+  /**
+   * Wait for job completion while streaming logs
+   */
+  async waitForJobCompletionWithStreaming(jobName, executionId, ws) {
+    const maxAttempts = 60 // 5 minutes with 5-second intervals
+    let attempts = 0
+
+    // Start log streaming in parallel
+    this.startLogStreaming(jobName, executionId, ws)
+
+    while (attempts < maxAttempts) {
+      try {
+        const jobResponse = await this.batchV1Api.readNamespacedJobStatus(jobName, this.namespace)
+        const job = jobResponse.body
+
+        if (job.status.succeeded) {
+          // Job completed successfully, get the result
+          const result = await this.getJobResult(jobName, executionId)
+          return result
+        }
+
+        if (job.status.failed) {
+          throw new Error(`Job failed: ${JSON.stringify(job.status)}`)
+        }
+
+        // Job still running, wait and check again
+        await new Promise(resolve => setTimeout(resolve, 5000))
+        attempts++
+
+      } catch (error) {
+        if (error.response && error.response.statusCode === 404) {
+          throw new Error('Job not found')
+        }
+        throw error
+      }
+    }
+
+    throw new Error('Job timeout')
+  }
+
+  /**
+   * Start streaming logs from the job pod
+   */
+  async startLogStreaming(jobName, executionId, ws) {
+    try {
+      // Wait a bit for pod to start
+      await new Promise(resolve => setTimeout(resolve, 2000))
+
+      // Get pod name for the job
+      const podName = await this.getPodNameForJob(jobName)
+      if (!podName) {
+        console.log('Pod not found for job:', jobName)
+        return
+      }
+
+      // Stream logs from the pod
+      this.streamPodLogs(podName, executionId, ws)
+
+    } catch (error) {
+      console.error('Error starting log streaming:', error)
+      this.sendLog(ws, 'warning', 'Log streaming unavailable', 'system')
+    }
+  }
+
+  /**
+   * Stream logs from a specific pod using proper Kubernetes client streaming
+   */
+  async streamPodLogs(podName, executionId, ws) {
+    try {
+      console.log(`🔍 Starting log stream for pod: ${podName}, execution: ${executionId}`)
+      this.sendLog(ws, 'debug', `Starting log stream for pod: ${podName}`, 'system')
+
+      // Wait for pod to be ready before streaming logs
+      await this.waitForPodReady(podName)
+
+      console.log(`📡 Setting up real-time log streaming`)
+
+      // Create a custom writable stream to capture logs
+      const { Writable } = require('stream')
+      let logBuffer = ''
+
+      const self = this
+      const logCaptureStream = new Writable({
+        write(chunk, _encoding, callback) {
+          const chunkStr = chunk.toString()
+          console.log(`📥 Received log chunk (${chunkStr.length} chars):`, chunkStr.substring(0, 200))
+
+          logBuffer += chunkStr
+          const lines = logBuffer.split('\n')
+
+          // Keep the last incomplete line in buffer
+          logBuffer = lines.pop() || ''
+
+          for (const line of lines) {
+            if (line.trim()) {
+              console.log(`🔍 Processing log line:`, line.trim())
+              self.processLogLine(line.trim(), executionId, ws)
+            }
+          }
+
+          callback()
+        }
+      })
+
+      // Use the log method from the Kubernetes client that supports streaming
+      const logStream = new k8s.Log(this.kc)
+
+      // Stream logs with follow enabled
+      await logStream.log(
+        this.namespace,
+        podName,
+        'qubots-executor',
+        logCaptureStream,
+        {
+          follow: true,
+          tailLines: 50,
+          pretty: false,
+          timestamps: true
+        }
+      )
+
+      console.log(`✅ Log stream established for pod: ${podName}`)
+
+      // Handle stream events
+      logCaptureStream.on('finish', () => {
+        console.log('Log stream ended for pod:', podName)
+        // Process any remaining buffer content
+        if (logBuffer.trim()) {
+          self.processLogLine(logBuffer.trim(), executionId, ws)
+        }
+        self.sendLog(ws, 'info', 'Log stream completed', 'system')
+      })
+
+      logCaptureStream.on('error', (error) => {
+        console.error('Log capture stream error:', error)
+        self.sendLog(ws, 'error', `Log stream error: ${error.message}`, 'system')
+      })
+
+    } catch (error) {
+      console.error('Error streaming pod logs:', error)
+      this.sendLog(ws, 'error', `Failed to stream logs: ${error.message}`, 'system')
+
+      // Fall back to polling logs if streaming fails
+      console.log('Falling back to polling logs...')
+      this.pollPodLogs(podName, executionId, ws)
+    }
+  }
+
+  /**
+   * Wait for pod to be ready
+   */
+  async waitForPodReady(podName, maxWaitTime = 30000) {
+    const startTime = Date.now()
+
+    while (Date.now() - startTime < maxWaitTime) {
+      try {
+        const podResponse = await this.coreV1Api.readNamespacedPod(podName, this.namespace)
+        const pod = podResponse.body
+
+        if (pod.status.phase === 'Running') {
+          console.log(`✅ Pod ${podName} is ready`)
+          return true
+        }
+
+        console.log(`⏳ Waiting for pod ${podName} to be ready, current phase: ${pod.status.phase}`)
+        await new Promise(resolve => setTimeout(resolve, 1000))
+
+      } catch (error) {
+        console.log(`⏳ Pod ${podName} not found yet, waiting...`)
+        await new Promise(resolve => setTimeout(resolve, 1000))
+      }
+    }
+
+    throw new Error(`Pod ${podName} did not become ready within ${maxWaitTime}ms`)
+  }
+
+  /**
+   * Fallback method to poll logs if streaming fails
+   */
+  async pollPodLogs(podName, executionId, ws) {
+    let lastLogLength = 0
+    const pollInterval = 2000 // 2 seconds
+    let pollCount = 0
+    const maxPolls = 150 // 5 minutes max
+
+    const pollLogs = async () => {
+      try {
+        if (pollCount >= maxPolls) {
+          console.log('Max polling attempts reached')
+          return
+        }
+
+        pollCount++
+
+        // Get current logs
+        const logResponse = await this.coreV1Api.readNamespacedPodLog(
+          podName,
+          this.namespace,
+          'qubots-executor'
+        )
+
+        const currentLogs = logResponse.body
+
+        // Only process new log content
+        if (currentLogs.length > lastLogLength) {
+          const newLogs = currentLogs.substring(lastLogLength)
+          lastLogLength = currentLogs.length
+
+          // Process new log lines
+          const lines = newLogs.split('\n')
+          for (const line of lines) {
+            if (line.trim()) {
+              this.processLogLine(line.trim(), executionId, ws)
+            }
+          }
+        }
+
+        // Continue polling
+        setTimeout(pollLogs, pollInterval)
+
+      } catch (error) {
+        console.error('Error polling logs:', error)
+        // Continue polling even on errors
+        setTimeout(pollLogs, pollInterval)
+      }
+    }
+
+    // Start polling
+    pollLogs()
+  }
+
+  /**
+   * Process individual log lines with enhanced parsing
+   */
+  processLogLine(line, executionId, ws) {
+    try {
+      // Remove timestamp prefix if present (Kubernetes adds timestamps)
+      const trimmedLine = line.trim()
+      const cleanLine = trimmedLine.replace(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+Z\s+/, '')
+
+      // Skip empty lines
+      if (!cleanLine) {
+        return
+      }
+
+      console.log(`🔍 Processing line for execution ${executionId}:`, cleanLine)
+
+      // First, check for our custom STREAM_LOG format (this is our primary format)
+      if (cleanLine.includes('STREAM_LOG:')) {
+        console.log(`📋 Found STREAM_LOG format`)
+        const jsonPart = cleanLine.substring(cleanLine.indexOf('STREAM_LOG:') + 11).trim()
+        try {
+          const logEntry = JSON.parse(jsonPart)
+          console.log(`📊 Parsed log entry:`, logEntry)
+          if (logEntry.execution_id === executionId) {
+            // Filter out metrics duplicates - only show optimizer logs
+            if (logEntry.source === 'metrics') {
+              console.log(`🔇 Skipping metrics duplicate for: ${logEntry.message}`)
+              return
+            }
+            console.log(`✅ Execution ID matches, sending log`)
+            this.sendLog(ws, logEntry.level, logEntry.message, logEntry.source)
+            return // Important: return here to avoid processing the same message multiple times
+          } else {
+            console.log(`❌ Execution ID mismatch: ${logEntry.execution_id} !== ${executionId}`)
+          }
+        } catch (e) {
+          console.log('Failed to parse STREAM_LOG JSON:', e.message)
+          // Fall through to other parsing methods
+        }
+      }
+
+      // Skip lines that look like they might be duplicates of STREAM_LOG entries
+      // (e.g., raw JSON without STREAM_LOG prefix)
+      if (cleanLine.startsWith('{"timestamp"') && cleanLine.includes('"execution_id"')) {
+        console.log('Skipping potential duplicate JSON log entry')
+        return
+      }
+
+      // Check for structured logs with levels (from qubots library)
+      if (cleanLine.includes('[INFO]') || cleanLine.includes('[DEBUG]') ||
+          cleanLine.includes('[WARNING]') || cleanLine.includes('[ERROR]')) {
+        const levelMatch = cleanLine.match(/\[(INFO|DEBUG|WARNING|ERROR)\]/)
+        if (levelMatch) {
+          const level = levelMatch[1].toLowerCase()
+          const message = cleanLine.replace(/\[.*?\]\s*/, '').replace(/\[.*?\]\s*/, '')
+          this.sendLog(ws, level, message, 'optimizer')
+          return
+        }
+      }
+
+      // Check for optimization progress indicators (common patterns)
+      if (cleanLine.includes('Generation') || cleanLine.includes('Iteration') ||
+          cleanLine.includes('Progress') || cleanLine.includes('Best') ||
+          cleanLine.includes('fitness') || cleanLine.includes('objective') ||
+          cleanLine.includes('value:') || cleanLine.includes('improvement')) {
+        this.sendLog(ws, 'info', cleanLine, 'optimizer')
+        return
+      }
+
+      // Check for qubots-specific messages
+      if (cleanLine.includes('qubots') || cleanLine.includes('optimization') ||
+          cleanLine.includes('Executing') || cleanLine.includes('Loading') ||
+          cleanLine.includes('Starting') || cleanLine.includes('Completed')) {
+        this.sendLog(ws, 'info', cleanLine, 'qubots')
+        return
+      }
+
+      // Check for error indicators
+      if (cleanLine.toLowerCase().includes('error') || cleanLine.toLowerCase().includes('exception') ||
+          cleanLine.toLowerCase().includes('failed') || cleanLine.toLowerCase().includes('traceback')) {
+        this.sendLog(ws, 'error', cleanLine, 'pod')
+        return
+      }
+
+      // Check for success indicators
+      if (cleanLine.toLowerCase().includes('success') || cleanLine.toLowerCase().includes('complete') ||
+          cleanLine.toLowerCase().includes('finished')) {
+        this.sendLog(ws, 'info', cleanLine, 'system')
+        return
+      }
+
+      // Any other non-empty line as debug (but filter out very verbose logs)
+      if (cleanLine.length > 0 && !cleanLine.includes('kubernetes') && !cleanLine.includes('container')) {
+        this.sendLog(ws, 'debug', cleanLine, 'pod')
+      }
+
+    } catch (error) {
+      console.error('Error processing log line:', error)
+      // Send the raw line as debug if processing fails
+      this.sendLog(ws, 'debug', line, 'raw')
+    }
+  }
+
+  /**
+   * Send log message via WebSocket
+   */
+  sendLog(ws, level, message, source) {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      const logMessage = {
+        type: 'optimization_log',
+        data: {
+          timestamp: new Date().toISOString(),
+          level,
+          message,
+          source
+        }
+      }
+      ws.send(JSON.stringify(logMessage))
+    }
+  }
+
+  /**
+   * Get job result from the completed pod
+   */
+  async getJobResult(jobName, executionId) {
+    try {
+      const podName = await this.getPodNameForJob(jobName)
+      if (!podName) {
+        throw new Error('Pod not found for completed job')
+      }
+
+      // Try to extract the result file from the pod
+      const resultFile = `/tmp/qubots_result_${executionId}.json`
+
+      try {
+        // Use kubectl exec to get the result file content
+        const { exec } = require('child_process')
+        const { promisify } = require('util')
+        const execAsync = promisify(exec)
+
+        console.log(`📄 Extracting result file from pod: ${podName}`)
+        const { stdout } = await execAsync(`kubectl exec ${podName} -n ${this.namespace} -- cat ${resultFile}`)
+
+        if (stdout.trim()) {
+          const result = JSON.parse(stdout.trim())
+          console.log(`✅ Successfully extracted optimization result:`, result)
+          return result
+        }
+      } catch (extractError) {
+        console.log(`⚠️ Could not extract result file: ${extractError.message}`)
+      }
+
+      // Enhanced fallback: extract results from execution logs
+      console.log(`🔍 Attempting to extract results from execution logs for ${executionId}`)
+      const logBasedResult = await this.extractResultFromLogs(jobName, executionId)
+
+      if (logBasedResult) {
+        console.log(`✅ Successfully extracted result from logs:`, logBasedResult)
+        return logBasedResult
+      }
+
+      // Final fallback: return a basic success result
+      return {
+        success: true,
+        execution_time: 0,
+        timestamp: new Date().toISOString(),
+        message: 'Optimization completed with streaming logs'
+      }
+
+    } catch (error) {
+      console.error('Error getting job result:', error)
+      return {
+        success: false,
+        error_message: error.message,
+        timestamp: new Date().toISOString()
+      }
+    }
+  }
+
+  /**
+   * Extract optimization results from pod logs when result file is not available
+   */
+  async extractResultFromLogs(jobName, executionId) {
+    try {
+      const podName = await this.getPodNameForJob(jobName)
+      if (!podName) {
+        console.log('Pod not found for log extraction')
+        return null
+      }
+
+      // Get execution info to include problem/optimizer names
+      const execution = this.activeExecutions.get(executionId)
+      const params = execution ? execution.params : {}
+
+      // Get all logs from the pod
+      const { exec } = require('child_process')
+      const { promisify } = require('util')
+      const execAsync = promisify(exec)
+
+      console.log(`📋 Extracting logs from pod: ${podName}`)
+      const { stdout } = await execAsync(`kubectl logs ${podName} -n ${this.namespace} -c qubots-executor`)
+
+      if (!stdout) {
+        console.log('No logs found in pod')
+        return null
+      }
+
+      // Parse logs to extract optimization results
+      const lines = stdout.split('\n')
+      const result = {
+        success: true,
+        timestamp: new Date().toISOString(),
+        execution_time: 0,
+        best_value: null,
+        iterations: null,
+        problem_name: params.problemName || null,
+        optimizer_name: params.optimizerName || null,
+        problem_username: params.problemUsername || null,
+        optimizer_username: params.optimizerUsername || null
+      }
+
+      let executionStartTime = null
+      let executionEndTime = null
+
+      for (const line of lines) {
+        const trimmedLine = line.trim()
+
+        // Extract execution timing
+        if (trimmedLine.includes('Starting optimization execution')) {
+          const timeMatch = trimmedLine.match(/(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+Z)/)
+          if (timeMatch) {
+            executionStartTime = new Date(timeMatch[1])
+          }
+        }
+
+        if (trimmedLine.includes('Optimization execution completed')) {
+          const timeMatch = trimmedLine.match(/(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+Z)/)
+          if (timeMatch) {
+            executionEndTime = new Date(timeMatch[1])
+          }
+        }
+
+        // Extract best value
+        if (trimmedLine.includes('🎯 Best value achieved:')) {
+          const valueMatch = trimmedLine.match(/Best value achieved:\s*([\d.-]+)/)
+          if (valueMatch) {
+            result.best_value = parseFloat(valueMatch[1])
+          }
+        }
+
+        // Extract iterations
+        if (trimmedLine.includes('🔄 Total iterations:')) {
+          const iterMatch = trimmedLine.match(/Total iterations:\s*(\d+)/)
+          if (iterMatch) {
+            result.iterations = parseInt(iterMatch[1])
+          }
+        }
+
+        // Extract execution time from logs
+        if (trimmedLine.includes('⏱️ Execution time:')) {
+          const timeMatch = trimmedLine.match(/Execution time:\s*([\d.]+)s/)
+          if (timeMatch) {
+            result.execution_time = parseFloat(timeMatch[1])
+          }
+        }
+
+        // Extract runtime information
+        if (trimmedLine.includes('Runtime:') && trimmedLine.includes('seconds')) {
+          const runtimeMatch = trimmedLine.match(/Runtime:\s*([\d.]+)\s*seconds/)
+          if (runtimeMatch) {
+            result.execution_time = parseFloat(runtimeMatch[1])
+          }
+        }
+
+        // Extract OR-Tools specific results
+        if (trimmedLine.includes('OR-Tools objective:')) {
+          const objMatch = trimmedLine.match(/OR-Tools objective:\s*([\d.-]+)/)
+          if (objMatch) {
+            result.best_value = parseFloat(objMatch[1])
+          }
+        }
+
+        if (trimmedLine.includes('Verified value:')) {
+          const verifiedMatch = trimmedLine.match(/Verified value:\s*([\d.-]+)/)
+          if (verifiedMatch) {
+            result.best_value = parseFloat(verifiedMatch[1])
+          }
+        }
+
+        if (trimmedLine.includes('Branches:')) {
+          const branchMatch = trimmedLine.match(/Branches:\s*(\d+)/)
+          if (branchMatch) {
+            result.iterations = parseInt(branchMatch[1])
+          }
+        }
+
+        // Check for error indicators
+        if (trimmedLine.includes('❌ Optimization failed') ||
+            trimmedLine.toLowerCase().includes('error:') ||
+            trimmedLine.toLowerCase().includes('exception:')) {
+          result.success = false
+          result.error_message = trimmedLine
+        }
+      }
+
+      // Calculate execution time from timestamps if not found in logs
+      if (result.execution_time === 0 && executionStartTime && executionEndTime) {
+        result.execution_time = (executionEndTime - executionStartTime) / 1000
+      }
+
+      // Only return result if we found meaningful data
+      if (result.best_value !== null || result.iterations !== null || result.execution_time > 0) {
+        console.log(`📊 Extracted result from logs:`, result)
+        return result
+      }
+
+      console.log('No meaningful optimization data found in logs')
+      return null
+
+    } catch (error) {
+      console.error('Error extracting result from logs:', error)
+      return null
+    }
+  }
+
+  /**
+   * Get pod name for a job
+   */
+  async getPodNameForJob(jobName) {
+    try {
+      const podsResponse = await this.coreV1Api.listNamespacedPod(
+        this.namespace,
+        undefined, // pretty
+        undefined, // allowWatchBookmarks
+        undefined, // continue
+        undefined, // fieldSelector
+        `job-name=${jobName}` // labelSelector
+      )
+
+      const pods = podsResponse.body.items
+      if (pods.length > 0) {
+        return pods[0].metadata.name
+      }
+
+      return null
+    } catch (error) {
+      console.error('Error getting pod for job:', error)
+      return null
+    }
+  }
+
+  /**
+   * Delete a job
+   */
+  async deleteJob(jobName) {
+    try {
+      await this.batchV1Api.deleteNamespacedJob(jobName, this.namespace)
+      console.log(`🗑️ Job deleted: ${jobName}`)
+    } catch (error) {
+      console.error(`Error deleting job ${jobName}:`, error.message)
+    }
+  }
+
+  /**
+   * Convert JavaScript object to Python dictionary string with proper boolean conversion
+   */
+  convertToPythonDict(obj) {
+    if (!obj || typeof obj !== 'object') {
+      return '{}'
+    }
+
+    const convertValue = (value) => {
+      if (value === true) return 'True'
+      if (value === false) return 'False'
+      if (value === null) return 'None'
+      if (typeof value === 'string') return `"${value.replace(/"/g, '\\"')}"`
+      if (typeof value === 'number') return value.toString()
+      if (Array.isArray(value)) {
+        return `[${value.map(convertValue).join(', ')}]`
+      }
+      if (typeof value === 'object') {
+        const pairs = Object.entries(value).map(([k, v]) => `"${k}": ${convertValue(v)}`)
+        return `{${pairs.join(', ')}}`
+      }
+      return `"${value}"`
+    }
+
+    const pairs = Object.entries(obj).map(([key, value]) => `"${key}": ${convertValue(value)}`)
+    return `{${pairs.join(', ')}}`
+  }
+
+  /**
+   * Generate unique job ID
+   */
+  generateJobId() {
+    return crypto.randomBytes(8).toString('hex')
+  }
+
+  /**
+   * Stop an active execution
+   */
+  async stopExecution(executionId) {
+    const execution = this.activeExecutions.get(executionId)
+    if (execution) {
+      try {
+        await this.deleteJob(execution.jobName)
+        this.sendLog(execution.ws, 'warning', 'Execution stopped by user', 'system')
+        this.activeExecutions.delete(executionId)
+      } catch (error) {
+        console.error('Error stopping execution:', error)
+      }
+    }
+  }
+}
+
+module.exports = QubotStreamingExecutionService

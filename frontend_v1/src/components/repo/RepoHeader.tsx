@@ -231,11 +231,22 @@ function QubotMetadata({ config }: { config: any }) {
               {config.type.charAt(0).toUpperCase() + config.type.slice(1)}
             </Badge>
           )}
+          {/* Display keywords from legacy format */}
           {config.keywords && config.keywords.length > 0 && (
             <div className="flex flex-wrap gap-1 ml-2">
               {config.keywords.slice(0, 25).map((keyword: string, idx: number) => (
-                <Badge key={idx} variant="outline" className="text-xs bg-background hover:bg-primary/25">
+                <Badge key={`keyword-${idx}`} variant="outline" className="text-xs bg-background hover:bg-primary/25">
                   {keyword}
+                </Badge>
+              ))}
+            </div>
+          )}
+          {/* Display tags from metadata format */}
+          {config.metadata?.tags && config.metadata.tags.length > 0 && (
+            <div className="flex flex-wrap gap-1 ml-2">
+              {config.metadata.tags.slice(0, 25).map((tag: string, idx: number) => (
+                <Badge key={`tag-${idx}`} variant="outline" className="text-xs bg-background hover:bg-primary/25">
+                  {tag}
                 </Badge>
               ))}
             </div>

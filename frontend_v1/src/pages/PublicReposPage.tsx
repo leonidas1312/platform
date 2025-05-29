@@ -152,7 +152,7 @@ export default function PublicReposPage() {
       ],
     },
     {
-      name: "Algorithms",
+      name: "Optimizers",
       icon: <Code className="h-4 w-4" />,
       color: "from-green-500 to-green-600",
       keywords: [
@@ -205,60 +205,7 @@ export default function PublicReposPage() {
         "Crew Scheduling",
       ],
     },
-    {
-      name: "Industries",
-      icon: <Briefcase className="h-4 w-4" />,
-      color: "from-purple-500 to-purple-600",
-      keywords: [
-        "Supply Chain",
-        "Logistics",
-        "Finance",
-        "Healthcare",
-        "Energy",
-        "Manufacturing",
-        "Transportation",
-        "Telecommunications",
-        "Retail",
-        "Agriculture",
-        "Aviation",
-        "Construction",
-        "Education",
-        "Pharmaceuticals",
-        "Mining",
-        "Oil & Gas",
-        "Utilities",
-        "E-commerce",
-        "Food & Beverage",
-        "Public Sector",
-      ],
-    },
-    {
-      name: "Technologies",
-      icon: <Cpu className="h-4 w-4" />,
-      color: "from-red-500 to-red-600",
-      keywords: [
-        "Machine Learning",
-        "Deep Learning",
-        "Reinforcement Learning",
-        "Constraint Programming",
-        "Metaheuristics",
-        "Stochastic Optimization",
-        "Multi-objective Optimization",
-        "Cloud Computing",
-        "Distributed Computing",
-        "Parallel Computing",
-        "GPU Acceleration",
-        "Quantum Computing",
-        "Neural Networks",
-        "Fuzzy Logic",
-        "Swarm Intelligence",
-        "Evolutionary Computation",
-        "Heuristic Search",
-        "Approximation Algorithms",
-        "Combinatorial Optimization",
-        "Mathematical Modeling",
-      ],
-    },
+
   ]
 
   // Get the active category data
@@ -523,19 +470,31 @@ export default function PublicReposPage() {
 
   return (
     <Layout>
-      <div className="min-h-screen bg-background pt-44 pb-12">
-        <div className="max-w-[1400px] mx-auto">
+      <div className="min-h-screen bg-background py-8">
+        <div className="w-full px-4 lg:px-6">
           {/* Page Header with Search */}
-          <div className="mb-4">
-            <h1 className="text-2xl font-bold tracking-tight mb-4">Explore public qubots within Rastion</h1>
-            <div className="flex items-center justify-between gap-4">
-              <div className="relative w-full max-w-3xl">
+          <div className="mb-8">
+            <h1
+              className="text-3xl md:text-4xl font-bold tracking-tight mb-6 text-foreground"
+              style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}
+            >
+              Explore Public Optimization Tools
+            </h1>
+            <p
+              className="text-lg text-muted-foreground mb-8 max-w-3xl"
+              style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}
+            >
+              Discover optimization tools shared by the community.
+            </p>
+            <div className="flex items-center justify-between gap-4 flex-wrap">
+              <div className="relative w-full max-w-2xl">
                 <form onSubmit={handleSearch} className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                   <Input
                     type="search"
-                    placeholder="Search qubot repositories and users..."
-                    className="pl-10 h-12 text-base"
+                    placeholder="Search optimization tools and users..."
+                    className="pl-12 h-14 text-base rounded-xl border-border/50 bg-card/50 backdrop-blur-sm focus:bg-card transition-colors"
+                    style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                   />
@@ -544,57 +503,75 @@ export default function PublicReposPage() {
               {!loading && (
                 <Badge
                   variant="outline"
-                  className="px-3 py-1.5 text-base font-medium bg-primary/5 border-primary/20 h-12 flex items-center whitespace-nowrap"
+                  className="px-4 py-2 text-base font-medium bg-primary/5 border-primary/20 h-14 flex items-center whitespace-nowrap rounded-xl"
+                  style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}
                 >
-                  <FolderGit className="h-4 w-4 mr-2 text-primary" />
-                  Total number of qubots: {totalRepoCount}
+
+                  {totalRepoCount.toLocaleString()} public optimization tools
                 </Badge>
               )}
             </div>
           </div>
 
-          <div className="flex flex-col lg:flex-row gap-6 px-0 lg:px-4">
-            {/* Sidebar with Filters - Light theme to match page */}
-            <div className="w-full lg:w-72 flex-shrink-0">
-              <div className="sticky top-24 bg-background border rounded-lg overflow-hidden shadow-sm">
+          <div className="flex flex-col lg:flex-row gap-8">
+            {/* Sidebar with Filters */}
+            <div className="w-full lg:w-80 flex-shrink-0">
+              <div className="sticky top-32 bg-card/50 backdrop-blur-sm border border-border/50 rounded-2xl overflow-hidden shadow-soft">
                 {/* Vertical Category List */}
-                <div className="border-b">
+                <div className="border-b border-border/50">
+                  <div className="p-4 border-b border-border/30">
+                    <h3
+                      className="text-sm font-semibold text-foreground"
+                      style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}
+                    >
+                      Filter by Category
+                    </h3>
+                  </div>
                   {keywordCategories.map((category) => (
                     <button
                       key={category.name}
                       onClick={() => setActiveCategory(category.name.toLowerCase())}
-                      className={`w-full px-3 py-2 flex items-center gap-1.5 text-xs font-medium transition-colors border-l-2
+                      className={`w-full px-4 py-3 flex items-center gap-3 text-sm font-medium transition-all duration-200 border-l-3
 ${
   activeCategory === category.name.toLowerCase()
-    ? "text-primary border-l-primary bg-primary/5"
-    : "text-muted-foreground border-l-transparent hover:text-foreground hover:bg-muted/50"
+    ? "text-primary border-l-primary bg-primary/8 shadow-sm"
+    : "text-muted-foreground border-l-transparent hover:text-foreground hover:bg-muted/30 hover:border-l-muted-foreground/30"
 }`}
+                      style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}
                     >
-                      {category.icon}
+                      <div className={`p-1.5 rounded-lg ${activeCategory === category.name.toLowerCase() ? 'bg-primary/10' : 'bg-muted/50'}`}>
+                        {category.icon}
+                      </div>
                       {category.name}
                     </button>
                   ))}
                 </div>
 
                 {/* Keywords Section */}
-                <div className="p-3">
-                  <div className="text-xs text-muted-foreground mb-2">Keywords</div>
-                  <div className="flex flex-wrap gap-1.5 max-h-[calc(100vh-350px)] overflow-y-auto pr-1.5">
+                <div className="p-4">
+                  <div
+                    className="text-sm font-medium text-muted-foreground mb-3"
+                    style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}
+                  >
+                    Keywords
+                  </div>
+                  <div className="flex flex-wrap gap-2 max-h-[calc(100vh-400px)] overflow-y-auto pr-2">
                     {getActiveCategoryData().keywords.map((keyword) => (
                       <div
                         key={keyword}
                         onClick={() => toggleKeyword(keyword)}
                         className={`
-flex items-center gap-1 px-2 py-1 rounded-full text-xs cursor-pointer transition-all
+flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm cursor-pointer transition-all duration-200 font-medium
 ${
   selectedKeywords.includes(keyword)
-    ? `bg-primary text-primary-foreground shadow-sm`
-    : "bg-muted text-muted-foreground hover:bg-muted/80 border border-border"
+    ? `bg-primary text-primary-foreground shadow-sm hover:bg-primary/90`
+    : "bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground border border-border/50 hover:border-border"
 }
 `}
+                        style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}
                       >
                         <span className="truncate">{keyword}</span>
-                        {selectedKeywords.includes(keyword) && <X className="h-3 w-3 ml-0.5 flex-shrink-0" />}
+                        {selectedKeywords.includes(keyword) && <X className="h-3.5 w-3.5 ml-0.5 flex-shrink-0" />}
                       </div>
                     ))}
                   </div>
@@ -602,25 +579,35 @@ ${
 
                 {/* Selected Filters */}
                 {selectedKeywords.length > 0 && (
-                  <div className="p-3 border-t">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs text-muted-foreground">Selected Filters</span>
+                  <div className="p-4 border-t border-border/50">
+                    <div className="flex items-center justify-between mb-3">
+                      <span
+                        className="text-sm font-medium text-muted-foreground"
+                        style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}
+                      >
+                        Selected Filters
+                      </span>
                       <Button
                         variant="ghost"
                         size="sm"
                         onClick={clearFilters}
-                        className="h-6 px-2 text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
+                        className="h-8 px-3 text-sm text-destructive hover:text-destructive hover:bg-destructive/10 rounded-lg"
+                        style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}
                       >
-                        <X className="h-3 w-3 mr-1" />
+                        <X className="h-3.5 w-3.5 mr-1.5" />
                         Clear All
                       </Button>
                     </div>
-                    <div className="flex flex-wrap gap-1.5">
+                    <div className="flex flex-wrap gap-2">
                       {selectedKeywords.map((keyword) => (
-                        <Badge key={keyword} className="px-2 py-0.5 text-xs">
+                        <Badge
+                          key={keyword}
+                          className="px-3 py-1.5 text-sm bg-primary/10 text-primary border-primary/20 hover:bg-primary/20 transition-colors rounded-lg"
+                          style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}
+                        >
                           {keyword}
                           <X
-                            className="h-3 w-3 ml-1 cursor-pointer"
+                            className="h-3.5 w-3.5 ml-1.5 cursor-pointer hover:text-destructive transition-colors"
                             onClick={(e) => {
                               e.stopPropagation()
                               toggleKeyword(keyword)
@@ -638,17 +625,22 @@ ${
             <div className="flex-1">
               {/* Active Filters Banner */}
               {hasFilters && (
-                <div className="bg-muted/50 border rounded-md p-2 mb-4 flex items-center justify-between">
-                  <div className="text-sm">
-                    <span className="font-medium">Filtered results:</span> {filteredCount} repositories
+                <div className="bg-muted/30 border border-border/50 rounded-xl p-4 mb-6 flex items-center justify-between backdrop-blur-sm">
+                  <div
+                    className="text-base font-medium"
+                    style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}
+                  >
+                    <span className="text-foreground">Filtered results:</span>
+                    <span className="text-primary ml-2">{filteredCount.toLocaleString()} optimization tools</span>
                   </div>
                   <Button
                     variant="ghost"
                     size="sm"
                     onClick={clearFilters}
-                    className="h-7 text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
+                    className="h-9 px-4 text-sm text-destructive hover:text-destructive hover:bg-destructive/10 rounded-lg"
+                    style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}
                   >
-                    <X className="h-3.5 w-3.5 mr-1" />
+                    <X className="h-4 w-4 mr-2" />
                     Clear Filters
                   </Button>
                 </div>
@@ -656,60 +648,88 @@ ${
 
               {/* Repository Grid/List */}
               {loading ? (
-                <div className="flex items-center justify-center py-32">
-                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                  <span className="ml-2 text-muted-foreground">Loading repositories...</span>
+                <div className="flex flex-col items-center justify-center py-32">
+                  <Loader2 className="h-10 w-10 animate-spin text-primary mb-4" />
+                  <span
+                    className="text-lg text-muted-foreground"
+                    style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}
+                  >
+                    Loading optimization tools...
+                  </span>
                 </div>
               ) : repos.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-16 text-center">
-                  <FolderGit className="h-16 w-16 text-muted-foreground/50 mb-4" />
-                  <h3 className="text-lg font-medium">No repositories found</h3>
-                  <p className="text-muted-foreground mt-1 mb-4 max-w-md">
-                    We couldn't find any repositories matching your criteria. Try adjusting your filters or search
-                    query.
+                <div className="flex flex-col items-center justify-center py-20 text-center">
+                  <div className="p-6 rounded-full bg-muted/30 mb-6">
+                    <FolderGit className="h-16 w-16 text-muted-foreground/60" />
+                  </div>
+                  <h3
+                    className="text-2xl font-semibold mb-3 text-foreground"
+                    style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}
+                  >
+                    No optimization tools found
+                  </h3>
+                  <p
+                    className="text-muted-foreground mt-1 mb-6 max-w-md text-lg leading-relaxed"
+                    style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}
+                  >
+                    We couldn't find any optimization tools matching your criteria. Try adjusting your filters or search query.
                   </p>
-                  <Button onClick={clearFilters}>Clear Filters</Button>
+                  <Button
+                    onClick={clearFilters}
+                    className="h-12 px-6 text-base rounded-xl"
+                    style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}
+                  >
+                    Clear Filters
+                  </Button>
                 </div>
               ) : (
                 <Tabs value={activeView} onValueChange={(v) => setActiveView(v as "grid" | "list")}>
                   <TabsContent value="grid" className="mt-0">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       {repos.map((repo) => (
                         <Card
                           key={repo.id}
-                          className="overflow-hidden hover:shadow-md transition-shadow cursor-pointer h-full"
+                          className="overflow-hidden hover:shadow-lg transition-all duration-300 cursor-pointer h-full bg-card/50 backdrop-blur-sm border-border/50 hover:border-border hover:bg-card/80 group rounded-xl"
                           onClick={() => handleRepoClick(repo)}
                         >
-                          <CardHeader className="pb-1 px-3 pt-3">
+                          <CardHeader className="pb-3 px-5 pt-5">
                             <div className="flex items-start justify-between">
-                              <div className="flex items-center gap-2">
+                              <div className="flex items-start gap-3 flex-1 min-w-0">
                                 {repo.owner?.avatar_url ? (
                                   <img
                                     src={repo.owner.avatar_url || "/placeholder.svg"}
                                     alt={repo.owner.login}
-                                    className="w-8 h-8 rounded-full"
+                                    className="w-10 h-10 rounded-full ring-2 ring-border/20"
                                   />
                                 ) : (
-                                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                                    <Users className="h-4 w-4 text-primary" />
+                                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center ring-2 ring-border/20">
+                                    <Users className="h-5 w-5 text-primary" />
                                   </div>
                                 )}
-                                <div className="flex items-center gap-1 mb-1">
-                                  <Link
-                                    to={`/u/${repo.owner.login}`}
-                                    className="inline-block font-medium text-lg hover:text-primary hover:underline transition-colors"
-                                    onClick={(e) => e.stopPropagation()}
-                                  >
-                                    {repo.owner.login}
-                                  </Link>
-                                  <span className="text-muted-foreground">/</span>
-
-                                  {repo.name}
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-1.5 mb-1">
+                                    <Link
+                                      to={`/u/${repo.owner.login}`}
+                                      className="inline-block font-semibold text-base hover:text-primary hover:underline transition-colors flex-shrink-0"
+                                      style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}
+                                      onClick={(e) => e.stopPropagation()}
+                                    >
+                                      {repo.owner.login}
+                                    </Link>
+                                    <span className="text-muted-foreground flex-shrink-0">/</span>
+                                    <span
+                                      className="font-semibold text-base text-foreground truncate"
+                                      style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}
+                                    >
+                                      {repo.name}
+                                    </span>
+                                  </div>
                                 </div>
                               </div>
                               <Badge
                                 variant={repo.private ? "outline" : "secondary"}
-                                className="text-xs px-2 h-6 ml-2 flex-shrink-0"
+                                className="text-xs px-3 py-1 h-7 ml-3 flex-shrink-0 rounded-lg"
+                                style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}
                               >
                                 {repo.private ? "Private" : "Public"}
                               </Badge>
@@ -746,7 +766,7 @@ ${
                                     : "bg-gradient-to-r from-orange-500 to-red-500"
                                 }`}
                               >
-                                
+
                                 {repo.qubot_type.charAt(0).toUpperCase() + repo.qubot_type.slice(1)}
                               </Badge>
                             )}
@@ -766,7 +786,7 @@ ${
                                 {repo.stars_count}
                               </div>
 
-                              
+
 
                               <Clock className="h-4 w-4 flex-shrink-0" />
                               <span>{timeAgo(repo.updated_at)}</span>
@@ -798,19 +818,19 @@ ${
                                     <Users className="h-5 w-5 text-primary" />
                                   </div>
                                 )}
-                                <div className="flex-1">
+                                <div className="flex-1 min-w-0">
                                   <div className="flex items-center gap-1 mb-1">
                                     <Link
                                       to={`/u/${repo.owner.login}`}
-                                      className="inline-block font-medium text-lg hover:text-primary hover:underline transition-colors"
+                                      className="inline-block font-medium text-lg hover:text-primary hover:underline transition-colors flex-shrink-0"
                                       onClick={(e) => e.stopPropagation()}
                                     >
                                       {repo.owner.login}
                                     </Link>
-                                    <span className="text-muted-foreground">/</span>
+                                    <span className="text-muted-foreground flex-shrink-0">/</span>
                                     <Link
                                       to={`/${repo.owner.login}/${repo.name}`}
-                                      className="inline-block font-medium text-lg hover:text-primary hover:underline transition-colors"
+                                      className="inline-block font-medium text-lg hover:text-primary hover:underline transition-colors truncate"
                                       onClick={(e) => e.stopPropagation()}
                                     >
                                       {repo.name}
@@ -929,7 +949,7 @@ ${
                         <span>Loading results...</span>
                       ) : (
                         <span>
-                          Showing page {currentPage} of {totalPages} ({filteredCount} repositories
+                          Showing page {currentPage} of {totalPages} ({filteredCount} optimization tools
                           {searchQuery || selectedKeywords.length > 0 ? " matching your filters" : ""})
                         </span>
                       )}

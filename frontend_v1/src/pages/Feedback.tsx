@@ -134,10 +134,10 @@ const Community = () => {
         }
 
         const data = await response.json() // This should be an array of posts
-        
+
         // Add this console log to see what we're receiving
         console.log("Received posts from server:", data)
-        
+
         setPosts(data)
       } catch (error) {
         console.error("Error fetching posts:", error)
@@ -244,7 +244,7 @@ const Community = () => {
       if (response.ok) {
         const createdPost = await response.json()
         console.log("Received post from server:", createdPost)
-        
+
         // Ensure we're explicitly using the type from the response
         setPosts((prevPosts) => [
           {
@@ -423,9 +423,9 @@ const Community = () => {
   // Filter posts based on search query
   const filteredPosts = posts.filter(
     (post) =>
-      post.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      post.author.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      post.author.login.toLowerCase().includes(searchQuery.toLowerCase()),
+      post.content?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      post.author?.full_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      post.author?.login?.toLowerCase().includes(searchQuery.toLowerCase()),
   )
 
   // Format date for display
@@ -466,7 +466,7 @@ const Community = () => {
 
   return (
     <Layout>
-      <div className="container mx-auto px-4 py-32">
+      <div className="container mx-auto px-4 py-8">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -497,9 +497,9 @@ const Community = () => {
                   <div className="flex gap-3">
                     <Avatar className="w-10 h-10">
                       {currentUser && currentUser.avatar_url ? (
-                        <AvatarImage src={currentUser.avatar_url || "/placeholder.svg"} alt={currentUser.full_name} />
+                        <AvatarImage src={currentUser.avatar_url || "/placeholder.svg"} alt={currentUser.full_name || currentUser.login || "User"} />
                       ) : (
-                        <AvatarFallback>{currentUser ? currentUser.full_name.charAt(0) : "G"}</AvatarFallback>
+                        <AvatarFallback>{currentUser ? (currentUser.full_name || currentUser.login || "U").charAt(0).toUpperCase() : "G"}</AvatarFallback>
                       )}
                     </Avatar>
                     {/* Update the textarea section in the render function to include post type selection */}
@@ -976,13 +976,22 @@ const PostCard = ({ post, currentUser, onLike, formatDate, onDelete }) => {
           <div className="flex justify-between items-start">
             <div className="flex items-center gap-3">
               <Avatar>
-                <AvatarImage src={post.author.avatar_url || "/placeholder.svg"} alt={post.author.full_name} />
-                <AvatarFallback>{post.author.full_name.charAt(0)}</AvatarFallback>
+                <AvatarImage
+                  src={post.author?.avatar_url || "/placeholder.svg"}
+                  alt={post.author?.full_name || post.author?.login || "User"}
+                />
+                <AvatarFallback>
+                  {(post.author?.full_name || post.author?.login || "U").charAt(0).toUpperCase()}
+                </AvatarFallback>
               </Avatar>
               <div>
                 <div className="flex items-center gap-1">
-                  <h3 className="font-medium text-base">{post.author.full_name}</h3>
-                  <span className="text-xs text-muted-foreground">@{post.author.login}</span>
+                  <h3 className="font-medium text-base">
+                    {post.author?.full_name || post.author?.login || "Unknown User"}
+                  </h3>
+                  <span className="text-xs text-muted-foreground">
+                    @{post.author?.login || "unknown"}
+                  </span>
                 </div>
                 <div className="text-xs text-foreground/60">{formatDate(post.created_at)}</div>
               </div>
@@ -994,7 +1003,7 @@ const PostCard = ({ post, currentUser, onLike, formatDate, onDelete }) => {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                {currentUser && currentUser.login === post.author.login && (
+                {currentUser && currentUser.login === post.author?.login && (
                   <DropdownMenuItem
                     className="text-destructive focus:text-destructive"
                     onClick={() => {

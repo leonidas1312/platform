@@ -11,18 +11,22 @@ import { Loader2 } from "lucide-react"
 
 // Import components
 import RepoHeader from "@/components/repo/RepoHeader"
-import QubotSidebar from "@/components/repo/QubotSidebar"
 import SetupDialog from "@/components/repo/SetupDialog"
 import DeleteRepoDialog from "@/components/repo/DeleteRepoDialog"
-import TabsContainer from "@/components/repo/TabsContainer"
-import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import QubotEditDialog from "@/components/repo/QubotEditDialog"
 
-import QubotCardDisplay from "@/components/QubotCardDisplay"
-import FileExplorer from "@/components/FileExplorer"
+import RepositoryFileExplorer from "@/components/repo/RepositoryFileExplorer"
+import OptimizationToolConfigCard from "@/components/repo/OptimizationToolConfigCard"
+import NotebookViewer from "@/components/repo/NotebookViewer"
+
+import OptimizationToolCardDisplay from "@/components/OptimizationToolCardDisplay"
 import CodeViewer from "@/components/CodeViewerRepoPage"
 import FileUploadDialog from "@/components/FileUploadDialog"
 import FileSearchDialog from "@/components/FileSearchDialog"
-import QubotEditDialog from "@/components/repo/QubotEditDialog"
+
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { FileText } from "lucide-react"
 
 const API = import.meta.env.VITE_API_BASE
 
@@ -66,7 +70,7 @@ export default function RepoPage() {
   const [files, setFiles] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
-  const [activeTab, setActiveTab] = useState("qubot")
+  const [activeTab, setActiveTab] = useState("overview")
 
   const [qubotSubTab, setQubotSubTab] = useState("readme")
 
@@ -79,8 +83,7 @@ export default function RepoPage() {
   const [selectedFileSha, setSelectedFileSha] = useState<string | null>(null)
   const [fileContent, setFileContent] = useState<string>("")
   const [editorLoading, setEditorLoading] = useState(false)
-  const [isEditingState, setIsEditingState] = useState<boolean | undefined>(undefined)
-  const isEditing = isEditingState !== undefined ? isEditingState : false
+  const [forceRawView, setForceRawView] = useState(false) // Force raw file view instead of formatted card
 
   // Qubot Card state
   const [showCreateForm, setShowCreateForm] = useState(false)
@@ -144,8 +147,8 @@ export default function RepoPage() {
   // Welcome dialog state
   const [showWelcomeDialog, setShowWelcomeDialog] = useState(false)
 
-  // Edit qubot dialog state
-  const [showEditQubotDialog, setShowEditQubotDialog] = useState(false)
+  // Edit dialog state
+  const [showEditDialog, setShowEditDialog] = useState(false)
 
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -202,6 +205,9 @@ export default function RepoPage() {
     if (splat && splat.startsWith("src/branch/")) {
       console.log("Setting active tab to files")
       setActiveTab("files")
+    } else {
+      // Default to overview tab for repository root
+      setActiveTab("overview")
     }
 
     processingUrlChange.current = false
@@ -430,6 +436,10 @@ export default function RepoPage() {
     }
   }
 
+  const handleEditQubotCard = () => {
+    setShowEditDialog(true)
+  }
+
   const handleSaveQubotCard = async (formData: any) => {
     if (!owner || !repoName || !repo) return
     setLoading(true)
@@ -457,7 +467,6 @@ export default function RepoPage() {
 
       await reloadRepoData()
       setShowCreateForm(false)
-      setShowEditQubotDialog(false)
       setConfig(formData)
 
       // If this was a new repo, it's no longer new
@@ -469,6 +478,7 @@ export default function RepoPage() {
       // Close the setup dialog if it was open
       setShowSetupDialog(false)
       setShowWelcomeDialog(false)
+      setShowEditDialog(false)
 
       toast({
         title: "Success",
@@ -531,133 +541,29 @@ export default function RepoPage() {
           })
         })
     } else {
-      // Navigate to file
+      // Display file inline without URL navigation
       const filePath = currentPath ? `${currentPath}/${file.name}` : file.name
-      console.log("Navigating to file:", filePath)
+      console.log("Displaying file inline:", filePath)
 
-      // Set the selected file before navigation to ensure it's available immediately
+      // Set the selected file to display it inline
       setSelectedFile(filePath)
+
+      // Reset force raw view flag for normal file clicks
+      setForceRawView(false)
 
       // Load the file content immediately
       loadFileContent(filePath)
 
-      // Then navigate to the file URL
-      navigate(`/${owner}/${repoName}/src/branch/${branch}/${filePath}`)
+      // Ensure we stay in the Files tab when viewing a file
+      setActiveTab("files")
+
+      // Do not navigate to a new URL - keep the current URL and display inline
     }
   }
 
-  // Save file updates
-  const handleSaveFile = async () => {
-    if (!selectedFile || !owner || !repoName || !selectedFileSha) return
-    try {
-      setEditorLoading(true)
-      const token = getUserToken()
-      const encodedContent = btoa(fileContent)
-      const response = await fetch(`${API}/repos/${owner}/${repoName}/contents/${selectedFile}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `token ${token}`,
-        },
-        body: JSON.stringify({
-          content: encodedContent,
-          message: `Update ${selectedFile}`,
-          branch: currentBranch || repo?.default_branch || "main",
-          sha: selectedFileSha,
-        }),
-      })
-      if (!response.ok) {
-        const errData = await response.json()
-        throw new Error(errData.message || "Failed to update file")
-      }
 
-      // Reload the file content
-      await loadFileContent(selectedFile)
-      setIsEditingState(false)
-      toast({
-        title: "Success",
-        description: "File saved successfully!",
-      })
-    } catch (err: any) {
-      console.error(err)
-      setError(err.message || "Error saving file")
-      toast({
-        title: "Error",
-        description: err.message || "Failed to save file",
-        variant: "destructive",
-      })
-    } finally {
-      setEditorLoading(false)
-    }
-  }
 
-  // Add a handleDeleteFile function after the handleSaveFile function
-  const handleDeleteFile = async () => {
-    if (!selectedFile || !owner || !repoName || !selectedFileSha) return
-    try {
-      setEditorLoading(true)
-      const token = getUserToken()
 
-      const response = await fetch(`${API}/repos/${owner}/${repoName}/contents/${selectedFile}`, {
-        method: "DELETE",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `token ${token}`,
-        },
-        body: JSON.stringify({
-          message: `Delete ${selectedFile}`,
-          branch: currentBranch || repo?.default_branch || "main",
-          sha: selectedFileSha,
-        }),
-      })
-
-      if (!response.ok) {
-        const errData = await response.json()
-        throw new Error(errData.message || "Failed to delete file")
-      }
-
-      // Clear the selected file state
-      setSelectedFile(null)
-      setFileContent("")
-      setSelectedFileSha(null)
-
-      // Navigate back to the directory
-      const branch = currentBranch || repo?.default_branch || "main"
-      if (currentPath) {
-        navigate(`/${owner}/${repoName}/src/branch/${branch}/${currentPath}`)
-      } else {
-        navigate(`/${owner}/${repoName}/src/branch/${branch}`)
-      }
-
-      // Reload the directory contents
-      if (currentPath) {
-        const dirResponse = await fetch(`${API}/repos/${owner}/${repoName}/contents/${currentPath}?ref=${branch}`, {
-          headers: { Authorization: `token ${token}` },
-        })
-        if (dirResponse.ok) {
-          const dirData = await dirResponse.json()
-          setFiles(enhanceFilesWithCommitData(dirData))
-        }
-      } else {
-        await reloadRepoData()
-      }
-
-      toast({
-        title: "Success",
-        description: "File deleted successfully!",
-      })
-    } catch (err: any) {
-      console.error(err)
-      setError(err.message || "Error deleting file")
-      toast({
-        title: "Error",
-        description: err.message || "Failed to delete file",
-        variant: "destructive",
-      })
-    } finally {
-      setEditorLoading(false)
-    }
-  }
 
   // Add this function to handle repository deletion
   const handleDeleteRepository = async () => {
@@ -874,16 +780,13 @@ export default function RepoPage() {
 
   // Handle back button from code viewer
   const handleBackToFiles = () => {
-    const branch = currentBranch || repo?.default_branch || "main"
-
-    // Clear the selected file state
+    // Simply clear the selected file state to return to file explorer view
     setSelectedFile(null)
 
-    if (currentPath) {
-      navigate(`/${owner}/${repoName}/src/branch/${branch}/${currentPath}`)
-    } else {
-      navigate(`/${owner}/${repoName}/src/branch/${branch}`)
-    }
+    // Reset force raw view flag
+    setForceRawView(false)
+
+    // No URL navigation needed - stay in the same view
   }
 
   // Handle branch change
@@ -972,21 +875,35 @@ export default function RepoPage() {
     }
   }
 
-  // Function to navigate to a specific file in the repository
+  // Function to display a specific file inline in the repository
   const handleGoToFile = (filePath: string) => {
-    const branch = currentBranch || repo?.default_branch || "main"
-
-    // Set the selected file
+    // Set the selected file for inline display
     setSelectedFile(filePath)
 
     // Load the file content
     loadFileContent(filePath)
 
-    // Set the active tab to files
+    // Always set the active tab to files when viewing a file
     setActiveTab("files")
 
-    // Navigate to the file URL
-    navigate(`/${owner}/${repoName}/src/branch/${branch}/${filePath}`)
+    // No URL navigation - display inline in current view
+  }
+
+  // Function to force raw file view (for "View File" button in config card)
+  const handleViewRawFile = (filePath: string) => {
+    // Set the selected file for inline display
+    setSelectedFile(filePath)
+
+    // Force raw view instead of formatted card
+    setForceRawView(true)
+
+    // Load the file content
+    loadFileContent(filePath)
+
+    // Always set the active tab to files when viewing a file
+    setActiveTab("files")
+
+    // No URL navigation - display inline in current view
   }
 
   // Function to navigate to parent directory
@@ -1076,6 +993,28 @@ export default function RepoPage() {
                 sha: commits[0].sha,
               },
             }
+          } else {
+            // Provide fallback commit data when no commits are found
+            enhancedFiles[i] = {
+              ...file,
+              commit: {
+                message: "No commit history",
+                date: null,
+                author: "Unknown",
+                sha: null,
+              },
+            }
+          }
+        } else {
+          // Provide fallback commit data when API call fails
+          enhancedFiles[i] = {
+            ...file,
+            commit: {
+              message: "Unable to fetch commit data",
+              date: null,
+              author: "Unknown",
+              sha: null,
+            },
           }
         }
       }
@@ -1161,7 +1100,7 @@ export default function RepoPage() {
   // Handle tab change
   const handleTabChange = (tab: string) => {
     setActiveTab(tab)
-    if (tab === "qubot") {
+    if (tab === "overview") {
       navigate(`/${owner}/${repoName}`)
     } else if (tab === "files") {
       const branch = currentBranch || repo?.default_branch || "main"
@@ -1169,12 +1108,7 @@ export default function RepoPage() {
     }
   }
 
-  // Handle edit qubot card
-  const handleEditQubotCard = () => {
-    setActiveTab("qubot")
-    setShowEditQubotDialog(true)
-    navigate(`/${owner}/${repoName}`)
-  }
+
 
   // Handle setup qubot
   const handleSetupQubot = () => {
@@ -1210,7 +1144,7 @@ export default function RepoPage() {
 
   return (
     <Layout>
-      <div className="container mx-auto px-4 py-8 mt-44 bg-background text-foreground">
+      <div className="container mx-auto px-4 py-8 bg-background text-foreground">
         <RepoHeader
           owner={owner || ""}
           repoName={repoName || ""}
@@ -1224,73 +1158,146 @@ export default function RepoPage() {
           allRepoFiles={allRepoFiles}
         />
 
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          {/* Sidebar with Qubot Card */}
-          <div className="lg:col-span-1 space-y-4">
-            <QubotSidebar config={config} onEditQubotCard={handleEditQubotCard} />
+        {/* GitHub-style tabbed layout */}
+        <div className="space-y-6">
+          {/* Tab Navigation */}
+          <div className="border-b border-border">
+            <nav className="flex space-x-8">
+              <button
+                onClick={() => setActiveTab("overview")}
+                className={`py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
+                  activeTab === "overview"
+                    ? "border-primary text-primary"
+                    : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
+                }`}
+              >
+                Overview
+              </button>
+              <button
+                onClick={() => setActiveTab("files")}
+                className={`py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
+                  activeTab === "files"
+                    ? "border-primary text-primary"
+                    : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
+                }`}
+              >
+                Files
+              </button>
+            </nav>
           </div>
 
-          {/* Main content area */}
-          <div className="lg:col-span-3">
-            <TabsContainer
-              activeTab={activeTab}
-              onTabChange={handleTabChange}
-              readmeContent={
-                readme ? (
-                  <QubotCardDisplay
-                    readme={readme}
-                    data={config}
-                    onGoToFile={handleGoToFile}
-                    onSaveQubotSetup={handleSaveQubotCard}
-                    allRepoFiles={allRepoFiles}
-                  />
-                ) : (
-                  <div className="space-y-4">
-                    <Card>
-                      <CardHeader>
-                        <CardTitle>Readme</CardTitle>
-                        <CardDescription>Add a readme file to your repository in the files section.</CardDescription>
-                      </CardHeader>
-                    </Card>
-                  </div>
-                )
-              }
-              filesContent={
-                !selectedFile ? (
-                  <FileExplorer
-                    files={files}
-                    onFileClick={handleFileClick}
-                    defaultBranch={currentBranch || repo?.default_branch || "main"}
-                    path={currentPath}
-                    className="w-full"
-                    onAddFile={() => setShowFileUploadDialog(true)}
-                    onNavigateToParent={handleNavigateToParentDirectory}
-                    onGoToFile={handleGoToFile}
-                    isLoading={loading}
-                    allRepoFiles={allRepoFiles}
-                    repoOwner={owner || ""}
-                    repoName={repoName || ""}
-                  />
-                ) : (
-                  <div className="h-[calc(100vh-250px)] min-h-[600px]">
-                    <CodeViewer
-                      fileName={selectedFile.split("/").pop() || ""}
-                      content={fileContent}
-                      isLoading={editorLoading}
-                      isEditing={isEditing}
-                      onEdit={() => setIsEditingState(true)}
-                      onSave={handleSaveFile}
-                      onCancel={() => setIsEditingState(false)}
-                      onChange={setFileContent}
-                      onBack={handleBackToFiles}
-                      onDelete={handleDeleteFile}
-                      className="w-full h-full"
+          {/* Tab Content */}
+          {activeTab === "overview" ? (
+            /* Overview Tab - GitHub-style layout with config and README */
+            <div className="space-y-6">
+              {/* Desktop: Side-by-side layout, Mobile: Stacked */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Left Column - Config and Quick Info */}
+                <div className="lg:col-span-1 space-y-6">
+                  {/* Optimization Tool Configuration Card */}
+                  {config && (
+                    <OptimizationToolConfigCard
+                      config={config}
+                      fileName="config.json"
+                      onViewFile={() => handleViewRawFile("config.json")}
                     />
-                  </div>
-                )
-              }
-            />
-          </div>
+                  )}
+
+
+                </div>
+
+                {/* Right Column - README */}
+                <div className="lg:col-span-2">
+                  {readme ? (
+                    <OptimizationToolCardDisplay
+                      readme={readme}
+                      data={config}
+                      onGoToFile={handleGoToFile}
+                      onSaveOptimizationToolSetup={handleSaveQubotCard}
+                      allRepoFiles={allRepoFiles}
+                    />
+                  ) : (
+                    <Card className="border-border/60">
+                      <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                          <FileText className="h-5 w-5" />
+                          README
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="text-center py-12">
+                        <FileText className="h-16 w-16 mx-auto text-muted-foreground opacity-30 mb-4" />
+                        <h3 className="text-lg font-medium mb-2">No README found</h3>
+                        <p className="text-muted-foreground mb-6 max-w-md mx-auto">
+                          Add a README.md file to provide documentation and information about your project.
+                        </p>
+                        <Button
+                          onClick={() => handleGoToFile("README.md")}
+                          className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary"
+                        >
+                          <FileText className="h-4 w-4 mr-2" />
+                          Create README.md
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  )}
+                </div>
+              </div>
+            </div>
+          ) : (
+            /* Files Tab - Enhanced file browser */
+            <div className="space-y-4">
+              {/* File Browser or File Viewer */}
+              {!selectedFile ? (
+                <RepositoryFileExplorer
+                  files={files.map(file => ({
+                    name: file.name,
+                    type: file.type,
+                    size: file.size,
+                    path: file.path || file.name,
+                    sha: file.sha,
+                    commit: file.commit
+                  }))}
+                  onFileClick={handleFileClick}
+                  onAddFile={() => setShowFileUploadDialog(true)}
+                  onNavigateToParent={currentPath ? handleNavigateToParentDirectory : undefined}
+                  path={currentPath}
+                  isLoading={loading}
+                  className="w-full"
+                />
+              ) : (
+                <div className="space-y-4">
+                  {/* File viewer with enhanced features */}
+                  {selectedFile.endsWith('.ipynb') ? (
+                    <NotebookViewer
+                      content={fileContent}
+                      fileName={selectedFile.split("/").pop() || ""}
+                      onDownload={() => {
+                        const blob = new Blob([fileContent], { type: 'application/json' })
+                        const url = URL.createObjectURL(blob)
+                        const a = document.createElement('a')
+                        a.href = url
+                        a.download = selectedFile.split("/").pop() || "notebook.ipynb"
+                        document.body.appendChild(a)
+                        a.click()
+                        document.body.removeChild(a)
+                        URL.revokeObjectURL(url)
+                      }}
+                    />
+                  ) : (
+                    <div className="h-[calc(100vh-250px)] min-h-[600px]">
+                      <CodeViewer
+                        fileName={selectedFile.split("/").pop() || ""}
+                        content={fileContent}
+                        isLoading={editorLoading}
+                        onBack={handleBackToFiles}
+                        className="w-full h-full"
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
@@ -1323,18 +1330,9 @@ export default function RepoPage() {
         isDeleting={isDeletingRepo}
       />
 
-      {/* Edit Qubot Dialog */}
-      <QubotEditDialog
-        open={showEditQubotDialog}
-        onOpenChange={setShowEditQubotDialog}
-        owner={owner || ""}
-        repoName={repoName || ""}
-        config={config}
-        onSaveQubotCard={handleSaveQubotCard}
-        allRepoFiles={allRepoFiles}
-      />
 
-      
+
+
 
       {/* Setup Dialog */}
       <Dialog open={showSetupDialog} onOpenChange={setShowSetupDialog}>
@@ -1362,9 +1360,17 @@ export default function RepoPage() {
         />
       </Dialog>
 
-      
+      {/* Edit Qubot Dialog */}
+      <QubotEditDialog
+        open={showEditDialog}
+        onOpenChange={setShowEditDialog}
+        owner={owner || ""}
+        repoName={repoName || ""}
+        config={config}
+        onSaveQubotCard={handleSaveQubotCard}
+        allRepoFiles={allRepoFiles}
+      />
 
-      
     </Layout>
   )
 }

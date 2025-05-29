@@ -1,6 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { GalleryVerticalEnd } from "lucide-react";
+import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,6 +14,10 @@ const AuthPage = () => {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Get the page user was trying to access before being redirected to login
+  const from = location.state?.from?.pathname || `/u/${username}`;
 
   const handleSubmit = async (e: React.FormEvent) => {
 
@@ -22,7 +25,7 @@ const AuthPage = () => {
     setLoading(true);
 
     try {
-      const res = await fetch(`${API}/login`, {
+      const res = await fetch(`${API}/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, password }),
@@ -35,7 +38,9 @@ const AuthPage = () => {
           localStorage.setItem("gitea_token", data.token);
         }
         toast({ title: "Success!", description: "Login successful!" });
-        navigate(`/u/${username}`);
+        // Redirect to the page user was trying to access, or profile if no specific page
+        const redirectTo = location.state?.from?.pathname || `/u/${username}`;
+        navigate(redirectTo, { replace: true });
       } else {
           toast({
             title: "Error",
@@ -56,16 +61,16 @@ const AuthPage = () => {
 
   return (
     <Layout hideNavbar>
-      <div className="grid min-h-screen lg:grid-cols-2">
-        {/* Left Side - Form */}
-        <div className="flex flex-col gap-4 p-6 md:p-10">
-          <div className="flex flex-1 items-center justify-center">
-            <div className="w-full max-w-xs">
+      <div className="min-h-screen flex items-center justify-center p-6 md:p-10 bg-background">
+        <div className="w-full max-w-md">
               <form onSubmit={handleSubmit} className="flex flex-col gap-6">
                 <div className="flex flex-col items-center gap-2 text-center">
                   <h1 className="text-2xl font-bold">Welcome Back</h1>
                   <p className="text-sm text-muted-foreground">
-                    Enter your credentials to log in
+                    {location.state?.from ?
+                      "Please sign in to access optimization tools" :
+                      "Enter your credentials to log in"
+                    }
                   </p>
                 </div>
                 <div className="grid gap-4">
@@ -94,19 +99,8 @@ const AuthPage = () => {
                     {loading ? "Processing..." : "Login"}
                   </Button>
                 </div>
-                
-              </form>
-            </div>
-          </div>
-        </div>
 
-        {/* Right Side - Image */}
-        <div className="relative hidden bg-muted lg:block">
-          <img
-            src="/rastion1.svg"
-            alt="Image"
-            className="absolute inset-0 h-full w-full object-cover dark:brightness-[0.2] dark:grayscale"
-          />
+              </form>
         </div>
       </div>
     </Layout>

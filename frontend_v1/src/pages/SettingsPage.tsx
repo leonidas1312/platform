@@ -4,7 +4,7 @@ import type React from "react"
 
 import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
-import { AlertCircle, Copy, Eye, EyeOff, Key, Loader2, Plus, Trash2, CheckCircle2, User, Lock } from "lucide-react"
+import { AlertCircle, Copy, Eye, EyeOff, Key, Loader2, Plus, Trash2, CheckCircle2, User, Lock, Shield, Code } from "lucide-react"
 import Layout from "@/components/Layout"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/dialog"
 import { toast } from "@/components/ui/use-toast"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Separator } from "@/components/ui/separator"
 
 const API = import.meta.env.VITE_API_BASE
 
@@ -37,6 +38,10 @@ const SettingsPage = () => {
   const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState("account")
 
+  // API Token state
+  const [apiToken, setApiToken] = useState("")
+  const [showApiToken, setShowApiToken] = useState(false)
+  const [copySuccess, setCopySuccess] = useState(false)
 
   // Password change state
   const [currentPassword, setCurrentPassword] = useState("")
@@ -52,12 +57,35 @@ const SettingsPage = () => {
       return
     }
 
-    
+    // Load the API token for display
+    setApiToken(token)
   }, [navigate])
 
-  
+  // Copy to clipboard functionality
+  const handleCopyToken = async () => {
+    try {
+      await navigator.clipboard.writeText(apiToken)
+      setCopySuccess(true)
+      toast({
+        title: "Success",
+        description: "API token copied to clipboard",
+      })
+      setTimeout(() => setCopySuccess(false), 2000)
+    } catch (err) {
+      toast({
+        title: "Error",
+        description: "Failed to copy token to clipboard",
+        variant: "destructive",
+      })
+    }
+  }
 
-  
+  // Format token for display (show only last 4 characters)
+  const formatToken = (token: string) => {
+    if (!token) return ""
+    if (showApiToken) return token
+    return "•".repeat(Math.max(0, token.length - 4)) + token.slice(-4)
+  }
 
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -126,8 +154,8 @@ const SettingsPage = () => {
 
   return (
     <Layout>
-      <main className="min-h-screen bg-background py-32 text-foreground">
-        <div className="max-w-6xl mx-auto mt-14 px-4 space-y-8">
+      <main className="min-h-screen bg-background py-8 text-foreground">
+        <div className="w-full px-4 space-y-8">
           <div className="flex flex-col md:flex-row gap-8">
             {/* Sidebar */}
             <div className="w-full md:w-64 space-y-6">
@@ -139,13 +167,19 @@ const SettingsPage = () => {
                 <CardContent className="p-0">
                   <Tabs value={activeTab} onValueChange={setActiveTab} orientation="vertical" className="w-full">
                     <TabsList className="flex flex-col h-auto items-stretch bg-transparent p-0 w-full">
-                      
                       <TabsTrigger
                         value="account"
                         className="justify-start px-4 py-2 data-[state=active]:bg-muted rounded-none"
                       >
                         <User className="h-4 w-4 mr-2" />
                         Account Settings
+                      </TabsTrigger>
+                      <TabsTrigger
+                        value="developer"
+                        className="justify-start px-4 py-2 data-[state=active]:bg-muted rounded-none"
+                      >
+                        <Code className="h-4 w-4 mr-2" />
+                        Developer
                       </TabsTrigger>
                     </TabsList>
                   </Tabs>
@@ -155,7 +189,7 @@ const SettingsPage = () => {
 
             {/* Main Content */}
             <div className="flex-1">
-              <Tabs value={activeTab} onValueChange={setActiveTab}>                  
+              <Tabs value={activeTab} onValueChange={setActiveTab}>
                 <TabsContent value="account" className="mt-0">
                   <Card>
                     <CardHeader>
@@ -163,9 +197,18 @@ const SettingsPage = () => {
                       <CardDescription>Update your account password and security settings</CardDescription>
                     </CardHeader>
                     <CardContent>
+                      {/* Password Change Section */}
                       <form onSubmit={handleChangePassword} className="space-y-6">
                         <div className="space-y-4">
-                          <h3 className="text-lg font-medium">Change Password</h3>
+                          <div className="flex items-center gap-2">
+                            <div className="p-2 rounded-lg bg-primary/10">
+                              <Shield className="h-5 w-5 text-primary" />
+                            </div>
+                            <h3 className="text-lg font-medium">Change Password</h3>
+                          </div>
+                          <p className="text-sm text-muted-foreground">
+                            Update your account password to keep your account secure
+                          </p>
 
                           {passwordError && (
                             <Alert variant="destructive" className="mb-4">
@@ -230,6 +273,77 @@ const SettingsPage = () => {
                           )}
                         </Button>
                       </form>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+
+                <TabsContent value="developer" className="mt-0">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-2xl">Developer Settings</CardTitle>
+                      <CardDescription>Manage your API tokens and developer tools</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      {/* API Token Section */}
+                      <div className="space-y-4">
+                        <div className="flex items-center gap-2">
+                          <div className="p-2 rounded-lg bg-primary/10">
+                            <Key className="h-5 w-5 text-primary" />
+                          </div>
+                          <h3 className="text-lg font-medium">Rastion API Token</h3>
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                          Your personal access token for authenticating with the Rastion API
+                        </p>
+
+                        <div className="space-y-3">
+                          <Label htmlFor="api-token">API Token</Label>
+                          <div className="flex gap-2">
+                            <div className="relative flex-1">
+                              <Input
+                                id="api-token"
+                                type="text"
+                                value={formatToken(apiToken)}
+                                readOnly
+                                className="pr-20 font-mono text-sm"
+                                placeholder="No token available"
+                              />
+                              <div className="absolute right-2 top-1/2 transform -translate-y-1/2 flex gap-1">
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon-sm"
+                                  onClick={() => setShowApiToken(!showApiToken)}
+                                  className="h-6 w-6"
+                                >
+                                  {showApiToken ? (
+                                    <EyeOff className="h-3 w-3" />
+                                  ) : (
+                                    <Eye className="h-3 w-3" />
+                                  )}
+                                </Button>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon-sm"
+                                  onClick={handleCopyToken}
+                                  disabled={!apiToken}
+                                  className="h-6 w-6"
+                                >
+                                  {copySuccess ? (
+                                    <CheckCircle2 className="h-3 w-3 text-green-600" />
+                                  ) : (
+                                    <Copy className="h-3 w-3" />
+                                  )}
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            Keep your token secure and never share it publicly. This token provides access to your account.
+                          </p>
+                        </div>
+                      </div>
                     </CardContent>
                   </Card>
                 </TabsContent>
