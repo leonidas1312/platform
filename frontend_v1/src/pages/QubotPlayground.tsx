@@ -1,0 +1,1003 @@
+import { useState, useEffect, useRef } from "react"
+import { motion } from "framer-motion"
+import { useSearchParams } from "react-router-dom"
+import Layout from "@/components/Layout"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import {
+  RotateCcw,
+  Settings,
+  Loader2,
+  AlertTriangle,
+  CheckCircle,
+  BarChart3,
+  Share2,
+  Play,
+  Square,
+  Download
+} from "lucide-react"
+import { toast } from "@/components/ui/use-toast"
+import { CompactModelSelector } from "@/components/playground/CompactModelSelector"
+import { TerminalViewer } from "@/components/playground/TerminalViewer"
+import { ParameterInputs } from "@/components/playground/ParameterInputs"
+import { ShareWorkflowDialog } from "@/components/playground/ShareWorkflowDialog"
+import { ModelInfo, QubotResult, ExecutionLog, ExecutionMetrics, ExecutionState } from "@/types/playground"
+
+const API = import.meta.env.VITE_API_BASE
+
+const QubotPlayground = () => {
+  const [searchParams] = useSearchParams()
+  const [selectedProblem, setSelectedProblem] = useState<ModelInfo | null>(null)
+  const [selectedOptimizer, setSelectedOptimizer] = useState<ModelInfo | null>(null)
+  const [result, setResult] = useState<QubotResult | null>(null)
+  const [systemStatus, setSystemStatus] = useState<any>(null)
+  const [statusLoading, setStatusLoading] = useState(true)
+
+  // Share workflow state
+  const [shareDialogOpen, setShareDialogOpen] = useState(false)
+  const [isSharing, setIsSharing] = useState(false)
+  const [resultsModalOpen, setResultsModalOpen] = useState(false)
+
+  // Workflow restoration state
+  const [isRestoringWorkflow, setIsRestoringWorkflow] = useState(false)
+
+  // Enhanced execution state
+  const [executionState, setExecutionState] = useState<ExecutionState>({
+    isRunning: false,
+    isPaused: false,
+    canPause: false,
+    logs: [],
+    metrics: {
+      execution_time: 0,
+      status: 'idle'
+    }
+  })
+
+  // Parameter state
+  const [problemParams, setProblemParams] = useState<Record<string, any>>({})
+  const [optimizerParams, setOptimizerParams] = useState<Record<string, any>>({})
+
+  // WebSocket and execution control
+  const wsRef = useRef<WebSocket | null>(null)
+
+  useEffect(() => {
+    checkSystemStatus()
+  }, [])
+
+  // Workflow restoration effect
+  useEffect(() => {
+    const workflowId = searchParams.get('workflow_id')
+    const problemName = searchParams.get('problem_name')
+    const problemUsername = searchParams.get('problem_username')
+    const optimizerName = searchParams.get('optimizer_name')
+    const optimizerUsername = searchParams.get('optimizer_username')
+    const problemParamsStr = searchParams.get('problem_params')
+    const optimizerParamsStr = searchParams.get('optimizer_params')
+
+    if (workflowId || (problemName && optimizerName)) {
+      restoreWorkflow({
+        workflowId,
+        problemName,
+        problemUsername,
+        optimizerName,
+        optimizerUsername,
+        problemParams: problemParamsStr ? JSON.parse(problemParamsStr) : {},
+        optimizerParams: optimizerParamsStr ? JSON.parse(optimizerParamsStr) : {}
+      })
+    }
+  }, [searchParams])
+
+  const restoreWorkflow = async (workflowData: {
+    workflowId?: string | null
+    problemName?: string | null
+    problemUsername?: string | null
+    optimizerName?: string | null
+    optimizerUsername?: string | null
+    problemParams?: Record<string, any>
+    optimizerParams?: Record<string, any>
+  }) => {
+    setIsRestoringWorkflow(true)
+
+    try {
+      // If we have a workflow ID, fetch the full workflow data
+      if (workflowData.workflowId) {
+        const response = await fetch(`${API}/api/playground/workflows/${workflowData.workflowId}`)
+        if (response.ok) {
+          const data = await response.json()
+          const workflow = data.workflow
+
+          // Set problem and optimizer from workflow data
+          setSelectedProblem({
+            name: workflow.problem_name,
+            username: workflow.problem_username,
+            description: '',
+            model_type: 'problem',
+            repository_url: '',
+            last_updated: '',
+            tags: [],
+            metadata: { stars: 0, forks: 0, size: 0 }
+          })
+
+          setSelectedOptimizer({
+            name: workflow.optimizer_name,
+            username: workflow.optimizer_username,
+            description: '',
+            model_type: 'optimizer',
+            repository_url: '',
+            last_updated: '',
+            tags: [],
+            metadata: { stars: 0, forks: 0, size: 0 }
+          })
+
+          // Set parameters
+          setProblemParams(workflow.problem_params || {})
+          setOptimizerParams(workflow.optimizer_params || {})
+
+          toast({
+            title: "Workflow Restored",
+            description: `Loaded workflow: ${workflow.title}`,
+          })
+        }
+      } else if (workflowData.problemName && workflowData.optimizerName) {
+        // Direct parameter restoration from URL
+        setSelectedProblem({
+          name: workflowData.problemName,
+          username: workflowData.problemUsername || '',
+          description: '',
+          model_type: 'problem',
+          repository_url: '',
+          last_updated: '',
+          tags: [],
+          metadata: { stars: 0, forks: 0, size: 0 }
+        })
+
+        setSelectedOptimizer({
+          name: workflowData.optimizerName,
+          username: workflowData.optimizerUsername || '',
+          description: '',
+          model_type: 'optimizer',
+          repository_url: '',
+          last_updated: '',
+          tags: [],
+          metadata: { stars: 0, forks: 0, size: 0 }
+        })
+
+        setProblemParams(workflowData.problemParams || {})
+        setOptimizerParams(workflowData.optimizerParams || {})
+
+        toast({
+          title: "Workflow Restored",
+          description: "Configuration loaded from shared workflow",
+        })
+      }
+    } catch (error: any) {
+      console.error('Error restoring workflow:', error)
+      toast({
+        title: "Failed to Restore Workflow",
+        description: error.message || "Could not load the shared workflow configuration.",
+        variant: "destructive"
+      })
+    } finally {
+      setIsRestoringWorkflow(false)
+    }
+  }
+
+  // Disabled auto-scroll to prevent unwanted page movement
+  // Users can manually scroll in the terminal if needed
+  // useEffect(() => {
+  //   if (logsEndRef.current) {
+  //     logsEndRef.current.scrollIntoView({ behavior: 'smooth' })
+  //   }
+  // }, [executionState.logs])
+
+  // Cleanup WebSocket on unmount
+  useEffect(() => {
+    return () => {
+      if (wsRef.current) {
+        wsRef.current.close()
+      }
+    }
+  }, [])
+
+  // Utility functions
+  const addLog = (level: ExecutionLog['level'], message: string, source?: string) => {
+    const newLog: ExecutionLog = {
+      timestamp: new Date().toISOString(),
+      level,
+      message,
+      source
+    }
+
+    setExecutionState(prev => ({
+      ...prev,
+      logs: [...prev.logs, newLog]
+    }))
+  }
+
+  const updateMetrics = (updates: Partial<ExecutionMetrics>) => {
+    setExecutionState(prev => ({
+      ...prev,
+      metrics: { ...prev.metrics, ...updates }
+    }))
+  }
+
+  const clearLogs = () => {
+    setExecutionState(prev => ({
+      ...prev,
+      logs: []
+    }))
+  }
+
+  const exportLogs = () => {
+    const logsText = executionState.logs
+      .map(log => `[${log.timestamp}] ${log.level.toUpperCase()}: ${log.message}`)
+      .join('\n')
+
+    const blob = new Blob([logsText], { type: 'text/plain' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `qubots-execution-logs-${new Date().toISOString().split('T')[0]}.txt`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  }
+
+  const checkSystemStatus = async () => {
+    try {
+      const response = await fetch(`${API}/playground/qubots/status`)
+      const status = await response.json()
+      setSystemStatus(status)
+    } catch (error) {
+      console.error("Error checking system status:", error)
+      setSystemStatus({ success: false, error: "Failed to check system status" })
+    } finally {
+      setStatusLoading(false)
+    }
+  }
+
+  const runOptimization = async () => {
+    if (!selectedProblem || !selectedOptimizer) {
+      toast({
+        title: "Missing Selection",
+        description: "Please select both a problem and an optimizer.",
+        variant: "destructive"
+      })
+      return
+    }
+
+    const token = localStorage.getItem("gitea_token")
+    if (!token) {
+      toast({
+        title: "Authentication Required",
+        description: "Please log in to run optimizations.",
+        variant: "destructive"
+      })
+      return
+    }
+
+    // Initialize execution state
+    setExecutionState({
+      isRunning: true,
+      isPaused: false,
+      canPause: true,
+      logs: [],
+      metrics: {
+        execution_time: 0,
+        status: 'running',
+        progress: 0
+      },
+      startTime: new Date()
+    })
+
+    setResult(null)
+
+    // Add initial logs
+    addLog('info', 'Starting optimization execution...', 'system')
+    addLog('info', `Problem: ${selectedProblem.name} (${selectedProblem.username})`, 'config')
+    addLog('info', `Optimizer: ${selectedOptimizer.name} (${selectedOptimizer.username})`, 'config')
+
+    if (Object.keys(problemParams).length > 0) {
+      addLog('info', `Problem parameters: ${JSON.stringify(problemParams)}`, 'config')
+    }
+    if (Object.keys(optimizerParams).length > 0) {
+      addLog('info', `Optimizer parameters: ${JSON.stringify(optimizerParams)}`, 'config')
+    }
+
+    try {
+      addLog('info', 'Starting streaming execution...', 'system')
+
+      // Start streaming execution
+      const response = await fetch(`${API}/playground/qubots/execute-stream`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `token ${token}`
+        },
+        body: JSON.stringify({
+          problem_name: selectedProblem.name,
+          problem_username: selectedProblem.username,
+          optimizer_name: selectedOptimizer.name,
+          optimizer_username: selectedOptimizer.username,
+          problem_params: problemParams,
+          optimizer_params: optimizerParams
+        })
+      })
+
+      if (!response.ok) {
+        const errorText = await response.text()
+        addLog('error', `HTTP ${response.status}: ${errorText}`, 'system')
+        throw new Error("Failed to start streaming execution")
+      }
+
+      const streamingResponse = await response.json()
+
+      if (!streamingResponse.success) {
+        throw new Error(streamingResponse.message || "Failed to start execution")
+      }
+
+      const executionId = streamingResponse.execution_id
+      addLog('info', `Execution started with ID: ${executionId}`, 'system')
+      addLog('info', 'Connecting to real-time log stream...', 'system')
+
+      // Connect to WebSocket for real-time logs
+      await connectToStreamingExecution(executionId)
+
+    } catch (error) {
+      console.error("Error running optimization:", error)
+      addLog('error', `Execution failed: ${error instanceof Error ? error.message : 'Unknown error'}`, 'system')
+      updateMetrics({ status: 'error' })
+
+      toast({
+        title: "Error",
+        description: "Failed to run optimization. Please try again.",
+        variant: "destructive"
+      })
+
+      setExecutionState(prev => ({
+        ...prev,
+        isRunning: false,
+        canPause: false
+      }))
+    }
+  }
+
+  const connectToStreamingExecution = async (executionId: string) => {
+    return new Promise<void>((resolve, reject) => {
+      // Close existing WebSocket if any
+      if (wsRef.current) {
+        wsRef.current.close()
+      }
+
+      // Create WebSocket connection using current domain
+      const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+      const wsHost = window.location.host
+      const wsUrl = `${wsProtocol}//${wsHost}/api/playground/qubots/stream/${executionId}`
+
+      addLog('debug', `Connecting to WebSocket: ${wsUrl}`, 'system')
+      const ws = new WebSocket(wsUrl)
+      wsRef.current = ws
+
+      ws.onopen = () => {
+        addLog('info', 'Connected to real-time log stream', 'system')
+      }
+
+      ws.onmessage = (event) => {
+        try {
+          const message = JSON.parse(event.data)
+          handleStreamingMessage(message)
+        } catch (error) {
+          console.error('Error parsing WebSocket message:', error)
+        }
+      }
+
+      ws.onclose = () => {
+        addLog('info', 'Log stream disconnected', 'system')
+        setExecutionState(prev => ({
+          ...prev,
+          isRunning: false,
+          canPause: false
+        }))
+        resolve()
+      }
+
+      ws.onerror = (error) => {
+        console.error('WebSocket error:', error)
+        addLog('error', 'Log stream connection error', 'system')
+        reject(error)
+      }
+    })
+  }
+
+  const handleStreamingMessage = (message: any) => {
+    // Debug logging to understand what messages we're receiving
+    console.log('Received streaming message:', message)
+
+    switch (message.type) {
+      case 'connection_established':
+        console.log('WebSocket connection established:', message.data)
+        addLog('info', message.data.message, 'system')
+        addLog('debug', 'Real-time log streaming is now active', 'system')
+        break
+
+      case 'optimization_log':
+        const logData = message.data
+        console.log('Processing optimization log:', logData)
+        addLog(logData.level, logData.message, logData.source)
+        break
+
+      case 'execution_complete':
+        const resultData = message.data
+        console.log('Execution complete:', resultData)
+        if (resultData.success) {
+          addLog('info', 'Optimization completed successfully!', 'system')
+          setResult(resultData.result)
+          updateMetrics({
+            status: 'completed',
+            progress: 100,
+            execution_time: resultData.result?.execution_time || 0
+          })
+
+          toast({
+            title: "Optimization Complete",
+            description: "Optimization finished with real-time logging"
+          })
+        } else {
+          addLog('error', `Optimization failed: ${resultData.error_message}`, 'system')
+          updateMetrics({ status: 'error' })
+
+          toast({
+            title: "Optimization Failed",
+            description: resultData.error_message || "Unknown error occurred",
+            variant: "destructive"
+          })
+        }
+        break
+
+      default:
+        console.log('Unknown streaming message type:', message.type, message)
+        // Still try to log unknown messages in case they contain useful info
+        if (message.data && message.data.message) {
+          addLog('debug', `Unknown message: ${message.data.message}`, 'system')
+        }
+    }
+  }
+
+  const resetOptimization = () => {
+    setResult(null)
+    setExecutionState({
+      isRunning: false,
+      isPaused: false,
+      canPause: false,
+      logs: [],
+      metrics: {
+        execution_time: 0,
+        status: 'idle'
+      }
+    })
+    setProblemParams({})
+    setOptimizerParams({})
+
+    // Close WebSocket if open
+    if (wsRef.current) {
+      wsRef.current.close()
+      wsRef.current = null
+    }
+  }
+
+
+
+  const handleShareWorkflow = async (workflowData: {
+    title: string
+    description: string
+    tags: string[]
+    isPublic: boolean
+  }) => {
+    if (!selectedProblem || !selectedOptimizer) {
+      toast({
+        title: "Cannot Share Workflow",
+        description: "Please select both a problem and an optimizer before sharing.",
+        variant: "destructive"
+      })
+      return
+    }
+
+    setIsSharing(true)
+
+    try {
+      const token = localStorage.getItem("gitea_token")
+      if (!token) {
+        toast({
+          title: "Authentication Required",
+          description: "Please log in to share workflows.",
+          variant: "destructive"
+        })
+        return
+      }
+
+      const response = await fetch(`${API}/api/playground/workflows`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `token ${token}`
+        },
+        body: JSON.stringify({
+          title: workflowData.title,
+          description: workflowData.description,
+          problem_name: selectedProblem.name,
+          problem_username: selectedProblem.username,
+          optimizer_name: selectedOptimizer.name,
+          optimizer_username: selectedOptimizer.username,
+          problem_params: problemParams,
+          optimizer_params: optimizerParams,
+          tags: workflowData.tags,
+          is_public: workflowData.isPublic,
+          uploaded_files: {}, // TODO: Handle file uploads
+          execution_results: result // Include execution results if available
+        })
+      })
+
+      if (response.ok) {
+        await response.json()
+        toast({
+          title: "Workflow Shared Successfully!",
+          description: `Your workflow "${workflowData.title}" has been ${workflowData.isPublic ? 'publicly' : 'privately'} shared.`,
+        })
+        setShareDialogOpen(false)
+      } else {
+        const error = await response.json()
+        throw new Error(error.message || 'Failed to share workflow')
+      }
+    } catch (error: any) {
+      console.error('Error sharing workflow:', error)
+      toast({
+        title: "Failed to Share Workflow",
+        description: error.message || "An error occurred while sharing the workflow.",
+        variant: "destructive"
+      })
+    } finally {
+      setIsSharing(false)
+    }
+  }
+
+  const stopOptimization = () => {
+    if (executionState.isRunning) {
+      setExecutionState(prev => ({
+        ...prev,
+        isRunning: false,
+        isPaused: false,
+        canPause: false
+      }))
+      updateMetrics({ status: 'idle' })
+      addLog('warning', 'Optimization stopped by user', 'system')
+
+      if (wsRef.current) {
+        wsRef.current.close()
+        wsRef.current = null
+      }
+    }
+  }
+
+  if (statusLoading) {
+    return (
+      <Layout useVerticalNav={true}>
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="text-center">
+            <Loader2 className="h-8 w-8 animate-spin" />
+          </div>
+        </div>
+      </Layout>
+    )
+  }
+
+  return (
+    <Layout useVerticalNav={true}>
+      <div className="flex flex-col min-h-screen">
+          <div className="flex-1 flex flex-col">
+        {/* Header */}
+        <div className="flex-shrink-0 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+          <div className="px-6 py-4">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5 }}
+              className="space-y-4"
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <h1 className="text-2xl font-bold">Qubots Playground</h1>
+                  <p className="text-sm text-muted-foreground">
+                    Interactive optimization testing environment with real-time execution feedback
+                    {isRestoringWorkflow && (
+                      <span className="ml-2 inline-flex items-center gap-1 text-blue-600">
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                        Restoring workflow...
+                      </span>
+                    )}
+                  </p>
+                </div>
+
+              </div>
+
+              {/* System Status Indicator */}
+              <div className="flex items-center gap-2">
+                {systemStatus?.success ? (
+                  <Badge variant="default" className="text-xs">
+                    <CheckCircle className="h-3 w-3 mr-1" />
+                    Qubots environment set up
+                  </Badge>
+                ) : (
+                  <Badge variant="destructive" className="text-xs">
+                    <AlertTriangle className="h-3 w-3 mr-1" />
+                    Qubots environment is not set up
+                  </Badge>
+                )}
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex items-center gap-2 flex-wrap">
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={runOptimization}
+                  disabled={executionState.isRunning || !selectedProblem || !selectedOptimizer}
+                  className="flex items-center gap-2"
+                >
+                  {executionState.isRunning ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Play className="h-4 w-4" />
+                  )}
+                  {executionState.isRunning ? 'Running...' : 'Run Optimization'}
+                </Button>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={stopOptimization}
+                  disabled={!executionState.isRunning}
+                  className="flex items-center gap-2"
+                >
+                  <Square className="h-4 w-4" />
+                  Stop
+                </Button>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setResultsModalOpen(true)}
+                  disabled={!result}
+                  className="flex items-center gap-2"
+                >
+                  <BarChart3 className="h-4 w-4" />
+                  View Results
+                </Button>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={exportLogs}
+                  disabled={executionState.logs.length === 0}
+                  className="flex items-center gap-2"
+                >
+                  <Download className="h-4 w-4" />
+                  Export Logs
+                </Button>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShareDialogOpen(true)}
+                  disabled={!selectedProblem || !selectedOptimizer || executionState.isRunning || isSharing}
+                  className="flex items-center gap-2"
+                >
+                  {isSharing ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Share2 className="h-4 w-4" />
+                  )}
+                  Share Workflow
+                </Button>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={resetOptimization}
+                  disabled={executionState.isRunning}
+                  className="flex items-center gap-2"
+                >
+                  <RotateCcw className="h-4 w-4" />
+                  Reset All
+                </Button>
+              </div>
+            </motion.div>
+          </div>
+        </div>
+
+        {/* System Status Alert */}
+        {!systemStatus?.success && (
+          <div className="flex-shrink-0 border-b bg-destructive/10">
+            <div className="container mx-auto px-4 py-2">
+              <Alert variant="destructive" className="border-0 bg-transparent">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertDescription>
+                  Qubots system is not available: {systemStatus?.error || "Unknown error"}
+                </AlertDescription>
+              </Alert>
+            </div>
+          </div>
+        )}
+
+        {/* Main Content - OpenAI Playground Style Layout */}
+        <div className="flex-1 overflow-hidden">
+          <div className="h-full flex min-w-0 max-w-full">
+            {/* Left Sidebar - Problem Selection & Parameters */}
+            <div className="w-80 flex-shrink-0 border-r bg-muted/30 overflow-y-auto" style={{ height: 'calc(100vh - 200px)' }}>
+                <div className="p-4 space-y-4">
+                  {/* Problem Model Selector */}
+                  <CompactModelSelector
+                    modelType="problem"
+                    selectedModel={selectedProblem}
+                    onModelSelect={setSelectedProblem}
+                    onModelClear={() => setSelectedProblem(null)}
+                    initiallyExpanded={true}
+                  />
+
+                  {/* Problem Parameters */}
+                  {selectedProblem && (
+                    <Card className="border-l-4 border-l-blue-500">
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm flex items-center gap-2">
+                          <Settings className="h-4 w-4" />
+                          Problem Parameters
+                          <Badge variant="outline" className="text-xs">config</Badge>
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <ParameterInputs
+                          modelName={selectedProblem.name}
+                          username={selectedProblem.username}
+                          modelType="problem"
+                          onParametersChange={setProblemParams}
+                          initialParameters={problemParams}
+                        />
+                      </CardContent>
+                    </Card>
+                  )}
+                </div>
+              </div>
+
+            {/* Main Terminal Area - Fixed Height */}
+            <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
+              <TerminalViewer
+                logs={executionState.logs.map(log => ({
+                  timestamp: new Date(log.timestamp).getTime(),
+                  level: log.level,
+                  message: log.message,
+                  source: log.source
+                }))}
+                metrics={executionState.metrics}
+                isExecuting={executionState.isRunning}
+                onClearLogs={clearLogs}
+                onExportLogs={exportLogs}
+                className="w-full"
+              />
+            </div>
+
+            {/* Right Sidebar - Optimizer Selection & Parameters */}
+            <div className="w-80 flex-shrink-0 border-l bg-muted/30 overflow-y-auto" style={{ height: 'calc(100vh - 200px)' }}>
+                <div className="p-4 space-y-4">
+                  {/* Optimizer Model Selector */}
+                  <CompactModelSelector
+                    modelType="optimizer"
+                    selectedModel={selectedOptimizer}
+                    onModelSelect={setSelectedOptimizer}
+                    onModelClear={() => setSelectedOptimizer(null)}
+                    initiallyExpanded={true}
+                  />
+
+                  {/* Optimizer Parameters */}
+                  {selectedOptimizer && (
+                    <Card className="border-l-4 border-l-green-500">
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm flex items-center gap-2">
+                          <Settings className="h-4 w-4" />
+                          Optimizer Parameters
+                          <Badge variant="outline" className="text-xs">config</Badge>
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <ParameterInputs
+                          modelName={selectedOptimizer.name}
+                          username={selectedOptimizer.username}
+                          modelType="optimizer"
+                          onParametersChange={setOptimizerParams}
+                          initialParameters={optimizerParams}
+                        />
+                      </CardContent>
+                    </Card>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+
+        {/* Share Workflow Dialog */}
+        <ShareWorkflowDialog
+          open={shareDialogOpen}
+          onOpenChange={setShareDialogOpen}
+          onShare={handleShareWorkflow}
+          isLoading={isSharing}
+          selectedProblem={selectedProblem}
+          selectedOptimizer={selectedOptimizer}
+          problemParams={problemParams}
+          optimizerParams={optimizerParams}
+          executionResults={result}
+        />
+
+        {/* Results Modal */}
+        <Dialog open={resultsModalOpen} onOpenChange={setResultsModalOpen}>
+          <DialogContent className="max-w-4xl max-h-[90vh] w-[90vw]">
+            <div className="max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <BarChart3 className="h-5 w-5" />
+                Optimization Results
+              </DialogTitle>
+            </DialogHeader>
+
+            {result && (
+              <div className="space-y-6">
+                {/* Summary Section */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      Summary
+                      {result.message === 'Optimization completed with streaming logs' && (
+                        <Badge variant="outline" className="text-xs">
+                          Results from logs
+                        </Badge>
+                      )}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-green-600">
+                          {result.success ? '✅' : '❌'}
+                        </div>
+                        <div className="text-sm text-muted-foreground">Status</div>
+                      </div>
+
+                      {(result.best_value !== undefined && result.best_value !== null) && (
+                        <div className="text-center">
+                          <div className="text-2xl font-bold">
+                            {typeof result.best_value === 'number'
+                              ? result.best_value.toFixed(4)
+                              : result.best_value}
+                          </div>
+                          <div className="text-sm text-muted-foreground">Best Value</div>
+                        </div>
+                      )}
+
+                      {(result.iterations !== undefined && result.iterations !== null) && (
+                        <div className="text-center">
+                          <div className="text-2xl font-bold">
+                            {result.iterations?.toLocaleString() || 'N/A'}
+                          </div>
+                          <div className="text-sm text-muted-foreground">Iterations</div>
+                        </div>
+                      )}
+
+                      <div className="text-center">
+                        <div className="text-2xl font-bold">
+                          {result.execution_time && result.execution_time > 0
+                            ? `${result.execution_time.toFixed(2)}s`
+                            : 'N/A'}
+                        </div>
+                        <div className="text-sm text-muted-foreground">Execution Time</div>
+                      </div>
+                    </div>
+
+                    {/* Show additional info if results were extracted from logs */}
+                    {result.message === 'Optimization completed with streaming logs' && (
+                      <Alert className="mt-4">
+                        <CheckCircle className="h-4 w-4" />
+                        <AlertDescription>
+                          Results were extracted from optimization logs. Some detailed metrics may not be available.
+                        </AlertDescription>
+                      </Alert>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Configuration Section */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg">Configuration</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <h4 className="font-medium mb-2">Problem</h4>
+                        <div className="text-sm space-y-1">
+                          <div><strong>Name:</strong> {selectedProblem?.name}</div>
+                          <div><strong>Owner:</strong> {selectedProblem?.username}</div>
+                        </div>
+                      </div>
+                      <div>
+                        <h4 className="font-medium mb-2">Optimizer</h4>
+                        <div className="text-sm space-y-1">
+                          <div><strong>Name:</strong> {selectedOptimizer?.name}</div>
+                          <div><strong>Owner:</strong> {selectedOptimizer?.username}</div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {(Object.keys(problemParams).length > 0 || Object.keys(optimizerParams).length > 0) && (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                        {Object.keys(problemParams).length > 0 && (
+                          <div>
+                            <h4 className="font-medium mb-2">Problem Parameters</h4>
+                            <pre className="text-xs bg-muted p-2 rounded overflow-x-auto">
+                              {JSON.stringify(problemParams, null, 2)}
+                            </pre>
+                          </div>
+                        )}
+                        {Object.keys(optimizerParams).length > 0 && (
+                          <div>
+                            <h4 className="font-medium mb-2">Optimizer Parameters</h4>
+                            <pre className="text-xs bg-muted p-2 rounded overflow-x-auto">
+                              {JSON.stringify(optimizerParams, null, 2)}
+                            </pre>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Raw Results Section */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg">Raw Results</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <pre className="text-xs bg-muted p-4 rounded overflow-x-auto max-h-96">
+                      {JSON.stringify(result, null, 2)}
+                    </pre>
+                  </CardContent>
+                </Card>
+
+                {/* Error Details (if failed) */}
+                {!result.success && result.error_message && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-lg text-red-600">Error Details</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-2">
+                        <div><strong>Error:</strong> {result.error_message}</div>
+                        {result.error_type && (
+                          <div><strong>Type:</strong> {result.error_type}</div>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+            )}
+            </div>
+          </DialogContent>
+        </Dialog>
+          </div>
+        </div>
+    </Layout>
+  )
+}
+
+export default QubotPlayground

@@ -1053,7 +1053,7 @@ const Feed = () => {
 
   return (
     <Layout>
-      <div className="container mx-auto px-4 py-32">
+      <div className="container mx-auto px-4 py-8">
         {/* Hero Section */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -1302,7 +1302,7 @@ const Feed = () => {
                             </div>
 
                             {/* Content preview */}
-                            
+
                             {activity.type === "feature_comment" && activity.data.comment?.content && (
                               <div className="bg-muted/30 rounded-md p-3 text-sm">
                                 {activity.data.comment.content.length > 150

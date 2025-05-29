@@ -2,6 +2,8 @@ backend/gitea
 backend/mysql
 k8s
 Tiltfile
+docs
+deploy
 
 .vscode
 

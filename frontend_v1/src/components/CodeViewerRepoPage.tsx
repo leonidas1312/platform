@@ -106,7 +106,7 @@ const addLineNumbers = (code: string) => {
       <div className="table-cell text-right pr-4 text-muted-foreground select-none w-12 text-xs py-0.5 group-hover:bg-muted/20">
         {index + 1}
       </div>
-      <div className="table-cell pl-4 border-l border-muted whitespace-pre font-mono py-0.5">{line || " "}</div>
+      <div className="table-cell pl-4 border-l border-muted whitespace-pre-wrap break-all font-mono py-0.5">{line || " "}</div>
     </div>
   ))
 }
@@ -166,13 +166,13 @@ export default function CodeViewer({
   }, [fileName])
 
   return (
-    <Card className={`h-full flex flex-col ${className}`}>
+    <Card className={`h-full flex flex-col overflow-hidden ${className}`}>
       <CardHeader className="py-3 px-4 border-b flex-shrink-0">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Button variant="ghost" size="sm" onClick={onBack} className="mr-2">
               <ArrowLeft className="h-4 w-4 mr-1" />
-              Back to files
+              Close file
             </Button>
             <Separator orientation="vertical" className="h-6" />
             {fileName.endsWith(".md") ? (
@@ -250,8 +250,28 @@ export default function CodeViewer({
             spellCheck={false}
           />
         ) : isMarkdown && viewMode === "rendered" ? (
-          <div className="p-4 prose max-w-none dark:prose-invert">
-            <ReactMarkdown>{content}</ReactMarkdown>
+          <div className="p-4 prose max-w-none dark:prose-invert overflow-hidden">
+            <ReactMarkdown
+              components={{
+                pre: ({ children, ...props }) => (
+                  <pre {...props} className="overflow-x-auto whitespace-pre-wrap break-words">
+                    {children}
+                  </pre>
+                ),
+                code: ({ children, ...props }) => (
+                  <code {...props} className="break-words">
+                    {children}
+                  </code>
+                ),
+                p: ({ children, ...props }) => (
+                  <p {...props} className="break-words">
+                    {children}
+                  </p>
+                )
+              }}
+            >
+              {content}
+            </ReactMarkdown>
           </div>
         ) : (
           <div className="p-0 overflow-auto bg-muted/30">
@@ -276,13 +296,13 @@ export default function CodeViewer({
                     userSelect: "none",
                   }}
                   wrapLines={true}
-                  wrapLongLines={false}
+                  wrapLongLines={true}
                 >
                   {content}
                 </SyntaxHighlighter>
               </div>
             ) : (
-              <div className="table w-full text-sm">{addLineNumbers(content)}</div>
+              <div className="table w-full text-sm overflow-hidden">{addLineNumbers(content)}</div>
             )}
           </div>
         )}

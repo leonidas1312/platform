@@ -7,7 +7,7 @@ const Index = () => {
   return (
     <Layout>
       <Hero />
-      
+
     </Layout>
   );
 };

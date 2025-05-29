@@ -2,6 +2,7 @@ import React from "react";
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
 import { Github, Twitter, Linkedin, Youtube } from "lucide-react";
+import { RastionLogo } from "@/components/ui/RastionLogo";
 
 const Footer = () => {
   return (
@@ -16,25 +17,23 @@ const Footer = () => {
             className="md:col-span-2"
           >
             <Link to="/" className="flex items-center gap-2 mb-4">
-            <Link to="/" className="flex items-center gap-2">
-              <img src="/rastion1.svg" alt="Rastion Logo" className="h-16 w-auto" />
-            </Link>
+              <RastionLogo className="h-16 w-auto" height={64} width={64} />
               <span className="font-medium text-lg tracking-tight">Rastion</span>
             </Link>
             <p className="text-sm text-foreground/70 mb-6 max-w-md">
               The open source community for optimization.
             </p>
             <div className="flex items-center gap-4">
-              <a 
-                href="https://github.com/leonidas1312/qubots" 
-                target="_blank" 
+              <a
+                href="https://github.com/leonidas1312/qubots"
+                target="_blank"
                 rel="noopener noreferrer"
                 className="p-2 rounded-full bg-secondary hover:bg-secondary/80 transition-colors"
                 aria-label="GitHub"
               >
                 <Github size={18} />
               </a>
-              
+
             </div>
           </motion.div>
 
@@ -50,14 +49,14 @@ const Footer = () => {
                 <Link to="/qubots" className="text-sm text-foreground/70 hover:text-primary transition-colors">Qubots</Link>
               </li>
               <li>
-                <Link to="/docs" className="text-sm text-foreground/70 hover:text-primary transition-colors">Documentation</Link>
+                <Link to="https://docs.rastion.com" className="text-sm text-foreground/70 hover:text-primary transition-colors">Documentation</Link>
               </li>
-              
-              
+
+
             </ul>
           </motion.div>
 
-          
+
         </div>
 
         <motion.div
@@ -70,7 +69,7 @@ const Footer = () => {
           <p className="text-sm text-foreground/60">
             © {new Date().getFullYear()} Rastion. All rights reserved.
           </p>
-          
+
         </motion.div>
       </div>
     </footer>
