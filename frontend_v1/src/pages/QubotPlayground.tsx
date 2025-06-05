@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef } from "react"
-import { motion } from "framer-motion"
 import { useSearchParams } from "react-router-dom"
 import Layout from "@/components/Layout"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -7,6 +6,8 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+import { useAuth } from "@/hooks/use-auth"
 import {
   RotateCcw,
   Settings,
@@ -17,13 +18,15 @@ import {
   Share2,
   Play,
   Square,
-  Download
+  Download,
+  User
 } from "lucide-react"
 import { toast } from "@/components/ui/use-toast"
 import { CompactModelSelector } from "@/components/playground/CompactModelSelector"
 import { TerminalViewer } from "@/components/playground/TerminalViewer"
 import { ParameterInputs } from "@/components/playground/ParameterInputs"
 import { ShareWorkflowDialog } from "@/components/playground/ShareWorkflowDialog"
+import EnvironmentSpecs from "@/components/playground/EnvironmentSpecs"
 import { ModelInfo, QubotResult, ExecutionLog, ExecutionMetrics, ExecutionState } from "@/types/playground"
 
 const API = import.meta.env.VITE_API_BASE
@@ -35,6 +38,9 @@ const QubotPlayground = () => {
   const [result, setResult] = useState<QubotResult | null>(null)
   const [systemStatus, setSystemStatus] = useState<any>(null)
   const [statusLoading, setStatusLoading] = useState(true)
+
+  // Authentication state
+  const { isAuthenticated } = useAuth()
 
   // Share workflow state
   const [shareDialogOpen, setShareDialogOpen] = useState(false)
@@ -104,7 +110,9 @@ const QubotPlayground = () => {
     try {
       // If we have a workflow ID, fetch the full workflow data
       if (workflowData.workflowId) {
-        const response = await fetch(`${API}/api/playground/workflows/${workflowData.workflowId}`)
+        const response = await fetch(`${API}/api/playground/workflows/${workflowData.workflowId}`, {
+          credentials: 'include' // Include cookies for authentication
+        })
         if (response.ok) {
           const data = await response.json()
           const workflow = data.workflow
@@ -249,7 +257,7 @@ const QubotPlayground = () => {
 
   const checkSystemStatus = async () => {
     try {
-      const response = await fetch(`${API}/playground/qubots/status`)
+      const response = await fetch(`${API}/api/playground/qubots/status`)
       const status = await response.json()
       setSystemStatus(status)
     } catch (error) {
@@ -270,15 +278,8 @@ const QubotPlayground = () => {
       return
     }
 
-    const token = localStorage.getItem("gitea_token")
-    if (!token) {
-      toast({
-        title: "Authentication Required",
-        description: "Please log in to run optimizations.",
-        variant: "destructive"
-      })
-      return
-    }
+    // Authentication is now handled via HTTP-only cookies
+    // The backend will check for authentication automatically
 
     // Initialize execution state
     setExecutionState({
@@ -312,12 +313,12 @@ const QubotPlayground = () => {
       addLog('info', 'Starting streaming execution...', 'system')
 
       // Start streaming execution
-      const response = await fetch(`${API}/playground/qubots/execute-stream`, {
+      const response = await fetch(`${API}/api/playground/qubots/execute-stream`, {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
-          "Authorization": `token ${token}`
+          "Content-Type": "application/json"
         },
+        credentials: 'include', // Include cookies for authentication
         body: JSON.stringify({
           problem_name: selectedProblem.name,
           problem_username: selectedProblem.username,
@@ -509,22 +510,13 @@ const QubotPlayground = () => {
     setIsSharing(true)
 
     try {
-      const token = localStorage.getItem("gitea_token")
-      if (!token) {
-        toast({
-          title: "Authentication Required",
-          description: "Please log in to share workflows.",
-          variant: "destructive"
-        })
-        return
-      }
-
+      // Authentication is now handled via HTTP-only cookies
       const response = await fetch(`${API}/api/playground/workflows`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `token ${token}`
+          'Content-Type': 'application/json'
         },
+        credentials: 'include', // Include cookies for authentication
         body: JSON.stringify({
           title: workflowData.title,
           description: workflowData.description,
@@ -584,7 +576,7 @@ const QubotPlayground = () => {
 
   if (statusLoading) {
     return (
-      <Layout useVerticalNav={true}>
+      <Layout>
         <div className="flex items-center justify-center min-h-screen">
           <div className="text-center">
             <Loader2 className="h-8 w-8 animate-spin" />
@@ -595,183 +587,207 @@ const QubotPlayground = () => {
   }
 
   return (
-    <Layout useVerticalNav={true}>
-      <div className="flex flex-col min-h-screen">
-          <div className="flex-1 flex flex-col">
-        {/* Header */}
+    <Layout>
+      <div className="flex flex-col h-screen">
+        {/* Compact Top Toolbar */}
         <div className="flex-shrink-0 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-          <div className="px-6 py-4">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5 }}
-              className="space-y-4"
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <h1 className="text-2xl font-bold">Qubots Playground</h1>
-                  <p className="text-sm text-muted-foreground">
-                    Interactive optimization testing environment with real-time execution feedback
-                    {isRestoringWorkflow && (
-                      <span className="ml-2 inline-flex items-center gap-1 text-blue-600">
-                        <Loader2 className="h-3 w-3 animate-spin" />
-                        Restoring workflow...
-                      </span>
-                    )}
-                  </p>
-                </div>
-
-              </div>
-
-              {/* System Status Indicator */}
-              <div className="flex items-center gap-2">
-                {systemStatus?.success ? (
-                  <Badge variant="default" className="text-xs">
-                    <CheckCircle className="h-3 w-3 mr-1" />
-                    Qubots environment set up
+          <div className="px-4 py-2">
+            <div className="flex items-center justify-between gap-4">
+              {/* Left: System Status & Workflow Restoration */}
+              <div className="flex items-center gap-3">
+                {!isAuthenticated ? (
+                  <Badge variant="secondary" className="text-xs h-6">
+                    <User className="h-3 w-3 mr-1" />
+                    Sign in to run
                   </Badge>
+                ) : systemStatus?.success ? (
+                  <div className="flex items-start gap-3">
+                    <Badge variant="default" className="text-xs h-6">
+                      <CheckCircle className="h-3 w-3 mr-1" />
+                      Qubots Environment Ready
+                    </Badge>
+                    <EnvironmentSpecs
+                      specs={systemStatus?.environment_specs}
+                      variant="badge"
+                    />
+                  </div>
                 ) : (
-                  <Badge variant="destructive" className="text-xs">
+                  <Badge variant="destructive" className="text-xs h-6">
                     <AlertTriangle className="h-3 w-3 mr-1" />
-                    Qubots environment is not set up
+                    Setup Required
+                  </Badge>
+                )}
+                {isRestoringWorkflow && (
+                  <Badge variant="outline" className="text-xs h-6">
+                    <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                    Restoring...
                   </Badge>
                 )}
               </div>
 
-              {/* Action Buttons */}
-              <div className="flex items-center gap-2 flex-wrap">
-                <Button
-                  variant="default"
-                  size="sm"
-                  onClick={runOptimization}
-                  disabled={executionState.isRunning || !selectedProblem || !selectedOptimizer}
-                  className="flex items-center gap-2"
-                >
-                  {executionState.isRunning ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Play className="h-4 w-4" />
+              {/* Center: Primary Actions */}
+              <div className="flex items-center gap-2">
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="default"
+                      size="sm"
+                      onClick={runOptimization}
+                      disabled={!isAuthenticated || executionState.isRunning || !selectedProblem || !selectedOptimizer}
+                      className="h-8 px-3"
+                    >
+                      {executionState.isRunning ? (
+                        <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                      ) : (
+                        <Play className="h-3 w-3 mr-1" />
+                      )}
+                      {executionState.isRunning ? 'Running' : 'Run'}
+                    </Button>
+                  </TooltipTrigger>
+                  {!isAuthenticated && (
+                    <TooltipContent side="bottom">
+                      Please sign in to run optimizations
+                    </TooltipContent>
                   )}
-                  {executionState.isRunning ? 'Running...' : 'Run Optimization'}
-                </Button>
+                </Tooltip>
 
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={stopOptimization}
                   disabled={!executionState.isRunning}
-                  className="flex items-center gap-2"
+                  className="h-8 px-3"
                 >
-                  <Square className="h-4 w-4" />
+                  <Square className="h-3 w-3 mr-1" />
                   Stop
                 </Button>
-
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setResultsModalOpen(true)}
-                  disabled={!result}
-                  className="flex items-center gap-2"
-                >
-                  <BarChart3 className="h-4 w-4" />
-                  View Results
-                </Button>
-
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={exportLogs}
-                  disabled={executionState.logs.length === 0}
-                  className="flex items-center gap-2"
-                >
-                  <Download className="h-4 w-4" />
-                  Export Logs
-                </Button>
-
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShareDialogOpen(true)}
-                  disabled={!selectedProblem || !selectedOptimizer || executionState.isRunning || isSharing}
-                  className="flex items-center gap-2"
-                >
-                  {isSharing ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Share2 className="h-4 w-4" />
-                  )}
-                  Share Workflow
-                </Button>
-
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={resetOptimization}
-                  disabled={executionState.isRunning}
-                  className="flex items-center gap-2"
-                >
-                  <RotateCcw className="h-4 w-4" />
-                  Reset All
-                </Button>
               </div>
-            </motion.div>
+
+              {/* Right: Secondary Actions */}
+              <div className="flex items-center gap-1">
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setResultsModalOpen(true)}
+                      disabled={!result}
+                      className="h-8 px-2"
+                    >
+                      <BarChart3 className="h-3 w-3" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">View Results</TooltipContent>
+                </Tooltip>
+
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={exportLogs}
+                      disabled={executionState.logs.length === 0}
+                      className="h-8 px-2"
+                    >
+                      <Download className="h-3 w-3" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">Export Logs</TooltipContent>
+                </Tooltip>
+
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setShareDialogOpen(true)}
+                      disabled={!isAuthenticated || !selectedProblem || !selectedOptimizer || executionState.isRunning || isSharing}
+                      className="h-8 px-2"
+                    >
+                      {isSharing ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <Share2 className="h-3 w-3" />
+                      )}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">
+                    {!isAuthenticated ? "Please sign in to share workflows" : "Share Workflow"}
+                  </TooltipContent>
+                </Tooltip>
+
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={resetOptimization}
+                      disabled={executionState.isRunning}
+                      className="h-8 px-2"
+                    >
+                      <RotateCcw className="h-3 w-3" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">Reset All</TooltipContent>
+                </Tooltip>
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* System Status Alert */}
+        {/* System Status Alert - Only show if error */}
         {!systemStatus?.success && (
-          <div className="flex-shrink-0 border-b bg-destructive/10">
-            <div className="container mx-auto px-4 py-2">
-              <Alert variant="destructive" className="border-0 bg-transparent">
-                <AlertTriangle className="h-4 w-4" />
-                <AlertDescription>
-                  Qubots system is not available: {systemStatus?.error || "Unknown error"}
-                </AlertDescription>
-              </Alert>
+          <div className="flex-shrink-0 bg-destructive/10 border-b">
+            <div className="px-4 py-1">
+              <div className="flex items-center gap-2 text-sm text-destructive">
+                <AlertTriangle className="h-3 w-3" />
+                <span>Qubots system unavailable: {systemStatus?.error || "Unknown error"}</span>
+              </div>
             </div>
           </div>
         )}
 
-        {/* Main Content - OpenAI Playground Style Layout */}
+        {/* Main Content - Optimized Three-Column Layout */}
         <div className="flex-1 overflow-hidden">
           <div className="h-full flex min-w-0 max-w-full">
             {/* Left Sidebar - Problem Selection & Parameters */}
-            <div className="w-80 flex-shrink-0 border-r bg-muted/30 overflow-y-auto" style={{ height: 'calc(100vh - 200px)' }}>
-                <div className="p-4 space-y-4">
-                  {/* Problem Model Selector */}
-                  <CompactModelSelector
-                    modelType="problem"
-                    selectedModel={selectedProblem}
-                    onModelSelect={setSelectedProblem}
-                    onModelClear={() => setSelectedProblem(null)}
-                    initiallyExpanded={true}
-                  />
+            <div className="w-80 flex-shrink-0 border-r bg-muted/30 overflow-y-auto h-full">
+              <div className="p-3 space-y-3">
+                {/* Problem Model Selector */}
+                <CompactModelSelector
+                  modelType="problem"
+                  selectedModel={selectedProblem}
+                  onModelSelect={setSelectedProblem}
+                  onModelClear={() => setSelectedProblem(null)}
+                  initiallyExpanded={!selectedProblem}
+                  isWorkflowRestoration={isRestoringWorkflow}
+                />
 
-                  {/* Problem Parameters */}
-                  {selectedProblem && (
-                    <Card className="border-l-4 border-l-blue-500">
-                      <CardHeader className="pb-2">
-                        <CardTitle className="text-sm flex items-center gap-2">
-                          <Settings className="h-4 w-4" />
-                          Problem Parameters
-                          <Badge variant="outline" className="text-xs">config</Badge>
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <ParameterInputs
-                          modelName={selectedProblem.name}
-                          username={selectedProblem.username}
-                          modelType="problem"
-                          onParametersChange={setProblemParams}
-                          initialParameters={problemParams}
-                        />
-                      </CardContent>
-                    </Card>
-                  )}
-                </div>
+                {/* Problem Parameters */}
+                {selectedProblem && (
+                  <Card className="border-l-4 border-l-blue-500">
+                    <CardHeader className="pb-1 pt-2">
+                      <CardTitle className="text-xs flex items-center gap-1">
+                        <Settings className="h-3 w-3" />
+                        Problem Parameters
+                        <Badge variant="outline" className="text-xs h-4">config</Badge>
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="pt-2">
+                      <ParameterInputs
+                        modelName={selectedProblem.name}
+                        username={selectedProblem.username}
+                        modelType="problem"
+                        onParametersChange={setProblemParams}
+                        initialParameters={problemParams}
+                      />
+                    </CardContent>
+                  </Card>
+                )}
               </div>
+            </div>
 
-            {/* Main Terminal Area - Fixed Height */}
+            {/* Main Terminal Area - Optimized Height */}
             <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
               <TerminalViewer
                 logs={executionState.logs.map(log => ({
@@ -784,45 +800,46 @@ const QubotPlayground = () => {
                 isExecuting={executionState.isRunning}
                 onClearLogs={clearLogs}
                 onExportLogs={exportLogs}
-                className="w-full"
+                className="w-full h-full"
               />
             </div>
 
             {/* Right Sidebar - Optimizer Selection & Parameters */}
-            <div className="w-80 flex-shrink-0 border-l bg-muted/30 overflow-y-auto" style={{ height: 'calc(100vh - 200px)' }}>
-                <div className="p-4 space-y-4">
-                  {/* Optimizer Model Selector */}
-                  <CompactModelSelector
-                    modelType="optimizer"
-                    selectedModel={selectedOptimizer}
-                    onModelSelect={setSelectedOptimizer}
-                    onModelClear={() => setSelectedOptimizer(null)}
-                    initiallyExpanded={true}
-                  />
+            <div className="w-80 flex-shrink-0 border-l bg-muted/30 overflow-y-auto h-full">
+              <div className="p-3 space-y-3">
+                {/* Optimizer Model Selector */}
+                <CompactModelSelector
+                  modelType="optimizer"
+                  selectedModel={selectedOptimizer}
+                  onModelSelect={setSelectedOptimizer}
+                  onModelClear={() => setSelectedOptimizer(null)}
+                  initiallyExpanded={!selectedOptimizer}
+                  isWorkflowRestoration={isRestoringWorkflow}
+                />
 
-                  {/* Optimizer Parameters */}
-                  {selectedOptimizer && (
-                    <Card className="border-l-4 border-l-green-500">
-                      <CardHeader className="pb-2">
-                        <CardTitle className="text-sm flex items-center gap-2">
-                          <Settings className="h-4 w-4" />
-                          Optimizer Parameters
-                          <Badge variant="outline" className="text-xs">config</Badge>
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <ParameterInputs
-                          modelName={selectedOptimizer.name}
-                          username={selectedOptimizer.username}
-                          modelType="optimizer"
-                          onParametersChange={setOptimizerParams}
-                          initialParameters={optimizerParams}
-                        />
-                      </CardContent>
-                    </Card>
-                  )}
-                </div>
+                {/* Optimizer Parameters */}
+                {selectedOptimizer && (
+                  <Card className="border-l-4 border-l-green-500">
+                    <CardHeader className="pb-1 pt-2">
+                      <CardTitle className="text-xs flex items-center gap-1">
+                        <Settings className="h-3 w-3" />
+                        Optimizer Parameters
+                        <Badge variant="outline" className="text-xs h-4">config</Badge>
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="pt-2">
+                      <ParameterInputs
+                        modelName={selectedOptimizer.name}
+                        username={selectedOptimizer.username}
+                        modelType="optimizer"
+                        onParametersChange={setOptimizerParams}
+                        initialParameters={optimizerParams}
+                      />
+                    </CardContent>
+                  </Card>
+                )}
               </div>
+            </div>
             </div>
           </div>
 
@@ -994,8 +1011,7 @@ const QubotPlayground = () => {
             </div>
           </DialogContent>
         </Dialog>
-          </div>
-        </div>
+      </div>
     </Layout>
   )
 }

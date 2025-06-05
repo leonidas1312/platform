@@ -2,11 +2,12 @@
 
 import { useEffect, useRef, useState } from "react"
 import { motion, useScroll, useTransform } from "framer-motion"
-import { ChevronRight, ArrowDown, Sparkles, Share2, GitMerge, Zap, Users, Code, Rocket } from "lucide-react"
+import { ChevronRight, ArrowDown, Sparkles, Share2, GitMerge, Zap, Users, Code, Rocket, UserPlus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { useTheme } from "@/components/ThemeContext"
 import CodeFlowHero from "./CodeFlowHero"
+import { WaitlistForm } from "./WaitlistForm"
 import feature1Img from "/assets_task_01jtb9cr1cecgbfz3vt4q07zkx_1746283238_img_1.webp"
 import feature2Img from "/assets_task_01jtcab54pfpetkq58meeznvpt_1746317784_img_1.webp"
 import feature3Img from "/assets_task_01jtcm87kmexavejfwgnm0q3pn_1746328163_img_0.webp"
@@ -15,6 +16,7 @@ const Hero = () => {
   const containerRef = useRef<HTMLDivElement>(null)
   const heroRef = useRef<HTMLDivElement>(null)
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 })
+  const [isWaitlistOpen, setIsWaitlistOpen] = useState(false)
   const { actualTheme } = useTheme()
 
   const { scrollYProgress } = useScroll({
@@ -141,7 +143,7 @@ const Hero = () => {
               open source
             </span>
             <br />
-            community for optimization
+            platform for optimization
           </motion.h1>
 
           {/* Subtitle */}
@@ -178,16 +180,22 @@ const Hero = () => {
               style={{
                 fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
               }}
-              onClick={() => window.open("https://docs.rastion.com", "_blank")}
+              onClick={() => setIsWaitlistOpen(true)}
             >
-              How it works
-              <ChevronRight className="w-5 h-5 ml-3" />
+              Join the waitlist
+              <UserPlus className="w-5 h-5 ml-3" />
             </Button>
           </motion.div>
 
 
         </motion.div>
       </motion.div>
+
+      {/* Waitlist Form Modal */}
+      <WaitlistForm
+        isOpen={isWaitlistOpen}
+        onClose={() => setIsWaitlistOpen(false)}
+      />
     </div>
   )
 }

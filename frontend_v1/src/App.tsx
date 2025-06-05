@@ -5,7 +5,6 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { LazyMotion, domAnimation } from "framer-motion";
 import Index from "./pages/Index";
-import Feedback from "./pages/Feedback";
 import NotFound from "./pages/NotFound";
 import AuthPage from "./pages/AuthPage";
 import Profile from "./pages/Profile";
@@ -13,14 +12,14 @@ import PublicReposPage from "./pages/PublicReposPage";
 import RepoPage from "./pages/RepoPage";
 import { ThemeProvider } from "./components/ThemeContext";
 import SettingsPage from "./pages/SettingsPage";
-import Roadmap from "./pages/Roadmap";
-import Feed from "./pages/Feed";
 import ExperimentalPreviewPage from "./pages/ExperimentalPreview";
 import BenchmarkPage from "./pages/Benchmark";
 import QubotPlayground from "./pages/QubotPlayground";
 import OptimizationWorkflows from "./pages/OptimizationWorkflows";
 import WorkflowDetail from "./pages/WorkflowDetail";
+import WaitlistAdmin from "./pages/WaitlistAdmin";
 import ProtectedRoute from "./components/ProtectedRoute";
+import AdminProtectedRoute from "./components/AdminProtectedRoute";
 
 const queryClient = new QueryClient();
 
@@ -34,11 +33,8 @@ const App = () => (
           <BrowserRouter>
             <Routes>
               <Route path="/" element={<Index />} />
-              <Route path="/feedback" element={<Feedback />} />
               <Route path="/auth" element={<AuthPage />} />
               <Route path="/qubots" element={<PublicReposPage />} />
-              <Route path="/roadmap" element={<Roadmap />} />
-              <Route path="/feed" element={<Feed />} />
               <Route path="/experimental-preview" element={<ExperimentalPreviewPage />} />
               <Route path="/benchmark" element={
                 <ProtectedRoute>
@@ -60,7 +56,12 @@ const App = () => (
                   <WorkflowDetail />
                 </ProtectedRoute>
               } />
-
+              <Route path="/admin/waitlist" element={
+                <AdminProtectedRoute>
+                  <WaitlistAdmin />
+                </AdminProtectedRoute>
+              } />
+              
 
               {/* Profile page with username in URL */}
               <Route path="/u/:username" element={<Profile />} />

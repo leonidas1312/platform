@@ -1,13 +1,20 @@
 const express = require("express")
 const { knex } = require("../config/database")
 const GiteaService = require("../services/giteaService")
-const auth = require("../middleware/auth")
+const { auth } = require("../middleware/auth")
 
 const router = express.Router()
 
 // Get user profile
 router.get("/profile", async (req, res) => {
-  const token = req.headers.authorization?.split(" ")[1]
+  // Try to get token from session first (HTTP-only cookie), then fallback to Authorization header
+  let token = req.session?.user_data?.token
+
+  // Fallback to Authorization header for backward compatibility during transition
+  if (!token) {
+    token = req.headers.authorization?.split(" ")[1]
+  }
+
   if (!token) {
     return res.status(401).json({ message: "Unrecognised request." })
   }
@@ -28,10 +35,52 @@ router.get("/profile", async (req, res) => {
   }
 })
 
+// Get user profile by username (public endpoint for avatars)
+router.get("/:username/public", async (req, res) => {
+  const { username } = req.params
+
+  try {
+    // Use admin token for public user data access
+    const adminToken = GiteaService.getAdminToken()
+
+    if (!adminToken) {
+      return res.status(500).json({ message: "Service configuration error" })
+    }
+
+    const giteaRes = await GiteaService.getUserByUsername(username, adminToken)
+
+    if (!giteaRes.ok) {
+      const errData = await giteaRes.json()
+      return res.status(giteaRes.status).json({ message: errData.message || "Failed to fetch user" })
+    }
+
+    const userData = await giteaRes.json()
+
+    // Return only public information needed for avatars
+    const publicUserData = {
+      login: userData.login,
+      avatar_url: userData.avatar_url,
+      full_name: userData.full_name
+    }
+
+    res.json(publicUserData)
+  } catch (error) {
+    console.error("Public user fetch error:", error)
+    res.status(500).json({ message: "Internal server error" })
+  }
+})
+
 // Get user profile by username
 router.get("/:username", async (req, res) => {
   const { username } = req.params
-  const token = req.headers.authorization?.split(" ")[1]
+
+  // Try to get token from session first (HTTP-only cookie), then fallback to Authorization header
+  let token = req.session?.user_data?.token
+
+  // Fallback to Authorization header for backward compatibility during transition
+  if (!token) {
+    token = req.headers.authorization?.split(" ")[1]
+  }
 
   if (!token) {
     return res.status(401).json({ message: "Not logged in." })
@@ -56,7 +105,14 @@ router.get("/:username", async (req, res) => {
 // Get user repositories by username
 router.get("/:username/repos", async (req, res) => {
   const { username } = req.params
-  const token = req.headers.authorization?.split(" ")[1]
+
+  // Try to get token from session first (HTTP-only cookie), then fallback to Authorization header
+  let token = req.session?.user_data?.token
+
+  // Fallback to Authorization header for backward compatibility during transition
+  if (!token) {
+    token = req.headers.authorization?.split(" ")[1]
+  }
 
   if (!token) {
     return res.status(401).json({ message: "Unrecognised request." })
@@ -80,7 +136,14 @@ router.get("/:username/repos", async (req, res) => {
 
 // Update user profile
 router.patch("/profile", async (req, res) => {
-  const token = req.headers.authorization?.split(" ")[1]
+  // Try to get token from session first (HTTP-only cookie), then fallback to Authorization header
+  let token = req.session?.user_data?.token
+
+  // Fallback to Authorization header for backward compatibility during transition
+  if (!token) {
+    token = req.headers.authorization?.split(" ")[1]
+  }
+
   if (!token) {
     return res.status(401).json({ message: "Unrecognised request." })
   }
@@ -135,12 +198,17 @@ router.patch("/profile", async (req, res) => {
 
 // Update user avatar
 router.post("/update-avatar", async (req, res) => {
-  const authHeader = req.headers.authorization
-  if (!authHeader) {
-    return res.status(401).json({ message: "Missing authorization header" })
+  // Try to get token from session first (HTTP-only cookie), then fallback to Authorization header
+  let userToken = req.session?.user_data?.token
+
+  // Fallback to Authorization header for backward compatibility during transition
+  if (!userToken) {
+    const authHeader = req.headers.authorization
+    if (authHeader) {
+      userToken = authHeader.split(" ")[1]
+    }
   }
 
-  const userToken = authHeader.split(" ")[1]
   if (!userToken) {
     return res.status(401).json({ message: "Unrecognized request." })
   }
@@ -185,7 +253,14 @@ router.post("/update-avatar", async (req, res) => {
 // Get user's repositories
 router.get("/user-repos", async (req, res) => {
   try {
-    const token = req.headers.authorization?.split(" ")[1]
+    // Try to get token from session first (HTTP-only cookie), then fallback to Authorization header
+    let token = req.session?.user_data?.token
+
+    // Fallback to Authorization header for backward compatibility during transition
+    if (!token) {
+      token = req.headers.authorization?.split(" ")[1]
+    }
+
     if (!token) {
       return res.status(401).json({ message: "Unrecognised request." })
     }
@@ -291,7 +366,14 @@ router.delete("/following/:username", auth, async (req, res) => {
 // Get a user's followers
 router.get("/:username/followers", async (req, res) => {
   const { username } = req.params
-  const token = req.headers.authorization?.split(" ")[1]
+
+  // Try to get token from session first (HTTP-only cookie), then fallback to Authorization header
+  let token = req.session?.user_data?.token
+
+  // Fallback to Authorization header for backward compatibility during transition
+  if (!token) {
+    token = req.headers.authorization?.split(" ")[1]
+  }
 
   try {
     const response = await GiteaService.getUserFollowers(username, token)
@@ -314,7 +396,14 @@ router.get("/:username/followers", async (req, res) => {
 // Get users that a user is following
 router.get("/:username/following", async (req, res) => {
   const { username } = req.params
-  const token = req.headers.authorization?.split(" ")[1]
+
+  // Try to get token from session first (HTTP-only cookie), then fallback to Authorization header
+  let token = req.session?.user_data?.token
+
+  // Fallback to Authorization header for backward compatibility during transition
+  if (!token) {
+    token = req.headers.authorization?.split(" ")[1]
+  }
 
   try {
     const response = await GiteaService.getUserFollowing(username, token)

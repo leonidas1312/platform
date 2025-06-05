@@ -17,7 +17,6 @@ const AuthPage = () => {
   const location = useLocation();
 
   // Get the page user was trying to access before being redirected to login
-  const from = location.state?.from?.pathname || `/u/${username}`;
 
   const handleSubmit = async (e: React.FormEvent) => {
 
@@ -25,18 +24,17 @@ const AuthPage = () => {
     setLoading(true);
 
     try {
-      const res = await fetch(`${API}/auth/login`, {
+      const res = await fetch(`${API}/api/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: 'include', // Include cookies for authentication
         body: JSON.stringify({ username, password }),
       });
 
       const data = await res.json();
 
       if (res.ok) {
-        if (data.token) {
-          localStorage.setItem("gitea_token", data.token);
-        }
+        // Token is now stored in HTTP-only cookie, no need to store in localStorage
         toast({ title: "Success!", description: "Login successful!" });
         // Redirect to the page user was trying to access, or profile if no specific page
         const redirectTo = location.state?.from?.pathname || `/u/${username}`;
@@ -65,7 +63,7 @@ const AuthPage = () => {
         <div className="w-full max-w-md">
               <form onSubmit={handleSubmit} className="flex flex-col gap-6">
                 <div className="flex flex-col items-center gap-2 text-center">
-                  <h1 className="text-2xl font-bold">Welcome Back</h1>
+                  <h1 className="text-2xl font-bold">Welcome to Rastion</h1>
                   <p className="text-sm text-muted-foreground">
                     {location.state?.from ?
                       "Please sign in to access optimization tools" :

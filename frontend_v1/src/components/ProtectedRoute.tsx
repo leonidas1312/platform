@@ -9,9 +9,9 @@ interface ProtectedRouteProps {
   redirectTo?: string;
 }
 
-const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ 
-  children, 
-  redirectTo = '/auth' 
+const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
+  children,
+  redirectTo = '/auth'
 }) => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -19,31 +19,20 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
 
   useEffect(() => {
     const checkAuthentication = async () => {
-      const token = localStorage.getItem('gitea_token');
-      
-      if (!token) {
-        setIsAuthenticated(false);
-        setIsLoading(false);
-        return;
-      }
-
       try {
+        // Check authentication by calling profile endpoint
+        // The backend will check for HTTP-only cookie
         const response = await fetch(`${API}/profile`, {
-          headers: {
-            'Authorization': `token ${token}`,
-          },
+          credentials: 'include', // Include cookies in request
         });
 
         if (response.ok) {
           setIsAuthenticated(true);
         } else {
-          // Token is invalid, remove it
-          localStorage.removeItem('gitea_token');
           setIsAuthenticated(false);
         }
       } catch (error) {
         console.error('Authentication check failed:', error);
-        localStorage.removeItem('gitea_token');
         setIsAuthenticated(false);
       } finally {
         setIsLoading(false);

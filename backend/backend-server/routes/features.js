@@ -4,7 +4,7 @@ const upload = require("../middleware/upload")
 const fs = require("fs")
 
 const router = express.Router()
-const auth = require("../middleware/auth")
+const { auth } = require("../middleware/auth")
 
 // Get all features (redirect to requests for backward compatibility)
 router.get("/", async (req, res) => {

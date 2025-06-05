@@ -151,7 +151,8 @@ class QubotStreamingExecutionService {
           }
         },
         backoffLimit: 1,
-        activeDeadlineSeconds: this.jobTimeout
+        activeDeadlineSeconds: this.jobTimeout,
+        ttlSecondsAfterFinished: 300 // Clean up job and pods 5 minutes after completion
       }
     }
 
@@ -252,6 +253,9 @@ try:
             stream_log('error', '❌ Optimization failed', 'results')
             if 'error_message' in result:
                 stream_log('error', f'Error: {result["error_message"]}', 'results')
+
+    # Also print the complete result as JSON for parsing
+    print("OPTIMIZATION_RESULT_JSON:", json.dumps(result, default=str), flush=True)
 
     # Write final result
     result_file = f'/tmp/qubots_result_{execution_id}.json'
@@ -648,16 +652,58 @@ except Exception as e:
       const resultFile = `/tmp/qubots_result_${executionId}.json`
 
       try {
-        // Use kubectl exec to get the result file content
-        const { exec } = require('child_process')
-        const { promisify } = require('util')
-        const execAsync = promisify(exec)
+        // Use Kubernetes API to exec into pod and get result file
+        const k8sExec = new k8s.Exec(this.kc)
 
         console.log(`📄 Extracting result file from pod: ${podName}`)
-        const { stdout } = await execAsync(`kubectl exec ${podName} -n ${this.namespace} -- cat ${resultFile}`)
 
-        if (stdout.trim()) {
-          const result = JSON.parse(stdout.trim())
+        // Create a promise to capture the exec output
+        const execResult = await new Promise((resolve, reject) => {
+          let stdout = ''
+          let stderr = ''
+
+          k8sExec.exec(
+            this.namespace,
+            podName,
+            'qubots-executor',
+            ['cat', resultFile],
+            null, // stdout - we'll capture this ourselves
+            null, // stderr - we'll capture this ourselves
+            null, // stdin - not needed
+            false, // tty
+            (status) => {
+              if (status.status === 'Success') {
+                resolve(stdout)
+              } else {
+                reject(new Error(`Exec failed with status: ${status.status}, stderr: ${stderr}`))
+              }
+            }
+          ).then((conn) => {
+            // Capture stdout and stderr
+            conn.on('data', (channel, data) => {
+              if (channel === 1) { // stdout
+                stdout += data.toString()
+              } else if (channel === 2) { // stderr
+                stderr += data.toString()
+              }
+            })
+
+            conn.on('close', () => {
+              if (stdout.trim()) {
+                resolve(stdout.trim())
+              } else {
+                reject(new Error(`No output from result file. stderr: ${stderr}`))
+              }
+            })
+
+            conn.on('error', (error) => {
+              reject(new Error(`Connection error: ${error.message}`))
+            })
+          }).catch(reject)
+        })
+
+        if (execResult) {
+          const result = JSON.parse(execResult)
           console.log(`✅ Successfully extracted optimization result:`, result)
           return result
         }
@@ -674,12 +720,19 @@ except Exception as e:
         return logBasedResult
       }
 
-      // Final fallback: return a basic success result
+      // Final fallback: return a basic success result with execution info
+      const execution = this.activeExecutions.get(executionId)
+      const params = execution ? execution.params : {}
+
       return {
         success: true,
-        execution_time: 0,
+        execution_time: execution ? (Date.now() - execution.startTime) / 1000 : 0,
         timestamp: new Date().toISOString(),
-        message: 'Optimization completed with streaming logs'
+        message: 'Optimization completed with streaming logs',
+        problem_name: params.problemName || 'unknown',
+        optimizer_name: params.optimizerName || 'unknown',
+        problem_username: params.problemUsername || 'unknown',
+        optimizer_username: params.optimizerUsername || 'unknown'
       }
 
     } catch (error) {
@@ -707,14 +760,16 @@ except Exception as e:
       const execution = this.activeExecutions.get(executionId)
       const params = execution ? execution.params : {}
 
-      // Get all logs from the pod
-      const { exec } = require('child_process')
-      const { promisify } = require('util')
-      const execAsync = promisify(exec)
-
+      // Get all logs from the pod using Kubernetes API
       console.log(`📋 Extracting logs from pod: ${podName}`)
-      const { stdout } = await execAsync(`kubectl logs ${podName} -n ${this.namespace} -c qubots-executor`)
 
+      const logResponse = await this.coreV1Api.readNamespacedPodLog(
+        podName,
+        this.namespace,
+        'qubots-executor'
+      )
+
+      const stdout = logResponse.body
       if (!stdout) {
         console.log('No logs found in pod')
         return null
@@ -740,6 +795,55 @@ except Exception as e:
       for (const line of lines) {
         const trimmedLine = line.trim()
 
+        // Try to extract complete JSON result from our explicit JSON output
+        if (trimmedLine.includes('OPTIMIZATION_RESULT_JSON:')) {
+          try {
+            const jsonPart = trimmedLine.substring(trimmedLine.indexOf('OPTIMIZATION_RESULT_JSON:') + 26).trim()
+            const jsonResult = JSON.parse(jsonPart)
+            if (jsonResult.success !== undefined) {
+              console.log('Found complete optimization result JSON in logs:', jsonResult)
+              // Use the complete result from logs
+              return {
+                success: jsonResult.success,
+                best_value: jsonResult.best_value,
+                iterations: jsonResult.iterations,
+                execution_time: jsonResult.execution_time || result.execution_time,
+                timestamp: new Date().toISOString(),
+                problem_name: jsonResult.problem_name || result.problem_name,
+                optimizer_name: jsonResult.optimizer_name || result.optimizer_name,
+                problem_username: jsonResult.problem_username || result.problem_username,
+                optimizer_username: jsonResult.optimizer_username || result.optimizer_username
+              }
+            }
+          } catch (e) {
+            console.log('Failed to parse OPTIMIZATION_RESULT_JSON:', e.message)
+          }
+        }
+
+        // Try to extract complete JSON result if it's printed in logs (fallback)
+        if (trimmedLine.startsWith('{') && trimmedLine.includes('best_value') && trimmedLine.includes('success')) {
+          try {
+            const jsonResult = JSON.parse(trimmedLine)
+            if (jsonResult.success !== undefined) {
+              console.log('Found complete JSON result in logs:', jsonResult)
+              // Use the complete result from logs
+              return {
+                success: jsonResult.success,
+                best_value: jsonResult.best_value,
+                iterations: jsonResult.iterations,
+                execution_time: jsonResult.execution_time || result.execution_time,
+                timestamp: new Date().toISOString(),
+                problem_name: jsonResult.problem_name || result.problem_name,
+                optimizer_name: jsonResult.optimizer_name || result.optimizer_name,
+                problem_username: jsonResult.problem_username || result.problem_username,
+                optimizer_username: jsonResult.optimizer_username || result.optimizer_username
+              }
+            }
+          } catch (e) {
+            // Not valid JSON, continue with other parsing
+          }
+        }
+
         // Extract execution timing
         if (trimmedLine.includes('Starting optimization execution')) {
           const timeMatch = trimmedLine.match(/(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+Z)/)
@@ -755,7 +859,7 @@ except Exception as e:
           }
         }
 
-        // Extract best value
+        // Extract best value from structured logs
         if (trimmedLine.includes('🎯 Best value achieved:')) {
           const valueMatch = trimmedLine.match(/Best value achieved:\s*([\d.-]+)/)
           if (valueMatch) {
@@ -763,9 +867,39 @@ except Exception as e:
           }
         }
 
-        // Extract iterations
+        // Extract iterations from structured logs
         if (trimmedLine.includes('🔄 Total iterations:')) {
           const iterMatch = trimmedLine.match(/Total iterations:\s*(\d+)/)
+          if (iterMatch) {
+            result.iterations = parseInt(iterMatch[1])
+          }
+        }
+
+        // Extract from PlaygroundResult dictionary format (this is what we're actually getting)
+        if (trimmedLine.includes("'best_value':") || trimmedLine.includes('"best_value":')) {
+          const valueMatch = trimmedLine.match(/['"]best_value['"]:\s*([\d.-]+)/)
+          if (valueMatch) {
+            result.best_value = parseFloat(valueMatch[1])
+          }
+        }
+
+        if (trimmedLine.includes("'iterations':") || trimmedLine.includes('"iterations":')) {
+          const iterMatch = trimmedLine.match(/['"]iterations['"]:\s*(\d+)/)
+          if (iterMatch) {
+            result.iterations = parseInt(iterMatch[1])
+          }
+        }
+
+        // Extract from Python print statements showing results
+        if (trimmedLine.includes('best_value=') || trimmedLine.includes('best_value :')) {
+          const valueMatch = trimmedLine.match(/best_value[=:]\s*([\d.-]+)/)
+          if (valueMatch) {
+            result.best_value = parseFloat(valueMatch[1])
+          }
+        }
+
+        if (trimmedLine.includes('iterations=') || trimmedLine.includes('iterations :')) {
+          const iterMatch = trimmedLine.match(/iterations[=:]\s*(\d+)/)
           if (iterMatch) {
             result.iterations = parseInt(iterMatch[1])
           }
@@ -807,6 +941,65 @@ except Exception as e:
           if (branchMatch) {
             result.iterations = parseInt(branchMatch[1])
           }
+        }
+
+        // Extract additional optimization metrics
+        if (trimmedLine.includes('Final objective:') || trimmedLine.includes('Objective value:')) {
+          const objMatch = trimmedLine.match(/(?:Final objective|Objective value):\s*([\d.-]+)/)
+          if (objMatch) {
+            result.best_value = parseFloat(objMatch[1])
+          }
+        }
+
+        // Extract convergence information from genetic algorithm
+        if (trimmedLine.includes('Generation') && trimmedLine.includes('Best:')) {
+          const genMatch = trimmedLine.match(/Generation\s*(\d+).*Best:\s*([\d.-]+)/)
+          if (genMatch) {
+            result.iterations = parseInt(genMatch[1])
+            result.best_value = parseFloat(genMatch[2])
+          }
+        }
+
+        // Extract genetic algorithm specific patterns
+        if (trimmedLine.includes('New best fitness')) {
+          const fitnessMatch = trimmedLine.match(/New best fitness\s*([\d.-]+)/)
+          if (fitnessMatch) {
+            result.best_value = parseFloat(fitnessMatch[1])
+          }
+          // Extract generation number if present
+          const genMatch = trimmedLine.match(/Generation\s*(\d+)/)
+          if (genMatch) {
+            result.iterations = parseInt(genMatch[1])
+          }
+        }
+
+        // Extract final results from genetic algorithm
+        if (trimmedLine.includes('Final best fitness:')) {
+          const finalMatch = trimmedLine.match(/Final best fitness:\s*([\d.-]+)/)
+          if (finalMatch) {
+            result.best_value = parseFloat(finalMatch[1])
+          }
+        }
+
+        // Extract total generations
+        if (trimmedLine.includes('Total generations:')) {
+          const totalGenMatch = trimmedLine.match(/Total generations:\s*(\d+)/)
+          if (totalGenMatch) {
+            result.iterations = parseInt(totalGenMatch[1])
+          }
+        }
+
+        // Extract evolution completion info
+        if (trimmedLine.includes('Evolution completed in')) {
+          const timeMatch = trimmedLine.match(/Evolution completed in\s*([\d.]+)\s*seconds/)
+          if (timeMatch) {
+            result.execution_time = parseFloat(timeMatch[1])
+          }
+        }
+
+        // Extract solution quality indicators
+        if (trimmedLine.includes('Solution found') || trimmedLine.includes('Optimal solution')) {
+          result.solution_quality = 'optimal'
         }
 
         // Check for error indicators

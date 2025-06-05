@@ -1,13 +1,13 @@
 /**
  * Playground Environment Routes
- * 
+ *
  * API endpoints for managing interactive optimization playground environments.
  * Handles environment creation, management, and real-time communication.
  */
 
 const express = require('express')
 const WebSocket = require('ws')
-const auth = require('../middleware/auth')
+const { auth } = require('../middleware/auth')
 const PlaygroundEnvironmentService = require('../services/playgroundEnvironmentService')
 
 const router = express.Router()
@@ -30,7 +30,7 @@ router.post('/environments', auth, async (req, res) => {
     }
 
     const userId = req.user.id || req.user.username
-    
+
     const environment = await playgroundService.createEnvironment(
       userId,
       problemRepo,

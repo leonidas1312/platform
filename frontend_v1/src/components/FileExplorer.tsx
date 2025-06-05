@@ -153,11 +153,8 @@ export default function FileExplorer({
 
       setIsCommitLoading(true)
       try {
-        const token = localStorage.getItem("gitea_token")
         const response = await fetch(`${API}/repos/${repoOwner}/${repoName}/commits?limit=1`, {
-          headers: {
-            Authorization: `token ${token}`,
-          },
+          credentials: 'include', // Include cookies for authentication
         })
 
         if (!response.ok) {
@@ -177,7 +174,7 @@ export default function FileExplorer({
         setIsCommitLoading(false)
       }
     }
-    
+
     fetchCommitHistory()
   }, [repoOwner, repoName])
 
@@ -250,7 +247,7 @@ export default function FileExplorer({
       {/* Directory navigation header */}
       <div className="flex justify-between items-center">
         <div className="flex items-center gap-2">
-          
+
 
           {path && (
             <Button variant="outline" size="sm" onClick={onNavigateToParent} className="h-8">
@@ -259,7 +256,7 @@ export default function FileExplorer({
             </Button>
           )}
 
-          
+
         </div>
         <div className="flex gap-2">
           {isSearchExpanded ? (

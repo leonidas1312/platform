@@ -20,6 +20,7 @@ import {
   ExternalLink
 } from "lucide-react"
 import { toast } from "@/components/ui/use-toast"
+import { UserAvatar } from "@/components/ui/user-avatar"
 
 const API = import.meta.env.VITE_API_BASE
 
@@ -43,53 +44,50 @@ interface QubotModelSelectorProps {
   selectedModel: ModelInfo | null
   onModelSelect: (model: ModelInfo) => void
   onModelClear: () => void
+  isWorkflowRestoration?: boolean // Add flag to indicate workflow restoration
 }
 
 const QubotModelSelector: React.FC<QubotModelSelectorProps> = ({
   modelType,
   selectedModel,
   onModelSelect,
-  onModelClear
+  onModelClear,
+  isWorkflowRestoration = false
 }) => {
   const [models, setModels] = useState<ModelInfo[]>([])
   const [loading, setLoading] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
   const [activeTab, setActiveTab] = useState("my-models")
+  const [hasLoadedInitially, setHasLoadedInitially] = useState(false)
 
   useEffect(() => {
-    loadModels()
-  }, [modelType, activeTab])
+    // Only auto-load models if not in workflow restoration mode or if user explicitly changes tabs
+    if (!isWorkflowRestoration || hasLoadedInitially) {
+      loadModels()
+    }
+  }, [modelType, activeTab, isWorkflowRestoration, hasLoadedInitially])
 
   const loadModels = async () => {
     setLoading(true)
     try {
-      const token = localStorage.getItem("gitea_token")
       let url = ""
 
       if (activeTab === "my-models") {
-        if (!token) {
-          toast({
-            title: "Authentication Required",
-            description: "Please log in to view your models.",
-            variant: "destructive"
-          })
-          setLoading(false)
-          return
-        }
-        url = `${API}/playground/qubots/models`
+        url = `${API}/api/playground/qubots/models`
       } else {
-        url = `${API}/playground/qubots/search?query=${encodeURIComponent(searchQuery || modelType)}&type=${modelType}`
+        url = `${API}/api/playground/qubots/search?query=${encodeURIComponent(searchQuery || modelType)}&type=${modelType}`
       }
 
       const headers: Record<string, string> = {
         "Content-Type": "application/json"
       }
 
-      if (token && activeTab === "my-models") {
-        headers["Authorization"] = `token ${token}`
+      const fetchOptions: RequestInit = {
+        headers,
+        credentials: 'include' // Include cookies for authentication
       }
 
-      const response = await fetch(url, { headers })
+      const response = await fetch(url, fetchOptions)
 
       if (!response.ok) {
         throw new Error("Failed to fetch models")
@@ -117,6 +115,7 @@ const QubotModelSelector: React.FC<QubotModelSelectorProps> = ({
 
   const handleSearch = () => {
     if (activeTab === "community") {
+      setHasLoadedInitially(true) // Mark user interaction
       loadModels()
     }
   }
@@ -159,7 +158,7 @@ const QubotModelSelector: React.FC<QubotModelSelectorProps> = ({
               {model.name}
             </h4>
             <p className="text-xs text-muted-foreground flex items-center gap-1">
-              <User className="h-3 w-3" />
+              <UserAvatar username={model.username} size="sm" showTooltip />
               <span
                 className="cursor-pointer hover:text-primary transition-colors"
                 onClick={(e) => {
@@ -245,7 +244,10 @@ const QubotModelSelector: React.FC<QubotModelSelectorProps> = ({
           </div>
         )}
 
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <Tabs value={activeTab} onValueChange={(value) => {
+          setActiveTab(value)
+          setHasLoadedInitially(true) // Mark that user has interacted with the component
+        }}>
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="my-models">My Models</TabsTrigger>
             <TabsTrigger value="community">Community</TabsTrigger>
@@ -256,7 +258,10 @@ const QubotModelSelector: React.FC<QubotModelSelectorProps> = ({
               <Button
                 variant="outline"
                 size="sm"
-                onClick={loadModels}
+                onClick={() => {
+                  setHasLoadedInitially(true) // Mark user interaction
+                  loadModels()
+                }}
                 disabled={loading}
               >
                 {loading ? (

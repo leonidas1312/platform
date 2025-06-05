@@ -26,6 +26,7 @@ import {
 } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import EditProfileModal from "@/components/EditProfileModal"
+import UserRepositories from "@/components/UserRepositories"
 
 import Layout from "../components/Layout"
 import {
@@ -35,7 +36,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import ActivityFeed from "@/components/ActivityFeed"
 import { ScrollArea } from "@/components/ui/scroll-area"
 
 const API = import.meta.env.VITE_API_BASE
@@ -67,61 +67,56 @@ const Profile = () => {
 
   // Update the useEffect that fetches user data to check for login status
   useEffect(() => {
-    const token = localStorage.getItem("gitea_token")
-    setIsLoggedIn(!!token)
+    // Check authentication by trying to fetch current user data
+    const fetchCurrentUser = async () => {
+      try {
+        const response = await fetch(`${API}/api/profile`, {
+          credentials: 'include', // Include cookies for authentication
+        })
 
-    // Only proceed with fetching data if the user is logged in
-    if (token) {
-      // Fetch current logged-in user data
-      const fetchCurrentUser = async () => {
-        try {
-          const response = await fetch(`${API}/profile`, {
-            headers: { Authorization: `token ${token}` },
-          })
-
-          if (response.ok) {
-            const userData = await response.json()
-            setCurrentUserData(userData)
-          }
-        } catch (error) {
-          console.error("Failed to fetch current user", error)
+        if (response.ok) {
+          const userData = await response.json()
+          setCurrentUserData(userData)
+          setIsLoggedIn(true)
+        } else {
+          setIsLoggedIn(false)
         }
+      } catch (error) {
+        console.error("Failed to fetch current user", error)
+        setIsLoggedIn(false)
       }
-
-      // Fetch user profile - if username is provided, fetch that user's profile
-      // otherwise fetch the current user's profile
-      const fetchUserProfile = async () => {
-        try {
-          const endpoint = username ? `${API}/users/${username}` : `${API}/profile`
-
-          const response = await fetch(endpoint, {
-            headers: { Authorization: `token ${token}` },
-          })
-
-          const data = await response.json()
-          setUser(data)
-
-          // Check if current user is following this user
-          if (username && username !== currentUserData?.login) {
-            checkFollowStatus(username)
-          }
-
-          // Fetch followers and following
-          fetchFollowers(username || data.login)
-          fetchFollowing(username || data.login)
-        } catch (error) {
-          console.error("Failed to fetch user", error)
-        } finally {
-          setLoading(false)
-        }
-      }
-
-      fetchCurrentUser()
-      fetchUserProfile()
-    } else {
-      // If not logged in, set loading to false
-      setLoading(false)
     }
+
+    // Fetch user profile - if username is provided, fetch that user's profile
+    // otherwise fetch the current user's profile
+    const fetchUserProfile = async () => {
+      try {
+        const endpoint = username ? `${API}/api/users/${username}` : `${API}/api/profile`
+
+        const response = await fetch(endpoint, {
+          credentials: 'include', // Include cookies for authentication
+        })
+
+        const data = await response.json()
+        setUser(data)
+
+        // Check if current user is following this user
+        if (username && username !== currentUserData?.login) {
+          checkFollowStatus(username)
+        }
+
+        // Fetch followers and following
+        fetchFollowers(username || data.login)
+        fetchFollowing(username || data.login)
+      } catch (error) {
+        console.error("Failed to fetch user", error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchCurrentUser()
+    fetchUserProfile()
   }, [navigate, username, currentUserData?.login])
 
 
@@ -135,9 +130,8 @@ const Profile = () => {
   // Check if current user is following the profile user
   const checkFollowStatus = async (targetUsername: string) => {
     try {
-      const token = localStorage.getItem("gitea_token")
       const response = await fetch(`${API}/user/following/${targetUsername}`, {
-        headers: { Authorization: `token ${token}` },
+        credentials: 'include', // Include cookies for authentication
       })
 
       // Only set following status if the API call was successful
@@ -157,9 +151,8 @@ const Profile = () => {
   const fetchFollowers = async (targetUsername: string) => {
     setFollowersLoading(true)
     try {
-      const token = localStorage.getItem("gitea_token")
-      const response = await fetch(`${API}/users/${targetUsername}/followers`, {
-        headers: { Authorization: `token ${token}` },
+      const response = await fetch(`${API}/api/users/${targetUsername}/followers`, {
+        credentials: 'include', // Include cookies for authentication
       })
 
       if (response.ok) {
@@ -177,9 +170,8 @@ const Profile = () => {
   const fetchFollowing = async (targetUsername: string) => {
     setFollowingLoading(true)
     try {
-      const token = localStorage.getItem("gitea_token")
-      const response = await fetch(`${API}/users/${targetUsername}/following`, {
-        headers: { Authorization: `token ${token}` },
+      const response = await fetch(`${API}/api/users/${targetUsername}/following`, {
+        credentials: 'include', // Include cookies for authentication
       })
 
       if (response.ok) {
@@ -199,12 +191,11 @@ const Profile = () => {
 
     setIsFollowLoading(true)
     try {
-      const token = localStorage.getItem("gitea_token")
       const method = isFollowing ? "DELETE" : "PUT"
 
       const response = await fetch(`${API}/user/following/${username}`, {
         method,
-        headers: { Authorization: `token ${token}` },
+        credentials: 'include', // Include cookies for authentication
       })
 
       if (response.ok) {
@@ -279,20 +270,14 @@ const Profile = () => {
 
   const handleSaveChanges = async (updatedData: any) => {
     try {
-      const token = localStorage.getItem("gitea_token")
-      if (!token) {
-        toast({ title: "Error", description: "No token found. Please re-authenticate." })
-        return
-      }
-
       // Only send the PATCH request if there are profile fields to update
       if (Object.keys(updatedData).length > 0) {
-        const patchResponse = await fetch(`${API}/profile`, {
+        const patchResponse = await fetch(`${API}/api/users/profile`, {
           method: "PATCH",
           headers: {
-            Authorization: `token ${token}`,
             "Content-Type": "application/json",
           },
+          credentials: 'include', // Include cookies for authentication
           body: JSON.stringify(updatedData),
         })
 
@@ -303,8 +288,8 @@ const Profile = () => {
       }
 
       // Always fetch the updated profile to get the latest avatar
-      const getResponse = await fetch(`${API}/profile`, {
-        headers: { Authorization: `token ${token}` },
+      const getResponse = await fetch(`${API}/api/profile`, {
+        credentials: 'include', // Include cookies for authentication
       })
 
       if (!getResponse.ok) {
@@ -451,139 +436,17 @@ const Profile = () => {
           </div>
         </div>
 
-        {/* Main Content - Activity Feed */}
-        <div className="w-full max-w-7xl mx-auto px-6 py-12">
-          <Card className="border-border/40">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <div className="p-2 rounded-lg bg-primary/10">
-                  <Activity className="h-5 w-5 text-primary" />
-                </div>
-                Recent Activity
-              </CardTitle>
-              <CardDescription>
-                {isOwnProfile ? "Your recent activities and contributions on Rastion" : `${user.login}'s recent activities and contributions on Rastion`}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ActivityFeed username={username || user.login} avatar_url={user.avatar_url} />
-            </CardContent>
-          </Card>
-        </div>
+        {/* Repositories Section */}
+        <UserRepositories
+          username={user.login}
+          isOwnProfile={isOwnProfile}
+        />
+
       </main>
 
       {/* Edit Profile Modal */}
       <EditProfileModal isOpen={isModalOpen} onClose={handleCloseModal} user={user} onSave={handleSaveChanges} />
 
-
-
-      {/* Followers Dialog */}
-      <Dialog open={showFollowersDialog} onOpenChange={setShowFollowersDialog}>
-        <DialogContent className="sm:max-w-[400px]">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Users className="h-5 w-5 text-primary" />
-              Followers
-            </DialogTitle>
-            <DialogDescription>People following {isOwnProfile ? "you" : user.login}</DialogDescription>
-          </DialogHeader>
-
-          {followersLoading ? (
-            <div className="flex items-center justify-center py-8">
-              <Loader2 className="h-6 w-6 animate-spin text-primary" />
-            </div>
-          ) : followers.length > 0 ? (
-            <ScrollArea className="h-[300px] pr-4">
-              <div className="space-y-4">
-                {followers.map((follower) => (
-                  <div
-                    key={follower.id}
-                    className="flex items-center gap-3 p-2 rounded-md hover:bg-muted/50 cursor-pointer"
-                    onClick={() => {
-                      navigate(`/u/${follower.login}`)
-                      setShowFollowersDialog(false)
-                    }}
-                  >
-                    <Avatar className="h-10 w-10 border border-border/40">
-                      <AvatarImage
-                        src={follower.avatar_url || `/placeholder.svg?height=40&width=40&query=${follower.login}`}
-                        alt={follower.login}
-                      />
-                      <AvatarFallback>{follower.login.charAt(0).toUpperCase()}</AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <p className="font-medium">{follower.full_name || follower.login}</p>
-                      <p className="text-sm text-muted-foreground">@{follower.login}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </ScrollArea>
-          ) : (
-            <div className="text-center py-8">
-              <Users className="h-12 w-12 text-muted-foreground opacity-30 mx-auto mb-2" />
-              <p className="text-muted-foreground">
-                {isOwnProfile ? "You don't have any followers yet" : `${user.login} doesn't have any followers yet`}
-              </p>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
-
-      {/* Following Dialog */}
-      <Dialog open={showFollowingDialog} onOpenChange={setShowFollowingDialog}>
-        <DialogContent className="sm:max-w-[400px]">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Users className="h-5 w-5 text-primary" />
-              Following
-            </DialogTitle>
-            <DialogDescription>People {isOwnProfile ? "you're" : `${user.login} is`} following</DialogDescription>
-          </DialogHeader>
-
-          {followingLoading ? (
-            <div className="flex items-center justify-center py-8">
-              <Loader2 className="h-6 w-6 animate-spin text-primary" />
-            </div>
-          ) : following.length > 0 ? (
-            <ScrollArea className="h-[300px] pr-4">
-              <div className="space-y-4">
-                {following.map((followedUser) => (
-                  <div
-                    key={followedUser.id}
-                    className="flex items-center gap-3 p-2 rounded-md hover:bg-muted/50 cursor-pointer"
-                    onClick={() => {
-                      navigate(`/u/${followedUser.login}`)
-                      setShowFollowingDialog(false)
-                    }}
-                  >
-                    <Avatar className="h-10 w-10 border border-border/40">
-                      <AvatarImage
-                        src={
-                          followedUser.avatar_url || `/placeholder.svg?height=40&width=40&query=${followedUser.login}`
-                        }
-                        alt={followedUser.login}
-                      />
-                      <AvatarFallback>{followedUser.login.charAt(0).toUpperCase()}</AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <p className="font-medium">{followedUser.full_name || followedUser.login}</p>
-                      <p className="text-sm text-muted-foreground">@{followedUser.login}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </ScrollArea>
-          ) : (
-            <div className="text-center py-8">
-              <Users className="h-12 w-12 text-muted-foreground opacity-30 mx-auto mb-2" />
-              <p className="text-muted-foreground">
-                {isOwnProfile ? "You're not following anyone yet" : `${user.login} isn't following anyone yet`}
-              </p>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
     </Layout>
   )
 }

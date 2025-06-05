@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useEffect, useState, useCallback } from "react"
+import { useEffect, useState, useCallback, useMemo } from "react"
 import { useNavigate } from "react-router-dom"
 import Layout from "../components/Layout"
 import { Button } from "@/components/ui/button"
@@ -31,6 +31,47 @@ import { Link } from "react-router-dom"
 
 const API = import.meta.env.VITE_API_BASE
 
+// Keyword normalization utility (matches backend logic)
+function normalizeKeyword(keyword: string): string {
+  const normalized = keyword.toLowerCase().trim()
+
+  const aliases: Record<string, string> = {
+    'ortools': 'or-tools',
+    'or_tools': 'or-tools',
+    'cvxpy': 'cvxpy',
+    'scipy': 'scipy',
+    'scikit-learn': 'sklearn',
+    'sklearn': 'scikit-learn',
+    'scikit-optimize': 'skopt',
+    'skopt': 'scikit-optimize',
+    'genetic-algorithm': 'genetic algorithm',
+    'genetic_algorithm': 'genetic algorithm',
+    'ga': 'genetic algorithm',
+    'simulated-annealing': 'simulated annealing',
+    'simulated_annealing': 'simulated annealing',
+    'sa': 'simulated annealing',
+    'particle-swarm': 'particle swarm',
+    'particle_swarm': 'particle swarm',
+    'pso': 'particle swarm',
+    'tsp': 'traveling salesman',
+    'vrp': 'vehicle routing',
+    'milp': 'mixed integer programming',
+    'ilp': 'integer programming',
+    'lp': 'linear programming',
+    'qp': 'quadratic programming',
+    'nlp': 'nonlinear programming'
+  }
+
+  return aliases[normalized] || normalized
+}
+
+interface KeywordSuggestion {
+  keyword: string
+  normalized: string
+  similarity?: number
+  type: 'exact' | 'substring' | 'fuzzy' | 'popular'
+}
+
 interface GiteaRepo {
   id: number
   name: string
@@ -43,7 +84,11 @@ interface GiteaRepo {
   description?: string
   private: boolean
   language?: string
-  matching_keywords?: string[] // Added to track keywords matched in config.json
+  matching_keywords?: Array<{
+    keyword: string
+    similarity: number
+    type: 'exact' | 'substring' | 'fuzzy'
+  }> | string[] // Support both new and legacy format
   qubot_type?: "problem" | "optimizer" // Add this line for the repository type
 }
 
@@ -115,6 +160,11 @@ export default function PublicReposPage() {
   const [selectedKeywords, setSelectedKeywords] = useState<string[]>([])
   const [selectedLanguages, setSelectedLanguages] = useState<string[]>([])
 
+  // Keyword suggestions state
+  const [keywordSuggestions, setKeywordSuggestions] = useState<KeywordSuggestion[]>([])
+  const [showSuggestions, setShowSuggestions] = useState(false)
+  const [suggestionQuery, setSuggestionQuery] = useState("")
+
   // Add a new state variable for the total count
   const [totalRepoCount, setTotalRepoCount] = useState(0)
   const [filteredCount, setFilteredCount] = useState(0)
@@ -122,33 +172,35 @@ export default function PublicReposPage() {
 
   const navigate = useNavigate()
 
-  // Define keyword categories
+  // Define keyword categories with standardized keywords
   const keywordCategories: KeywordCategory[] = [
     {
       name: "Libraries",
       icon: <Library className="h-4 w-4" />,
       color: "from-blue-500 to-blue-600",
       keywords: [
-        "PuLP",
-        "CVXPY",
-        "SciPy",
-        "Pyomo",
-        "OR-Tools",
-        "Gurobi",
-        "CPLEX",
-        "MOSEK",
-        "Optuna",
-        "Hyperopt",
-        "DEAP",
-        "PyGAD",
-        "Platypus",
-        "PySwarms",
-        "Scikit-Optimize",
-        "Pymoo",
-        "Simanneal",
-        "Inspyred",
-        "Nevergrad",
-        "Ax",
+        "qubots",
+        "or-tools",
+        "cvxpy",
+        "scipy",
+        "pyomo",
+        "gurobi",
+        "cplex",
+        "mosek",
+        "optuna",
+        "hyperopt",
+        "deap",
+        "pygad",
+        "platypus",
+        "pyswarms",
+        "scikit-optimize",
+        "pymoo",
+        "simanneal",
+        "inspyred",
+        "nevergrad",
+        "ax",
+        "numpy",
+        "pandas"
       ],
     },
     {
@@ -242,9 +294,9 @@ export default function PublicReposPage() {
     }
 
     // Log the API request URL for debugging
-    console.log(`Fetching repositories: ${API}/public-repos?${queryParams.toString()}`)
+    console.log(`Fetching repositories: ${API}/api/public-repos?${queryParams.toString()}`)
 
-    fetch(`${API}/public-repos?${queryParams.toString()}`)
+    fetch(`${API}/api/public-repos?${queryParams.toString()}`)
       .then((res) => {
         if (!res.ok) {
           return res.json().then((data) => {
@@ -287,7 +339,7 @@ export default function PublicReposPage() {
   // Fetch total count on mount
   useEffect(() => {
     // Fetch the total count of repositories
-    fetch(`${API}/public-repos/count`)
+    fetch(`${API}/api/public-repos/count`)
       .then((res) => {
         if (!res.ok) {
           throw new Error("Failed to fetch repository count")
@@ -334,7 +386,19 @@ export default function PublicReposPage() {
 
   const toggleKeyword = (kw: string) => {
     setSelectedKeywords((prev) => {
-      const newKeywords = prev.includes(kw) ? prev.filter((k) => k !== kw) : [...prev, kw]
+      // Normalize the keyword before adding/removing
+      const normalizedKeyword = normalizeKeyword(kw)
+      const isSelected = prev.some(k => normalizeKeyword(k) === normalizedKeyword)
+
+      let newKeywords: string[]
+      if (isSelected) {
+        // Remove keyword (find by normalized version)
+        newKeywords = prev.filter(k => normalizeKeyword(k) !== normalizedKeyword)
+      } else {
+        // Add the original keyword (not normalized) for display purposes
+        newKeywords = [...prev, kw]
+      }
+
       // Force a refresh after state update
       setTimeout(() => setRefreshTrigger((prev) => prev + 1), 0)
       return newKeywords
@@ -507,7 +571,7 @@ export default function PublicReposPage() {
                   style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}
                 >
 
-                  {totalRepoCount.toLocaleString()} public optimization tools
+                  Total optimization tools: {totalRepoCount.toLocaleString()}
                 </Badge>
               )}
             </div>
@@ -556,24 +620,30 @@ ${
                     Keywords
                   </div>
                   <div className="flex flex-wrap gap-2 max-h-[calc(100vh-400px)] overflow-y-auto pr-2">
-                    {getActiveCategoryData().keywords.map((keyword) => (
-                      <div
-                        key={keyword}
-                        onClick={() => toggleKeyword(keyword)}
-                        className={`
+                    {getActiveCategoryData().keywords.map((keyword) => {
+                      // Check if this keyword is selected (using normalization)
+                      const normalizedKeyword = normalizeKeyword(keyword)
+                      const isSelected = selectedKeywords.some(k => normalizeKeyword(k) === normalizedKeyword)
+
+                      return (
+                        <div
+                          key={keyword}
+                          onClick={() => toggleKeyword(keyword)}
+                          className={`
 flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm cursor-pointer transition-all duration-200 font-medium
 ${
-  selectedKeywords.includes(keyword)
+  isSelected
     ? `bg-primary text-primary-foreground shadow-sm hover:bg-primary/90`
     : "bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground border border-border/50 hover:border-border"
 }
 `}
-                        style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}
-                      >
-                        <span className="truncate">{keyword}</span>
-                        {selectedKeywords.includes(keyword) && <X className="h-3.5 w-3.5 ml-0.5 flex-shrink-0" />}
-                      </div>
-                    ))}
+                          style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}
+                        >
+                          <span className="truncate">{keyword}</span>
+                          {isSelected && <X className="h-3.5 w-3.5 ml-0.5 flex-shrink-0" />}
+                        </div>
+                      )
+                    })}
                   </div>
                 </div>
 
@@ -744,15 +814,32 @@ ${
                                   <span>Matched keywords in qubot card:</span>
                                 </div>
                                 <div className="flex flex-wrap gap-1">
-                                  {repo.matching_keywords.map((kw) => (
-                                    <Badge
-                                      key={kw}
-                                      variant="outline"
-                                      className="text-xs bg-primary/10 border-primary/20 hover:bg-primary/20 transition-colors"
-                                    >
-                                      {kw}
-                                    </Badge>
-                                  ))}
+                                  {repo.matching_keywords.map((kw, index) => {
+                                    // Handle both new format (object) and legacy format (string)
+                                    const keyword = typeof kw === 'string' ? kw : kw.keyword
+                                    const similarity = typeof kw === 'object' ? kw.similarity : undefined
+                                    const matchType = typeof kw === 'object' ? kw.type : 'exact'
+
+                                    return (
+                                      <Badge
+                                        key={`${keyword}-${index}`}
+                                        variant="outline"
+                                        className={`text-xs border-primary/20 hover:bg-primary/20 transition-colors ${
+                                          matchType === 'exact' ? 'bg-primary/10' :
+                                          matchType === 'substring' ? 'bg-blue/10' :
+                                          'bg-orange/10'
+                                        }`}
+                                        title={similarity ? `${Math.round(similarity * 100)}% match (${matchType})` : undefined}
+                                      >
+                                        {keyword}
+                                        {matchType !== 'exact' && (
+                                          <span className="ml-1 text-xs opacity-70">
+                                            {matchType === 'fuzzy' ? '~' : '⊃'}
+                                          </span>
+                                        )}
+                                      </Badge>
+                                    )
+                                  })}
                                 </div>
                               </div>
                             )}
@@ -845,10 +932,10 @@ ${
                                     {repo.qubot_type && (
                                       <Badge
                                         variant="outline"
-                                        className={`text-xs px-2 h-6 ml-2 ${
+                                        className={`text-xs px-2 h-6 ml-2 border-none text-white ${
                                           repo.qubot_type === "problem"
-                                            ? "bg-yellow-100 text-yellow-800 border-yellow-300 dark:bg-yellow-900/30 dark:text-yellow-300 dark:border-yellow-800"
-                                            : "bg-blue-100 text-blue-800 border-blue-300 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800"
+                                            ? "bg-gradient-to-r from-blue-500 to-cyan-500"
+                                            : "bg-gradient-to-r from-orange-500 to-red-500"
                                         }`}
                                       >
                                         {repo.qubot_type === "problem" ? (
@@ -869,15 +956,32 @@ ${
                                         <span>Matched keywords in config.json:</span>
                                       </div>
                                       <div className="flex flex-wrap gap-1">
-                                        {repo.matching_keywords.map((kw) => (
-                                          <Badge
-                                            key={kw}
-                                            variant="outline"
-                                            className="text-xs bg-primary/10 border-primary/20"
-                                          >
-                                            {kw}
-                                          </Badge>
-                                        ))}
+                                        {repo.matching_keywords.map((kw, index) => {
+                                          // Handle both new format (object) and legacy format (string)
+                                          const keyword = typeof kw === 'string' ? kw : kw.keyword
+                                          const similarity = typeof kw === 'object' ? kw.similarity : undefined
+                                          const matchType = typeof kw === 'object' ? kw.type : 'exact'
+
+                                          return (
+                                            <Badge
+                                              key={`${keyword}-${index}`}
+                                              variant="outline"
+                                              className={`text-xs border-primary/20 ${
+                                                matchType === 'exact' ? 'bg-primary/10' :
+                                                matchType === 'substring' ? 'bg-blue/10' :
+                                                'bg-orange/10'
+                                              }`}
+                                              title={similarity ? `${Math.round(similarity * 100)}% match (${matchType})` : undefined}
+                                            >
+                                              {keyword}
+                                              {matchType !== 'exact' && (
+                                                <span className="ml-1 text-xs opacity-70">
+                                                  {matchType === 'fuzzy' ? '~' : '⊃'}
+                                                </span>
+                                              )}
+                                            </Badge>
+                                          )
+                                        })}
                                       </div>
                                     </div>
                                   )}

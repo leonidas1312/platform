@@ -1,6 +1,7 @@
 const express = require("express")
 const http = require("http")
 const WebSocket = require("ws")
+const cookieParser = require("cookie-parser")
 require("dotenv").config()
 
 // Import configuration
@@ -9,6 +10,7 @@ const sessionConfig = require("./config/session")
 
 // Import middleware
 const errorHandler = require("./middleware/errorHandler")
+const { restoreSessionFromCookie } = require("./middleware/auth")
 
 // Import routes
 const apiRoutes = require("./routes")
@@ -39,11 +41,15 @@ wss.on('connection', (ws, request) => {
 // Basic middleware
 app.use(express.json({ limit: "50mb" }))
 app.use(express.urlencoded({ limit: "50mb", extended: true }))
+app.use(cookieParser())
 app.set("trust proxy", 1)
 
 // Configuration middleware
 app.use(corsConfig)
 app.use(sessionConfig)
+
+// Session restoration middleware (must be after session config)
+app.use(restoreSessionFromCookie)
 
 // API routes
 app.use("/api", apiRoutes)

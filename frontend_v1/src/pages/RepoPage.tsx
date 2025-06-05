@@ -30,8 +30,7 @@ import { FileText } from "lucide-react"
 
 const API = import.meta.env.VITE_API_BASE
 
-// For demo purposes, we retrieve the user token from localStorage.
-const getUserToken = () => localStorage.getItem("gitea_token") || ""
+// Authentication is now handled via HTTP-only cookies
 
 interface GiteaRepo {
   id: number
@@ -236,12 +235,8 @@ export default function RepoPage() {
       setActiveTab("files")
     }
 
-    const token = getUserToken()
-
-    fetch(`${API}/repos/${owner}/${repoName}`, {
-      headers: {
-        ...(token && { Authorization: `token ${token}` }),
-      },
+    fetch(`${API}/api/repos/${owner}/${repoName}`, {
+      credentials: 'include', // Include cookies for authentication
     })
       .then((res) => {
         if (!res.ok) {
@@ -334,7 +329,7 @@ export default function RepoPage() {
 
   const reloadRepoData = async () => {
     if (!owner || !repoName) return
-    const res = await fetch(`${API}/repos/${owner}/${repoName}`)
+    const res = await fetch(`${API}/api/repos/${owner}/${repoName}`)
     const data = await res.json()
     setRepo(data.repo)
     setReadme(data.readme)
@@ -347,16 +342,16 @@ export default function RepoPage() {
       setSetupComplete(true)
     }
 
-    const token = getUserToken()
-    if (token !== "") {
-      const resStar = await fetch(`${API}/hasStar/${owner}/${repoName}`, {
-        headers: {
-          Authorization: `token ${token}`,
-        },
+    // Check if user has starred the repo
+    try {
+      const resStar = await fetch(`${API}/api/hasStar/${owner}/${repoName}`, {
+        credentials: 'include', // Include cookies for authentication
       })
       const starJson = await resStar.json()
       console.log("starjson:", starJson)
       setHasRepoStarred(starJson.starred)
+    } catch (error) {
+      console.error("Error checking star status:", error)
     }
   }
 
@@ -370,10 +365,8 @@ export default function RepoPage() {
     console.log(`Loading file content: ${filePath} from branch: ${branch}`)
     setEditorLoading(true)
     try {
-      const fileRes = await fetch(`${API}/repos/${owner}/${repoName}/contents/${filePath}?ref=${branch}`, {
-        headers: {
-          Authorization: `token ${getUserToken()}`,
-        },
+      const fileRes = await fetch(`${API}/api/repos/${owner}/${repoName}/contents/${filePath}?ref=${branch}`, {
+        credentials: 'include', // Include cookies for authentication
       })
 
       if (fileRes.ok) {
@@ -418,11 +411,9 @@ export default function RepoPage() {
     console.log("test")
     if (!owner || !repoName) return
     try {
-      const starRes = await fetch(`${API}/toggleStar/${owner}/${repoName}`, {
+      const starRes = await fetch(`${API}/api/toggleStar/${owner}/${repoName}`, {
         method: "POST",
-        headers: {
-          Authorization: `token ${getUserToken()}`,
-        },
+        credentials: 'include', // Include cookies for authentication
       })
       if (starRes.ok) {
         reloadRepoData()
@@ -444,15 +435,13 @@ export default function RepoPage() {
     if (!owner || !repoName || !repo) return
     setLoading(true)
     try {
-      const token = getUserToken()
-
       // Save config.json
       const configResponse = await fetch(`${API}/repos/${owner}/${repoName}/contents/config.json`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `token ${token}`,
         },
+        credentials: 'include', // Include cookies for authentication
         body: JSON.stringify({
           content: JSON.stringify(formData, null, 2),
           message: "Create/update config.json (Qubot card)",
@@ -506,18 +495,26 @@ export default function RepoPage() {
       const newPath = currentPath ? `${currentPath}/${file.name}` : file.name
       console.log("Navigating to directory:", newPath)
 
-      // Set the current path before navigation
-      setCurrentPath(newPath)
-
       // Immediately load the directory contents
       const branch = currentBranch || repo?.default_branch || "main"
-      const apiUrl = `${API}/repos/${owner}/${repoName}/contents/${newPath}?ref=${branch}`
+      const apiUrl = `${API}/api/repos/${owner}/${repoName}/contents/${newPath}?ref=${branch}`
       setLoading(true)
 
-      fetch(apiUrl)
-        .then((res) => {
+      fetch(apiUrl, {
+        credentials: 'include', // Include cookies for authentication
+      })
+        .then(async (res) => {
           if (!res.ok) {
-            throw new Error("Failed to fetch directory contents")
+            // Try to get error message from response
+            let errorMessage = "Failed to fetch directory contents"
+            try {
+              const errorData = await res.json()
+              errorMessage = errorData.message || errorMessage
+            } catch (e) {
+              // If response is not JSON, use status text
+              errorMessage = `${res.status}: ${res.statusText}`
+            }
+            throw new Error(errorMessage)
           }
           return res.json()
         })
@@ -527,6 +524,9 @@ export default function RepoPage() {
           const filesWithCommits = await fetchFileCommits(data, branch)
           setFiles(filesWithCommits)
           setLoading(false)
+
+          // Update the current path after successful load
+          setCurrentPath(newPath)
 
           // Then navigate to the directory URL
           navigate(`/${owner}/${repoName}/src/branch/${branch}/${newPath}`)
@@ -571,12 +571,9 @@ export default function RepoPage() {
 
     setIsDeletingRepo(true)
     try {
-      const token = getUserToken()
-      const response = await fetch(`${API}/repos/${owner}/${repoName}`, {
+      const response = await fetch(`${API}/api/repos/${owner}/${repoName}`, {
         method: "DELETE",
-        headers: {
-          Authorization: `token ${token}`,
-        },
+        credentials: 'include', // Include cookies for authentication
       })
 
       if (!response.ok) {
@@ -628,7 +625,6 @@ export default function RepoPage() {
     if (!pythonFileToUpload || !owner || !repoName) return
 
     try {
-      const token = getUserToken()
       const branch = currentBranch || repo?.default_branch || "main"
 
       // Read the file content
@@ -650,8 +646,8 @@ export default function RepoPage() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `token ${token}`,
         },
+        credentials: 'include', // Include cookies for authentication
         body: JSON.stringify({
           content: fileContent,
           message: `Add ${pythonFileToUpload.name}`,
@@ -690,7 +686,6 @@ export default function RepoPage() {
 
     try {
       setLoading(true)
-      const token = getUserToken()
 
       // Create a config object with the proper structure
       const configData = {
@@ -715,8 +710,8 @@ export default function RepoPage() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `token ${token}`,
         },
+        credentials: 'include', // Include cookies for authentication
         body: JSON.stringify({
           content: formattedJson,
           message: "Update config.json with qubot setup",
@@ -805,8 +800,6 @@ export default function RepoPage() {
     if (!owner || !repoName) return
 
     try {
-      const token = getUserToken()
-
       // Read the file using a Promise
       const fileText = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader()
@@ -825,12 +818,12 @@ export default function RepoPage() {
       const filePath = currentPath ? `${currentPath}/${file.name}` : file.name
 
       // Call your server's API to create/update the file using a PUT request
-      const response = await fetch(`${API}/repos/${owner}/${repoName}/contents/${filePath}`, {
+      const response = await fetch(`${API}/api/repo-files/${owner}/${repoName}/contents/${filePath}`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `token ${token}`,
         },
+        credentials: 'include', // Include cookies for authentication
         body: JSON.stringify({
           content: fileText,
           message: commitMessage || `Add ${file.name}`,
@@ -846,8 +839,8 @@ export default function RepoPage() {
       // Reload the current directory to show the new file
       if (currentPath) {
         const dirResponse = await fetch(
-          `${API}/repos/${owner}/${repoName}/contents/${currentPath}?ref=${branch || currentBranch || repo?.default_branch || "main"}`,
-          { headers: { Authorization: `token ${token}` } },
+          `${API}/api/repos/${owner}/${repoName}/contents/${currentPath}?ref=${branch || currentBranch || repo?.default_branch || "main"}`,
+          { credentials: 'include' }, // Include cookies for authentication
         )
         if (dirResponse.ok) {
           const dirData = await dirResponse.json()
@@ -869,6 +862,96 @@ export default function RepoPage() {
       toast({
         title: "Error",
         description: error.message || "Failed to upload file",
+        variant: "destructive",
+      })
+      throw error
+    }
+  }
+
+  // Handle folder upload
+  const handleFolderUpload = async (files: FileList, commitMessage: string, branch?: string) => {
+    if (!owner || !repoName) return
+
+    try {
+      const uploadBranch = branch || currentBranch || repo?.default_branch || "main"
+      const filesToUpload: Array<{ path: string; content: string }> = []
+
+      // Process all files in the folder
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i]
+
+        // Read file content
+        const fileText = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader()
+          reader.onload = () => {
+            if (reader.result !== null) {
+              resolve(reader.result as string)
+            } else {
+              reject(new Error("FileReader result is null"))
+            }
+          }
+          reader.onerror = () => reject(reader.error)
+          reader.readAsText(file)
+        })
+
+        // Determine the file path using currentPath and webkitRelativePath
+        const relativePath = file.webkitRelativePath
+        const filePath = currentPath ? `${currentPath}/${relativePath}` : relativePath
+
+        filesToUpload.push({
+          path: filePath,
+          content: fileText
+        })
+      }
+
+      // Use bulk upload API endpoint
+      const response = await fetch(`${API}/api/repo-files/${owner}/${repoName}/contents`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          files: filesToUpload.map(file => ({
+            path: file.path,
+            content: file.content
+          })),
+          message: commitMessage,
+          branch: uploadBranch,
+        }),
+      })
+
+      if (!response.ok) {
+        const errData = await response.json()
+        throw new Error(errData.message || "Failed to upload folder")
+      }
+
+      // Reload the current directory to show the new files
+      if (currentPath) {
+        const dirResponse = await fetch(
+          `${API}/api/repos/${owner}/${repoName}/contents/${currentPath}?ref=${uploadBranch}`,
+          { credentials: 'include' }
+        )
+        if (dirResponse.ok) {
+          const dirData = await dirResponse.json()
+          setFiles(enhanceFilesWithCommitData(dirData))
+        }
+      } else {
+        await reloadRepoData()
+      }
+
+      toast({
+        title: "Success",
+        description: `Folder uploaded successfully! ${filesToUpload.length} files added.`,
+      })
+
+      // Close the file upload dialog
+      setShowFileUploadDialog(false)
+    } catch (error: any) {
+      console.error("Error uploading folder:", error)
+      toast({
+        title: "Error",
+        description: error.message || "Failed to upload folder",
         variant: "destructive",
       })
       throw error
@@ -921,21 +1004,34 @@ export default function RepoPage() {
 
     // Immediately load the parent directory contents
     const apiUrl = parentPath
-      ? `${API}/repos/${owner}/${repoName}/contents/${parentPath}?ref=${branch}`
-      : `${API}/repos/${owner}/${repoName}`
+      ? `${API}/api/repos/${owner}/${repoName}/contents/${parentPath}?ref=${branch}`
+      : `${API}/api/repos/${owner}/${repoName}/contents?ref=${branch}`
 
     setLoading(true)
 
-    fetch(apiUrl)
-      .then((res) => {
+    fetch(apiUrl, {
+      credentials: 'include', // Include cookies for authentication
+    })
+      .then(async (res) => {
         if (!res.ok) {
-          throw new Error("Failed to fetch directory contents")
+          // Try to get error message from response
+          let errorMessage = "Failed to fetch directory contents"
+          try {
+            const errorData = await res.json()
+            errorMessage = errorData.message || errorMessage
+          } catch (e) {
+            // If response is not JSON, use status text
+            errorMessage = `${res.status}: ${res.statusText}`
+          }
+          throw new Error(errorMessage)
         }
         return res.json()
       })
-      .then((data) => {
+      .then(async (data) => {
         console.log("Parent directory contents loaded:", data.length, "files")
-        setFiles(enhanceFilesWithCommitData(data.files))
+        // Fetch commit information for each file
+        const filesWithCommits = await fetchFileCommits(data, branch)
+        setFiles(filesWithCommits)
         setLoading(false)
 
         // Navigate to the parent directory
@@ -966,7 +1062,6 @@ export default function RepoPage() {
     if (!owner || !repoName || files.length === 0) return files
 
     try {
-      const token = getUserToken()
       const enhancedFiles = [...files]
 
       // For each file, fetch its latest commit
@@ -975,9 +1070,9 @@ export default function RepoPage() {
         const filePath = currentPath ? `${currentPath}/${file.name}` : file.name
 
         const commitResponse = await fetch(
-          `${API}/repos/${owner}/${repoName}/commits?path=${encodeURIComponent(filePath)}&limit=1&ref=${branch}`,
+          `${API}/api/repos/${owner}/${repoName}/commits?path=${encodeURIComponent(filePath)}&limit=1&ref=${branch}`,
           {
-            headers: token ? { Authorization: `token ${token}` } : {},
+            credentials: 'include', // Include cookies for authentication
           },
         )
 
@@ -1029,12 +1124,11 @@ export default function RepoPage() {
   // Function to load all files in the repository for the file search dialog
   const loadAllFiles = async (repoOwner: string, repoName: string, defaultBranch: string) => {
     try {
-      const token = getUserToken()
       // Instead of using a non-existent endpoint, we'll recursively fetch all files
       // starting from the root directory
       const fetchFilesRecursively = async (path = ""): Promise<any[]> => {
-        const response = await fetch(`${API}/repos/${repoOwner}/${repoName}/contents/${path}?ref=${defaultBranch}`, {
-          headers: token ? { Authorization: `token ${token}` } : {},
+        const response = await fetch(`${API}/api/repos/${repoOwner}/${repoName}/contents/${path}?ref=${defaultBranch}`, {
+          credentials: 'include', // Include cookies for authentication
         })
 
         if (!response.ok) {
@@ -1076,7 +1170,7 @@ export default function RepoPage() {
     if (!owner || !repoName) return
 
     try {
-      const response = await fetch(`${API}/repos/${owner}/${repoName}/connections`)
+      const response = await fetch(`${API}/api/repos/${owner}/${repoName}/connections`)
 
       if (response.ok) {
         const data = await response.json()
@@ -1164,7 +1258,7 @@ export default function RepoPage() {
           <div className="border-b border-border">
             <nav className="flex space-x-8">
               <button
-                onClick={() => setActiveTab("overview")}
+                onClick={() => handleTabChange("overview")}
                 className={`py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
                   activeTab === "overview"
                     ? "border-primary text-primary"
@@ -1174,7 +1268,7 @@ export default function RepoPage() {
                 Overview
               </button>
               <button
-                onClick={() => setActiveTab("files")}
+                onClick={() => handleTabChange("files")}
                 className={`py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
                   activeTab === "files"
                     ? "border-primary text-primary"
@@ -1289,7 +1383,13 @@ export default function RepoPage() {
                         fileName={selectedFile.split("/").pop() || ""}
                         content={fileContent}
                         isLoading={editorLoading}
+                        isEditing={false}
+                        onEdit={() => {}}
+                        onSave={() => {}}
+                        onCancel={() => {}}
+                        onChange={() => {}}
                         onBack={handleBackToFiles}
+                        onDelete={() => {}}
                         className="w-full h-full"
                       />
                     </div>
@@ -1306,6 +1406,7 @@ export default function RepoPage() {
         isOpen={showFileUploadDialog}
         onClose={() => setShowFileUploadDialog(false)}
         onUpload={handleFileUpload}
+        onFolderUpload={handleFolderUpload}
         currentPath={currentPath}
         defaultBranch={currentBranch || repo.default_branch || "main"}
         branches={branches}

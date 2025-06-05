@@ -91,35 +91,29 @@ export default function BenchmarkDetailsPage() {
   const [participateNotebookFile, setParticipateNotebookFile] = useState<File | null>(null)
   const [selectedRepoPath, setSelectedRepoPath] = useState("")
 
-  // Check authentication status
+  // Check authentication status and fetch user repositories
   useEffect(() => {
-    const token = localStorage.getItem("gitea_token")
-    setIsAuthenticated(!!token)
+    const fetchUserRepos = async () => {
+      try {
+        const response = await fetch(`${API}/api/user-repos`, {
+          credentials: 'include', // Include cookies for authentication
+        })
 
-    if (token) {
-      fetchUserRepos(token)
-    }
-  }, [])
-
-  // Fetch user repositories
-  const fetchUserRepos = async (token: string) => {
-    try {
-      const response = await fetch(`${API}/user-repos`, {
-        headers: {
-          Authorization: `token ${token}`,
-        },
-      })
-
-      if (response.ok) {
-        const repos = await response.json()
-        setUserRepos(repos)
-      } else {
-        console.error("Failed to fetch user repositories:", response.status, response.statusText)
+        if (response.ok) {
+          const repos = await response.json()
+          setUserRepos(repos)
+          setIsAuthenticated(true)
+        } else {
+          setIsAuthenticated(false)
+        }
+      } catch (error) {
+        console.error("Error fetching user repositories:", error)
+        setIsAuthenticated(false)
       }
-    } catch (error) {
-      console.error("Error fetching user repositories:", error)
     }
-  }
+
+    fetchUserRepos()
+  }, [])
 
   // Fetch benchmark details
   useEffect(() => {
@@ -128,14 +122,9 @@ export default function BenchmarkDetailsPage() {
       setError("")
 
       try {
-        const token = localStorage.getItem("gitea_token")
-        const headers: HeadersInit = {}
-
-        if (token) {
-          headers.Authorization = `token ${token}`
-        }
-
-        const response = await fetch(`${API}/benchmarks/${id}`, { headers })
+        const response = await fetch(`${API}/api/benchmarks/${id}`, {
+          credentials: 'include' // Include cookies for authentication
+        })
 
         if (!response.ok) {
           throw new Error("Failed to fetch benchmark details")
@@ -145,7 +134,9 @@ export default function BenchmarkDetailsPage() {
         setBenchmark(data)
 
         // Fetch results
-        const resultsResponse = await fetch(`${API}/benchmarks/${id}/results`, { headers })
+        const resultsResponse = await fetch(`${API}/api/benchmarks/${id}/results`, {
+          credentials: 'include' // Include cookies for authentication
+        })
 
         if (!resultsResponse.ok) {
           throw new Error("Failed to fetch benchmark results")
@@ -178,15 +169,8 @@ export default function BenchmarkDetailsPage() {
     if (!benchmark) return
 
     try {
-      const token = localStorage.getItem("gitea_token")
-      const headers: HeadersInit = {}
-
-      if (token) {
-        headers.Authorization = `token ${token}`
-      }
-
-      const response = await fetch(`${API}/benchmarks/${benchmark.id}/notebook`, {
-        headers,
+      const response = await fetch(`${API}/api/benchmarks/${benchmark.id}/notebook`, {
+        credentials: 'include', // Include cookies for authentication
       })
 
       if (!response.ok) {
@@ -222,7 +206,7 @@ export default function BenchmarkDetailsPage() {
         headers.Authorization = `token ${token}`
       }
 
-      const response = await fetch(`${API}/benchmark-results/${resultId}/notebook`, {
+      const response = await fetch(`${API}/api/benchmark-results/${resultId}/notebook`, {
         headers,
       })
 
@@ -261,7 +245,7 @@ export default function BenchmarkDetailsPage() {
         headers.Authorization = `token ${token}`
       }
 
-      const response = await fetch(`${API}/benchmarks/${benchmark.id}/notebook/colab`, {
+      const response = await fetch(`${API}/api/benchmarks/${benchmark.id}/notebook/colab`, {
         headers,
       })
 
@@ -300,7 +284,7 @@ export default function BenchmarkDetailsPage() {
         headers.Authorization = `token ${token}`
       }
 
-      const response = await fetch(`${API}/benchmark-results/${resultId}/notebook/colab`, {
+      const response = await fetch(`${API}/api/benchmark-results/${resultId}/notebook/colab`, {
         headers,
       })
 
@@ -371,7 +355,7 @@ export default function BenchmarkDetailsPage() {
       }
 
       // Submit the participation
-      const response = await fetch(`${API}/benchmarks/${id}/results`, {
+      const response = await fetch(`${API}/api/benchmarks/${id}/results`, {
         method: "POST",
         headers: {
           Authorization: `token ${token}`,
@@ -393,7 +377,7 @@ export default function BenchmarkDetailsPage() {
       setShowParticipateDialog(false)
 
       // Refresh results
-      const resultsResponse = await fetch(`${API}/benchmarks/${id}/results`, {
+      const resultsResponse = await fetch(`${API}/api/benchmarks/${id}/results`, {
         headers: { Authorization: `token ${token}` },
       })
 
@@ -471,7 +455,6 @@ export default function BenchmarkDetailsPage() {
             <div className="flex justify-between items-start">
               <div>
                 <h1 className="text-3xl font-bold tracking-tight mb-2">{benchmark.title}</h1>
-                <p className="text-muted-foreground max-w-3xl">{benchmark.description}</p>
 
                 <div className="flex items-center gap-3 mt-4 text-sm">
                   <div className="flex items-center gap-1.5">

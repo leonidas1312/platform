@@ -96,19 +96,13 @@ export default function EditProfileModal({ isOpen, onClose, user, onSave }: Edit
           // Convert file to base64
           const base64Image = await fileToBase64(selectedAvatarFile)
 
-          // Get token
-          const token = localStorage.getItem("gitea_token")
-          if (!token) {
-            throw new Error("Authentication required")
-          }
-
           // Make API call to update avatar
-          const response = await fetch(`${API}/update-avatar`, {
+          const response = await fetch(`${API}/api/users/update-avatar`, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
-              Authorization: `token ${token}`,
             },
+            credentials: 'include', // Use session-based authentication
             body: JSON.stringify({
               image: base64Image.split(",")[1], // Remove data URL prefix
             }),

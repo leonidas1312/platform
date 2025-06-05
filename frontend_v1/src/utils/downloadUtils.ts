@@ -26,7 +26,7 @@ export const downloadRepoFile = async (
     }
 
     const response = await fetch(
-      `${API}/repos/${owner}/${repoName}/contents/${filePath}?ref=${branch}`,
+      `${API}/api/repos/${owner}/${repoName}/contents/${filePath}?ref=${branch}`,
       { headers }
     )
 
@@ -35,24 +35,24 @@ export const downloadRepoFile = async (
     }
 
     const fileData = await response.json()
-    
+
     // Decode base64 content
     const content = atob(fileData.content)
-    
+
     // Create blob and download
     const blob = new Blob([content], { type: 'application/octet-stream' })
     const url = URL.createObjectURL(blob)
-    
+
     const a = document.createElement('a')
     a.href = url
     a.download = filePath.split('/').pop() || 'file'
     document.body.appendChild(a)
     a.click()
-    
+
     // Clean up
     URL.revokeObjectURL(url)
     document.body.removeChild(a)
-    
+
     return true
   } catch (error) {
     console.error('Error downloading file:', error)
@@ -81,7 +81,7 @@ export const downloadAllNotebooks = async (
 
     // Get repository contents recursively
     const notebooks = await findNotebooksInRepo(owner, repoName, '', branch, token)
-    
+
     if (notebooks.length === 0) {
       throw new Error('No Jupyter notebooks found in this repository')
     }
@@ -93,7 +93,7 @@ export const downloadAllNotebooks = async (
 
     const results = await Promise.allSettled(downloadPromises)
     const successful = results.filter(result => result.status === 'fulfilled').length
-    
+
     return {
       total: notebooks.length,
       successful,
@@ -126,9 +126,9 @@ const findNotebooksInRepo = async (
       headers.Authorization = `token ${token}`
     }
 
-    const url = path 
-      ? `${API}/repos/${owner}/${repoName}/contents/${path}?ref=${branch}`
-      : `${API}/repos/${owner}/${repoName}/contents?ref=${branch}`
+    const url = path
+      ? `${API}/api/repos/${owner}/${repoName}/contents/${path}?ref=${branch}`
+      : `${API}/api/repos/${owner}/${repoName}/contents?ref=${branch}`
 
     const response = await fetch(url, { headers })
 
@@ -186,7 +186,7 @@ export const downloadRepoAsZip = async (
 
     // Use Gitea's archive endpoint
     const response = await fetch(
-      `${API}/repos/${owner}/${repoName}/archive/${branch}.zip`,
+      `${API}/api/repos/${owner}/${repoName}/archive/${branch}.zip`,
       { headers }
     )
 
@@ -196,17 +196,17 @@ export const downloadRepoAsZip = async (
 
     const blob = await response.blob()
     const url = URL.createObjectURL(blob)
-    
+
     const a = document.createElement('a')
     a.href = url
     a.download = `${repoName}-${branch}.zip`
     document.body.appendChild(a)
     a.click()
-    
+
     // Clean up
     URL.revokeObjectURL(url)
     document.body.removeChild(a)
-    
+
     return true
   } catch (error) {
     console.error('Error downloading repository:', error)

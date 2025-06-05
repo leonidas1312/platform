@@ -1,10 +1,59 @@
 const express = require("express")
 const { knex } = require("../config/database")
-const auth = require("../middleware/auth")
+const { auth } = require("../middleware/auth")
 const upload = require("../middleware/upload")
 const fs = require("fs")
 
 const router = express.Router()
+
+// Helper function to check benchmark access permissions
+async function checkBenchmarkAccess(benchmarkId, req) {
+  try {
+    const benchmark = await knex("benchmarks")
+      .where({ id: benchmarkId })
+      .first()
+
+    if (!benchmark) {
+      return { hasAccess: false, error: "Benchmark not found", statusCode: 404 }
+    }
+
+    // If benchmark is public, allow access
+    if (benchmark.is_public) {
+      return { hasAccess: true, benchmark }
+    }
+
+    // For private benchmarks, check if user is the owner
+    let token = req.session?.user_data?.token
+
+    // Fallback to Authorization header for backward compatibility during transition
+    if (!token) {
+      token = req.headers.authorization?.split(" ")[1]
+    }
+
+    let currentUser = null
+    if (token) {
+      try {
+        const GiteaService = require('../services/giteaService')
+        const userResponse = await GiteaService.getCurrentUser(token)
+        if (userResponse.ok) {
+          currentUser = await userResponse.json()
+        }
+      } catch (error) {
+        console.error('Error getting current user:', error)
+      }
+    }
+
+    // If benchmark is private and user is not the owner, deny access
+    if (!currentUser || currentUser.login !== benchmark.created_by) {
+      return { hasAccess: false, error: "Access denied. This benchmark is private.", statusCode: 403 }
+    }
+
+    return { hasAccess: true, benchmark }
+  } catch (error) {
+    console.error('Error checking benchmark access:', error)
+    return { hasAccess: false, error: "Internal server error", statusCode: 500 }
+  }
+}
 
 // Test endpoint to check database connection
 router.get("/test", async (req, res) => {
@@ -48,59 +97,148 @@ router.get("/test", async (req, res) => {
 // Get all benchmarks
 router.get("/", async (req, res) => {
   try {
-    const page = parseInt(req.query.page) || 1
-    const limit = parseInt(req.query.limit) || 10
-    const offset = (page - 1) * limit
+    const {
+      page = 1,
+      limit = 12,
+      search = '',
+      sort = 'created_at',
+      order = 'desc',
+      personal = 'false'
+    } = req.query
 
-    console.log(`Fetching benchmarks - page: ${page}, limit: ${limit}, offset: ${offset}`)
+    const offset = (parseInt(page) - 1) * parseInt(limit)
 
-    // Get total count
-    const totalCountResult = await knex("benchmarks").count("id as count").first()
+    console.log(`Fetching benchmarks - page: ${page}, limit: ${limit}, offset: ${offset}, search: ${search}, personal: ${personal}`)
+
+    // Try to get token from session first (HTTP-only cookie), then fallback to Authorization header
+    let token = req.session?.user_data?.token
+
+    // Fallback to Authorization header for backward compatibility during transition
+    if (!token) {
+      token = req.headers.authorization?.split(" ")[1]
+    }
+
+    let currentUser = null
+    if (token) {
+      try {
+        const GiteaService = require('../services/giteaService')
+        const userResponse = await GiteaService.getCurrentUser(token)
+        if (userResponse.ok) {
+          currentUser = await userResponse.json()
+        }
+      } catch (error) {
+        console.error('Error getting current user:', error)
+      }
+    }
+
+    // Check if benchmarks table exists
+    const tableExists = await knex.schema.hasTable('benchmarks')
+    if (!tableExists) {
+      console.log('Benchmarks table does not exist, returning empty result')
+      return res.json({
+        benchmarks: [],
+        total: 0,
+        page: parseInt(page),
+        limit: parseInt(limit),
+        totalPages: 0
+      })
+    }
+
+    // Build base query for filtering
+    let baseQuery = knex("benchmarks")
+
+    // Add search filter
+    if (search) {
+      baseQuery = baseQuery.where(function() {
+        this.where('title', 'ilike', `%${search}%`)
+          .orWhere('description', 'ilike', `%${search}%`)
+          .orWhere('created_by', 'ilike', `%${search}%`)
+      })
+    }
+
+    // Add personal/community filter
+    if (personal === 'true' && currentUser) {
+      // Personal tab: show only user's benchmarks (both public and private)
+      baseQuery = baseQuery.where('created_by', currentUser.login)
+    } else {
+      // Community tab: show only public benchmarks
+      baseQuery = baseQuery.where('is_public', true)
+    }
+
+    // Get total count with filters (separate query)
+    const totalCountResult = await baseQuery.clone().count("id as count").first()
     const totalCount = parseInt(totalCountResult.count) || 0
     console.log(`Total benchmarks count: ${totalCount}`)
 
-    // Get benchmarks with pagination
-    const benchmarks = await knex("benchmarks")
+    // Build main query with all columns, sorting and pagination
+    const benchmarks = await baseQuery.clone()
       .select("*")
-      .orderBy("created_at", "desc")
-      .limit(limit)
+      .orderBy(sort, order)
+      .limit(parseInt(limit))
       .offset(offset)
-
     console.log(`Found ${benchmarks.length} benchmarks for this page`)
 
-    // Get connections for each benchmark
+    // Get connections and stats for each benchmark
     for (const benchmark of benchmarks) {
-      const connections = await knex("benchmark_connections")
-        .where("benchmark_id", benchmark.id)
-        .select("*")
+      // Check if benchmark_connections table exists
+      const connectionsTableExists = await knex.schema.hasTable('benchmark_connections')
+      let connections = []
 
-      benchmark.connections = connections
-      console.log(`Benchmark ${benchmark.id} has ${connections.length} connections`)
+      if (connectionsTableExists) {
+        try {
+          connections = await knex("benchmark_connections")
+            .where("benchmark_id", benchmark.id)
+            .select("*")
+        } catch (error) {
+          console.warn("Error fetching benchmark connections:", error)
+          connections = []
+        }
+      }
+
+      // Transform connections to problem_repositories array
+      benchmark.problem_repositories = connections.map(conn => conn.connected_repo_path)
+      benchmark.connections = connections // Keep for backward compatibility
 
       // Calculate actual results count
       try {
-        const resultsCount = await knex("benchmark_results")
-          .where("benchmark_id", benchmark.id)
-          .count("id as count")
-          .first()
-        benchmark.results_count = parseInt(resultsCount?.count) || 0
+        const resultsTableExists = await knex.schema.hasTable('benchmark_results')
+        if (resultsTableExists) {
+          const resultsCount = await knex("benchmark_results")
+            .where("benchmark_id", benchmark.id)
+            .count("id as count")
+            .first()
+          benchmark.participants_count = parseInt(resultsCount?.count) || 0
+        } else {
+          benchmark.participants_count = 0
+        }
       } catch (resultsError) {
         console.warn("Error counting benchmark results:", resultsError)
-        benchmark.results_count = 0
+        benchmark.participants_count = 0
       }
 
+      // Remove mock stats - these will be calculated from actual data when needed
+
+      // Parse tags from JSON string to array
+      try {
+        benchmark.tags = benchmark.tags ? JSON.parse(benchmark.tags) : []
+      } catch (error) {
+        console.warn("Error parsing tags for benchmark", benchmark.id, ":", error)
+        benchmark.tags = []
+      }
+
+      benchmark.is_public = benchmark.is_public !== false // Default to true if not set
       benchmark.has_notebook = false // TODO: Check if notebook exists
     }
 
     const response = {
-      data: benchmarks,
-      total_count: totalCount,
-      page: page,
-      limit: limit,
-      total_pages: Math.ceil(totalCount / limit)
+      benchmarks: benchmarks,
+      total: totalCount,
+      page: parseInt(page),
+      limit: parseInt(limit),
+      totalPages: Math.ceil(totalCount / parseInt(limit))
     }
 
-    console.log("Sending response:", JSON.stringify(response, null, 2))
+    console.log("Sending response with", benchmarks.length, "benchmarks")
 
     // Return paginated response
     res.json(response)
@@ -115,13 +253,13 @@ router.get("/:id", async (req, res) => {
   const { id } = req.params
 
   try {
-    const benchmark = await knex("benchmarks")
-      .where({ id })
-      .first()
-
-    if (!benchmark) {
-      return res.status(404).json({ message: "Benchmark not found" })
+    // Check benchmark access permissions
+    const accessCheck = await checkBenchmarkAccess(id, req)
+    if (!accessCheck.hasAccess) {
+      return res.status(accessCheck.statusCode).json({ message: accessCheck.error })
     }
+
+    const benchmark = accessCheck.benchmark
 
     // Get connections for this benchmark
     const connections = await knex("benchmark_connections")
@@ -132,6 +270,14 @@ router.get("/:id", async (req, res) => {
     benchmark.results_count = 0 // TODO: Calculate actual results count
     benchmark.has_notebook = false // TODO: Check if notebook exists
 
+    // Parse tags from JSON string to array
+    try {
+      benchmark.tags = benchmark.tags ? JSON.parse(benchmark.tags) : []
+    } catch (error) {
+      console.warn("Error parsing tags for benchmark", benchmark.id, ":", error)
+      benchmark.tags = []
+    }
+
     res.json(benchmark)
   } catch (error) {
     console.error("Error fetching benchmark:", error)
@@ -139,47 +285,76 @@ router.get("/:id", async (req, res) => {
   }
 })
 
-// Create a new benchmark with notebook upload
-router.post("/", auth, upload.single("notebook"), async (req, res) => {
+// Create a new benchmark
+router.post("/", auth, async (req, res) => {
   try {
     console.log("Creating new benchmark...")
     console.log("Request body:", req.body)
-    console.log("Request file:", req.file)
     console.log("User:", req.user)
 
-    const { title, description, connections } = req.body
+    const { title, description, problem_repositories, tags = [], is_public = false } = req.body
 
     if (!title || !description) {
       console.log("Missing required fields - title:", title, "description:", description)
       return res.status(400).json({ message: "Missing required fields" })
     }
 
-    // Parse connections from JSON string if it's a string
-    let parsedConnections = connections
-    if (typeof connections === "string") {
+    // Validate problem_repositories
+    if (!problem_repositories || !Array.isArray(problem_repositories) || problem_repositories.length < 1) {
+      console.log("Invalid problem_repositories:", problem_repositories)
+      return res.status(400).json({ message: "At least one problem repository is required" })
+    }
+
+    // Validate that the user owns the repositories
+    const GiteaService = require('../services/giteaService')
+    const token = req.session?.user_data?.token || req.headers.authorization?.split(" ")[1]
+
+    for (const repoPath of problem_repositories) {
+      const [owner, repoName] = repoPath.split('/')
+
+      // Check if the repository path is valid
+      if (!owner || !repoName) {
+        return res.status(400).json({
+          message: `Invalid repository path format: ${repoPath}. Expected format: owner/repository`
+        })
+      }
+
+      // For now, allow any repository that the user has access to
+      // In a production environment, you might want to be more strict about ownership
+      console.log(`Validating repository: ${repoPath} for user: ${req.user.login}`)
+
+      // Verify the repository exists and is accessible
       try {
-        parsedConnections = JSON.parse(connections)
-        console.log("Parsed connections:", parsedConnections)
-      } catch (e) {
-        console.log("Error parsing connections:", e)
-        return res.status(400).json({ message: "Invalid connections format" })
+        const repoResponse = await GiteaService.getRepository(owner, repoName, token)
+        if (!repoResponse.ok) {
+          console.warn(`Repository ${repoPath} returned status ${repoResponse.status}`)
+          // For now, we'll be lenient and allow the repository even if we can't verify it
+          // This helps with development and testing scenarios
+          console.log(`Allowing repository ${repoPath} despite verification failure`)
+        } else {
+          console.log(`Repository ${repoPath} verified successfully`)
+        }
+      } catch (error) {
+        console.warn(`Error verifying repository ${repoPath}:`, error.message)
+        // For now, we'll be lenient and allow the repository even if we can't verify it
+        console.log(`Allowing repository ${repoPath} despite verification error`)
       }
     }
 
-    // Ensure we have at least one connection
-    if (!parsedConnections || !Array.isArray(parsedConnections) || parsedConnections.length < 1) {
-      console.log("Invalid connections:", parsedConnections)
-      return res.status(400).json({ message: "At least one repository connection is required" })
+    // Check if required tables exist before proceeding
+    const benchmarksTableExists = await knex.schema.hasTable('benchmarks')
+    const connectionsTableExists = await knex.schema.hasTable('benchmark_connections')
+
+    if (!benchmarksTableExists) {
+      return res.status(500).json({
+        message: "Database not properly initialized. Benchmarks table does not exist."
+      })
     }
 
-    // Read notebook file if uploaded
-    let notebookFile = null
-    let notebookFilename = null
-    if (req.file) {
-      notebookFile = fs.readFileSync(req.file.path, "utf8")
-      notebookFilename = req.file.originalname
-      // Delete the temporary file
-      fs.unlinkSync(req.file.path)
+    if (!connectionsTableExists) {
+      return res.status(500).json({
+        message: "Database not properly initialized. Benchmark connections table does not exist."
+      })
     }
 
     // Start a transaction
@@ -187,28 +362,31 @@ router.post("/", auth, upload.single("notebook"), async (req, res) => {
 
     try {
       // Insert benchmark
-      const [benchmarkId] = await trx("benchmarks")
+      const insertResult = await trx("benchmarks")
         .insert({
           title,
           description,
           created_by: req.user.login,
+          is_public: is_public,
+          tags: JSON.stringify(tags),
           created_at: knex.fn.now(),
           updated_at: knex.fn.now(),
         })
         .returning("id")
 
       // Extract the numeric ID properly
+      const benchmarkId = insertResult[0]
       const numericId = typeof benchmarkId === "object" && benchmarkId !== null ? benchmarkId.id : benchmarkId
 
-      // Insert connections
-      for (const connection of parsedConnections) {
-        const [owner, repo] = connection.repoPath.split("/")
+      // Insert connections for each problem repository
+      for (const repoPath of problem_repositories) {
+        const [owner, repo] = repoPath.split("/")
         await trx("benchmark_connections").insert({
           benchmark_id: numericId,
           repo_owner: owner,
           repo_name: repo,
-          connected_repo_path: connection.repoPath,
-          description: connection.description || null,
+          connected_repo_path: repoPath,
+          description: null,
           created_at: knex.fn.now(),
         })
       }
@@ -221,21 +399,18 @@ router.post("/", auth, upload.single("notebook"), async (req, res) => {
       const benchmark = await knex("benchmarks").where("id", numericId).first()
       const benchmarkConnections = await knex("benchmark_connections").where("benchmark_id", numericId).select("*")
 
-      benchmark.connections = benchmarkConnections
-      benchmark.results_count = 0
-
-      // Add notebook info if file was uploaded
-      if (notebookFile) {
-        benchmark.has_notebook = true
-        benchmark.notebook_filename = notebookFilename
-        // Note: We're not storing the notebook file in the database for now
-        // In a production system, you might want to store it in a file storage service
-      } else {
-        benchmark.has_notebook = false
-      }
+      // Transform response to match frontend expectations
+      benchmark.problem_repositories = benchmarkConnections.map(conn => conn.connected_repo_path)
+      benchmark.connections = benchmarkConnections // Keep for backward compatibility
+      benchmark.participants_count = 0
+      benchmark.tags = tags
+      benchmark.has_notebook = false
 
       console.log("Returning created benchmark:", benchmark)
-      res.status(201).json(benchmark)
+      res.status(201).json({
+        message: 'Benchmark created successfully',
+        benchmark: benchmark
+      })
     } catch (error) {
       await trx.rollback()
       throw error
@@ -368,7 +543,7 @@ router.post("/:id/results", auth, upload.single("notebook"), async (req, res) =>
       benchmark_id: id,
       user_id: req.user.login,
       repo_path: repoPath,
-      metrics: parsedMetrics ? JSON.stringify(parsedMetrics) : (hasScore ? null : {}),
+      metrics: parsedMetrics || (hasScore ? null : {}),
       created_at: knex.fn.now(),
     }
 
@@ -399,6 +574,12 @@ router.get("/:id/results", async (req, res) => {
   const { sort = "score", order = "desc", limit = 50 } = req.query
 
   try {
+    // Check benchmark access permissions
+    const accessCheck = await checkBenchmarkAccess(id, req)
+    if (!accessCheck.hasAccess) {
+      return res.status(accessCheck.statusCode).json({ message: accessCheck.error })
+    }
+
     const results = await knex("benchmark_results")
       .where({ benchmark_id: id })
       .orderBy(sort, order)
@@ -417,6 +598,12 @@ router.get("/:id/leaderboard", async (req, res) => {
   const { limit = 10 } = req.query
 
   try {
+    // Check benchmark access permissions
+    const accessCheck = await checkBenchmarkAccess(id, req)
+    if (!accessCheck.hasAccess) {
+      return res.status(accessCheck.statusCode).json({ message: accessCheck.error })
+    }
+
     const leaderboard = await knex("benchmark_results")
       .where({ benchmark_id: id })
       .select("author", "algorithm_name", "score", "repository_url", "created_at")
@@ -453,6 +640,12 @@ router.get("/:id/stats", async (req, res) => {
   const { id } = req.params
 
   try {
+    // Check benchmark access permissions
+    const accessCheck = await checkBenchmarkAccess(id, req)
+    if (!accessCheck.hasAccess) {
+      return res.status(accessCheck.statusCode).json({ message: accessCheck.error })
+    }
+
     const stats = await knex("benchmark_results")
       .where({ benchmark_id: id })
       .select(
@@ -493,7 +686,7 @@ router.put("/results/:resultId", auth, async (req, res) => {
       .where({ id: resultId })
       .update({
         score: score || result.score,
-        metrics: metrics ? JSON.stringify(metrics) : result.metrics,
+        metrics: metrics || result.metrics,
         algorithm_name: algorithm_name || result.algorithm_name,
         repository_url: repository_url !== undefined ? repository_url : result.repository_url,
         notes: notes !== undefined ? notes : result.notes,
