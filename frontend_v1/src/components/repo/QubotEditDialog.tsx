@@ -45,8 +45,7 @@ SyntaxHighlighter.registerLanguage("json", json)
 
 const API = import.meta.env.VITE_API_BASE
 
-// For demo purposes, we retrieve the user token from localStorage.
-const getUserToken = () => localStorage.getItem("gitea_token") || ""
+// Authentication is now handled via HTTP-only cookies
 
 interface QubotEditDialogProps {
   open: boolean
@@ -105,13 +104,10 @@ export default function QubotEditDialog({
     if (!owner || !repoName) return
 
     try {
-      const token = getUserToken()
       const branch = "main" // You might want to make this dynamic
 
-      const response = await fetch(`${API}/repos/${owner}/${repoName}/contents/${filePath}?ref=${branch}`, {
-        headers: {
-          Authorization: `token ${token}`,
-        },
+      const response = await fetch(`${API}/api/repos/${owner}/${repoName}/contents/${filePath}?ref=${branch}`, {
+        credentials: 'include', // Include cookies for authentication
       })
 
       if (response.ok) {
@@ -337,8 +333,8 @@ export default function QubotEditDialog({
             method: "POST",
             headers: {
               "Content-Type": "application/json",
-              Authorization: `token ${getUserToken()}`,
             },
+            credentials: 'include', // Include cookies for authentication
             body: JSON.stringify(fileUploadPayload),
           })
 

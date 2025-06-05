@@ -72,37 +72,31 @@ export function TerminalViewer({
   }
 
   return (
-    <Card className={`flex flex-col rounded-lg ${className}`} style={{ height: '50vh', width: '100%', maxWidth: '100%', minHeight: '400px' }}>
-      <CardHeader className="flex-shrink-0 pb-2 pt-3">
+    <Card className={`flex flex-col rounded-lg h-full ${className}`}>
+      <CardHeader className="flex-shrink-0 pb-1 pt-2 px-3">
         <div className="flex items-center gap-2 min-w-0">
-          <Terminal className="h-4 w-4 flex-shrink-0" />
-          <Badge variant={getStatusColor(metrics.status)} className="flex-shrink-0 text-xs">
+          <Terminal className="h-3 w-3 flex-shrink-0" />
+          <Badge variant={getStatusColor(metrics.status)} className="flex-shrink-0 text-xs h-5">
             {metrics.status}
           </Badge>
           {isExecuting && (
-            <Badge variant="outline" className="animate-pulse flex-shrink-0 text-xs">Live</Badge>
+            <Badge variant="outline" className="animate-pulse flex-shrink-0 text-xs h-5">Live</Badge>
           )}
         </div>
       </CardHeader>
 
       <CardContent className="flex-1 p-0 overflow-hidden">
         <div className="bg-black text-green-400 h-full font-mono text-sm rounded-b-lg overflow-hidden">
-          <ScrollArea ref={scrollAreaRef} className="h-full p-4 terminal-container" style={{ maxHeight: 'calc(50vh - 60px)' }}>
+          <ScrollArea ref={scrollAreaRef} className="h-full p-3 terminal-container">
             {logs.length === 0 ? (
               <div className="text-gray-500 text-center py-8">
                 <div>
-                  <p className="mb-2">🚀 Welcome to the Qubots Playground!</p>
-                  <p className="text-sm">Select a problem and optimizer from the side panels to get started.</p>
+                  <p className="mb-2">   Welcome to the Qubots Playground!</p>
+                  <p className="text-sm">Here you can test workflows in a containerized cloud environment.</p>
                   <p className="text-xs mt-2 text-gray-600">
                     Configure parameters and run optimizations with real-time feedback.
                   </p>
-                  <p className="text-xs mt-4 text-gray-600">
-                    You'll see real-time logs including:
-                    <br />• Optimization progress and iterations
-                    <br />• Fitness scores and convergence metrics
-                    <br />• Debug information from the algorithm
-                    <br />• Performance metrics and timing
-                  </p>
+                  
                 </div>
               </div>
             ) : (

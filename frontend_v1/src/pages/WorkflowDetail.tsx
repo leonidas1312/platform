@@ -44,12 +44,18 @@ const WorkflowDetail = () => {
   const fetchWorkflow = async (workflowId: string) => {
     setLoading(true)
     try {
-      const response = await fetch(`${API}/api/playground/workflows/${workflowId}`)
-      
+      const response = await fetch(`${API}/api/playground/workflows/${workflowId}`, {
+        credentials: 'include' // Include cookies for authentication
+      })
+
       if (response.ok) {
         const data = await response.json()
         setWorkflow(data.workflow)
       } else {
+        if (response.status === 401 || response.status === 403) {
+          const errorData = await response.json().catch(() => ({ message: 'Access denied' }))
+          throw new Error(errorData.message || 'Workflow not found or you don\'t have permission to view it.')
+        }
         throw new Error('Failed to fetch workflow')
       }
     } catch (error: any) {
@@ -133,7 +139,7 @@ const WorkflowDetail = () => {
             <ArrowLeft className="h-4 w-4" />
             Back to Workflows
           </Button>
-          
+
           <Button
             onClick={handleOpenInPlayground}
             className="flex items-center gap-2"
@@ -172,7 +178,7 @@ const WorkflowDetail = () => {
                     </div>
                   </div>
                 </div>
-                
+
                 <div className="flex items-center gap-4 text-sm text-muted-foreground">
                   <div className="flex items-center gap-1">
                     <Eye className="h-4 w-4" />
@@ -189,12 +195,12 @@ const WorkflowDetail = () => {
                 </div>
               </div>
             </CardHeader>
-            
+
             <CardContent className="space-y-4">
               {workflow.description && (
                 <p className="text-muted-foreground">{workflow.description}</p>
               )}
-              
+
               {workflow.tags && workflow.tags.length > 0 && (
                 <div className="flex flex-wrap gap-2">
                   {workflow.tags.map((tag, index) => (
@@ -240,7 +246,7 @@ const WorkflowDetail = () => {
                     )}
                   </div>
                 </div>
-                
+
                 <div className="space-y-3">
                   <div className="flex items-center gap-2">
                     <Settings className="h-4 w-4 text-green-500" />
@@ -312,9 +318,9 @@ const WorkflowDetail = () => {
                     <div className="text-sm text-muted-foreground">Execution Time</div>
                   </div>
                 </div>
-                
+
                 <Separator className="my-4" />
-                
+
                 <div className="space-y-2">
                   <p className="text-sm font-medium">Raw Results:</p>
                   <pre className="text-xs bg-muted p-4 rounded overflow-x-auto max-h-96">

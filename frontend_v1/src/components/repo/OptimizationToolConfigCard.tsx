@@ -74,8 +74,12 @@ export default function OptimizationToolConfigCard({
                 <Badge
                   variant="outline"
                   className={cn(
-                    "text-white border-none",
-                    isOptimizer ? "bg-orange-500" : isProblem ? "bg-blue-500" : "bg-purple-500"
+                    "px-3 py-1 text-sm font-small border-none text-white",
+                    isOptimizer
+                      ? "bg-gradient-to-r from-orange-500 to-red-500"
+                      : isProblem
+                        ? "bg-gradient-to-r from-blue-500 to-cyan-500"
+                        : "bg-purple-500"
                   )}
                 >
                   {isOptimizer ? "Optimizer" : isProblem ? "Problem" : "Unknown"}

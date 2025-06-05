@@ -9,7 +9,14 @@ const GITEA_URL = process.env.GITEA_URL
 router.put("/:owner/:repoName/contents/:filepath(*)", async (req, res) => {
   const { owner, repoName, filepath } = req.params
   const { content, message, branch, sha } = req.body
-  const token = req.headers.authorization?.split(" ")[1]
+
+  // Try to get token from session first (HTTP-only cookie), then fallback to Authorization header
+  let token = req.session?.user_data?.token
+
+  // Fallback to Authorization header for backward compatibility during transition
+  if (!token) {
+    token = req.headers.authorization?.split(" ")[1]
+  }
 
   if (!token) {
     return res.status(401).json({ message: "Unrecognised request." })
@@ -83,7 +90,14 @@ router.post("/:owner/:repo/contents/:filepath(*)", async (req, res) => {
   }
 
   const base64Content = Buffer.from(content, "utf8").toString("base64")
-  const token = req.headers.authorization?.split(" ")[1]
+
+  // Try to get token from session first (HTTP-only cookie), then fallback to Authorization header
+  let token = req.session?.user_data?.token
+
+  // Fallback to Authorization header for backward compatibility during transition
+  if (!token) {
+    token = req.headers.authorization?.split(" ")[1]
+  }
 
   if (!token) {
     return res.status(401).json({ message: "Unrecognised request." })
@@ -189,7 +203,14 @@ router.post("/:owner/:repo/contents", async (req, res) => {
     return res.status(400).json({ message: "Files array is required" })
   }
 
-  const token = req.headers.authorization?.split(" ")[1]
+  // Try to get token from session first (HTTP-only cookie), then fallback to Authorization header
+  let token = req.session?.user_data?.token
+
+  // Fallback to Authorization header for backward compatibility during transition
+  if (!token) {
+    token = req.headers.authorization?.split(" ")[1]
+  }
+
   if (!token) {
     return res.status(401).json({ message: "Unrecognised request." })
   }
@@ -241,7 +262,14 @@ router.post("/:owner/:repo/contents", async (req, res) => {
 router.get("/:owner/:repoName/commits", async (req, res) => {
   const { owner, repoName } = req.params
   const { path, limit = 10, page = 1 } = req.query
-  const token = req.headers.authorization?.split(" ")[1]
+
+  // Try to get token from session first (HTTP-only cookie), then fallback to Authorization header
+  let token = req.session?.user_data?.token
+
+  // Fallback to Authorization header for backward compatibility during transition
+  if (!token) {
+    token = req.headers.authorization?.split(" ")[1]
+  }
 
   if (!token) {
     return res.status(401).json({ message: "Not logged in." })
@@ -301,7 +329,14 @@ router.delete("/:owner/:repo/contents/:filepath(*)", async (req, res) => {
     return res.status(400).json({ message: "SHA is required for file deletion" })
   }
 
-  const token = req.headers.authorization?.split(" ")[1]
+  // Try to get token from session first (HTTP-only cookie), then fallback to Authorization header
+  let token = req.session?.user_data?.token
+
+  // Fallback to Authorization header for backward compatibility during transition
+  if (!token) {
+    token = req.headers.authorization?.split(" ")[1]
+  }
+
   if (!token) {
     return res.status(401).json({ message: "Unrecognised request." })
   }

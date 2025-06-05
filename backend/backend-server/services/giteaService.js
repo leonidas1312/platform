@@ -48,11 +48,35 @@ class GiteaService {
     return response
   }
 
+  static async deleteUserToken(username, tokenId) {
+    const response = await fetch(`${GITEA_URL}/api/v1/users/${username}/tokens/${tokenId}`, {
+      method: "DELETE",
+      headers: {
+        Authorization: `token ${ADMIN_TOKEN}`,
+      },
+    })
+    return response
+  }
+
+  static async getUserTokens(username) {
+    const response = await fetch(`${GITEA_URL}/api/v1/users/${username}/tokens`, {
+      headers: {
+        Authorization: `token ${ADMIN_TOKEN}`,
+      },
+    })
+    return response
+  }
+
   static async getUserProfile(token) {
     const response = await fetch(`${GITEA_URL}/api/v1/user`, {
       headers: { Authorization: `token ${token}` },
     })
     return response
+  }
+
+  // Alias for getUserProfile for consistency
+  static async getCurrentUser(token) {
+    return this.getUserProfile(token)
   }
 
   static async getUserByUsername(username, token = null) {
@@ -92,6 +116,14 @@ class GiteaService {
       is_private: "false"
     })
     const response = await fetch(`${GITEA_URL}/api/v1/repos/search?${params}`)
+    return response
+  }
+
+  static async getRepository(owner, repo, token = null) {
+    const headers = token ? { Authorization: `token ${token}` } : {}
+    const response = await fetch(`${GITEA_URL}/api/v1/repos/${owner}/${repo}`, {
+      headers,
+    })
     return response
   }
 

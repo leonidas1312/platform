@@ -1,17 +1,15 @@
 import React from "react";
-import { SimpleVerticalNavbar } from "./SimpleVerticalNavbar";
+import { VerticalNavbar } from "./VerticalNavbar";
 import Footer from "./Footer";
 import { motion, AnimatePresence } from "framer-motion";
-import { SidebarProvider, SidebarInset } from "@/components/ui/simple-sidebar";
 
 interface LayoutProps {
   children: React.ReactNode;
   hideNavbar?: boolean;
-  useVerticalNav?: boolean;
   className?: string;
 }
 
-const Layout = ({ children, hideNavbar, useVerticalNav = true, className }: LayoutProps) => {
+const Layout = ({ children, hideNavbar, className }: LayoutProps) => {
   const pageVariants = {
     initial: {
       opacity: 0,
@@ -36,33 +34,46 @@ const Layout = ({ children, hideNavbar, useVerticalNav = true, className }: Layo
     duration: 0.6,
   };
 
-  // Use vertical sidebar layout
-  if (useVerticalNav && !hideNavbar) {
+  // Use new horizontal navbar layout (default)
+  if (!hideNavbar) {
     return (
-      <SidebarProvider>
-        <div className={`min-h-screen bg-background text-foreground antialiased ${className || ""}`}>
-          <SimpleVerticalNavbar />
-          <SidebarInset>
-            <AnimatePresence mode="wait">
-              <motion.main
-                initial="initial"
-                animate="in"
-                exit="out"
-                variants={pageVariants}
-                transition={pageTransition}
-                className="flex-grow relative"
-              >
-                {children}
-              </motion.main>
-            </AnimatePresence>
-            <Footer />
-          </SidebarInset>
-        </div>
-      </SidebarProvider>
+      <div className={`min-h-screen bg-background text-foreground antialiased ${className || ""}`}>
+        <VerticalNavbar />
+        <AnimatePresence mode="wait">
+          <motion.main
+            initial="initial"
+            animate="in"
+            exit="out"
+            variants={pageVariants}
+            transition={pageTransition}
+            className="flex-grow relative min-h-screen"
+          >
+            {children}
+          </motion.main>
+        </AnimatePresence>
+        <Footer />
+      </div>
     );
   }
 
-
+  // Fallback layout without navbar
+  return (
+    <div className={`min-h-screen bg-background text-foreground antialiased ${className || ""}`}>
+      <AnimatePresence mode="wait">
+        <motion.main
+          initial="initial"
+          animate="in"
+          exit="out"
+          variants={pageVariants}
+          transition={pageTransition}
+          className="flex-grow relative"
+        >
+          {children}
+        </motion.main>
+      </AnimatePresence>
+      <Footer />
+    </div>
+  );
 };
 
 export default Layout;

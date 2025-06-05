@@ -175,7 +175,8 @@ class QubotExecutionService {
           }
         },
         backoffLimit: 1,
-        activeDeadlineSeconds: this.jobTimeout
+        activeDeadlineSeconds: this.jobTimeout,
+        ttlSecondsAfterFinished: 300 // Clean up job and pods 5 minutes after completion
       }
     }
 

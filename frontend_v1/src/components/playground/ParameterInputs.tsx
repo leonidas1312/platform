@@ -7,6 +7,8 @@ import { Badge } from '@/components/ui/badge'
 import { Loader2, AlertCircle } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 
+const API = import.meta.env.VITE_API_BASE
+
 interface ParameterSchema {
   model_type: 'problem' | 'optimizer'
   model_name: string
@@ -62,7 +64,7 @@ export function ParameterInputs({
 
     try {
       // Use the efficient parameter schema endpoint that reads config.json directly
-      const url = `/api/playground/qubots/schema/${modelName}${username ? `?username=${username}` : ''}`
+      const url = `${API}/api/playground/qubots/schema/${modelName}${username ? `?username=${username}` : ''}`
 
       const response = await fetch(url)
 
@@ -129,24 +131,28 @@ export function ParameterInputs({
     switch (param.type) {
       case 'boolean':
         return (
-          <div className="flex items-center space-x-2">
-            <Switch
-              id={key}
-              checked={value || false}
-              onCheckedChange={(checked) => updateParameter(key, checked)}
-            />
-            <Label htmlFor={key} className="text-sm">{param.description}</Label>
+          <div className="space-y-1">
+            <Label htmlFor={key} className="text-xs font-medium">{key}</Label>
+            <div className="flex items-center space-x-2">
+              <Switch
+                id={key}
+                checked={value || false}
+                onCheckedChange={(checked) => updateParameter(key, checked)}
+              />
+              <span className="text-xs text-muted-foreground">{value ? 'Enabled' : 'Disabled'}</span>
+            </div>
+            <p className="text-xs text-muted-foreground leading-tight">{param.description}</p>
           </div>
         )
 
       case 'integer':
         return (
           <div className="space-y-1">
-            <Label htmlFor={key} className="text-sm font-medium">
+            <Label htmlFor={key} className="text-xs font-medium">
               {key}
               {minValue !== undefined && maxValue !== undefined && (
-                <span className="text-xs text-muted-foreground ml-2">
-                  ({minValue} - {maxValue})
+                <span className="text-xs text-muted-foreground ml-1">
+                  ({minValue}-{maxValue})
                 </span>
               )}
             </Label>
@@ -159,20 +165,20 @@ export function ParameterInputs({
               max={maxValue}
               step="1"
               placeholder={param.default?.toString() || '0'}
-              className="h-8"
+              className="h-7 text-xs"
             />
-            <p className="text-xs text-muted-foreground">{param.description}</p>
+            <p className="text-xs text-muted-foreground leading-tight">{param.description}</p>
           </div>
         )
 
       case 'number':
         return (
           <div className="space-y-1">
-            <Label htmlFor={key} className="text-sm font-medium">
+            <Label htmlFor={key} className="text-xs font-medium">
               {key}
               {minValue !== undefined && maxValue !== undefined && (
-                <span className="text-xs text-muted-foreground ml-2">
-                  ({minValue} - {maxValue})
+                <span className="text-xs text-muted-foreground ml-1">
+                  ({minValue}-{maxValue})
                 </span>
               )}
             </Label>
@@ -185,16 +191,16 @@ export function ParameterInputs({
               max={maxValue}
               step={param.step || 'any'}
               placeholder={param.default?.toString() || '0'}
-              className="h-8"
+              className="h-7 text-xs"
             />
-            <p className="text-xs text-muted-foreground">{param.description}</p>
+            <p className="text-xs text-muted-foreground leading-tight">{param.description}</p>
           </div>
         )
 
       case 'file':
         return (
           <div className="space-y-1">
-            <Label htmlFor={key} className="text-sm font-medium">{key}</Label>
+            <Label htmlFor={key} className="text-xs font-medium">{key}</Label>
             <Input
               id={key}
               type="file"
@@ -204,21 +210,21 @@ export function ParameterInputs({
                   updateParameter(key, file)
                 }
               }}
-              className="cursor-pointer h-8"
+              className="cursor-pointer h-7 text-xs"
             />
             {value && (
               <p className="text-xs text-muted-foreground">
                 Selected: {value.name || value}
               </p>
             )}
-            <p className="text-xs text-muted-foreground">{param.description}</p>
+            <p className="text-xs text-muted-foreground leading-tight">{param.description}</p>
           </div>
         )
 
       case 'array':
         return (
           <div className="space-y-1">
-            <Label htmlFor={key} className="text-sm font-medium">{key}</Label>
+            <Label htmlFor={key} className="text-xs font-medium">{key}</Label>
             <Textarea
               id={key}
               value={Array.isArray(value) ? JSON.stringify(value, null, 2) : '[]'}
@@ -231,10 +237,10 @@ export function ParameterInputs({
                 }
               }}
               placeholder='["item1", "item2"] or [1, 2, 3]'
-              rows={3}
-              className="text-sm font-mono"
+              rows={2}
+              className="text-xs font-mono"
             />
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-muted-foreground leading-tight">
               {param.description} (Enter as JSON array)
             </p>
           </div>
@@ -243,16 +249,16 @@ export function ParameterInputs({
       default: // string
         return (
           <div className="space-y-1">
-            <Label htmlFor={key} className="text-sm font-medium">{key}</Label>
+            <Label htmlFor={key} className="text-xs font-medium">{key}</Label>
             <Input
               id={key}
               type="text"
               value={value || ''}
               onChange={(e) => updateParameter(key, e.target.value)}
               placeholder={param.default?.toString() || ''}
-              className="h-8"
+              className="h-7 text-xs"
             />
-            <p className="text-xs text-muted-foreground">{param.description}</p>
+            <p className="text-xs text-muted-foreground leading-tight">{param.description}</p>
           </div>
         )
     }
@@ -288,12 +294,12 @@ export function ParameterInputs({
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-2">
       {Object.entries(schema.parameters).map(([key, param]) => (
         <div key={key} className="space-y-1">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
             {param.required && (
-              <Badge variant="destructive" className="text-xs h-4">Required</Badge>
+              <Badge variant="destructive" className="text-xs h-3 px-1">Required</Badge>
             )}
           </div>
           {renderParameterInput(key, param)}

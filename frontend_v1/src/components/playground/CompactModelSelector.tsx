@@ -15,6 +15,7 @@ import {
   User
 } from 'lucide-react'
 import { toast } from '@/components/ui/use-toast'
+import { UserAvatar } from '@/components/ui/user-avatar'
 
 const API = import.meta.env.VITE_API_BASE
 
@@ -40,6 +41,7 @@ interface CompactModelSelectorProps {
   onModelClear: () => void
   className?: string
   initiallyExpanded?: boolean
+  isWorkflowRestoration?: boolean // Add flag to prevent auto-expansion during workflow restoration
 }
 
 export const CompactModelSelector: React.FC<CompactModelSelectorProps> = ({
@@ -48,41 +50,36 @@ export const CompactModelSelector: React.FC<CompactModelSelectorProps> = ({
   onModelSelect,
   onModelClear,
   className = "",
-  initiallyExpanded = false
+  initiallyExpanded = false,
+  isWorkflowRestoration = false
 }) => {
-  const [isExpanded, setIsExpanded] = useState(initiallyExpanded)
+  const [isExpanded, setIsExpanded] = useState(initiallyExpanded && !isWorkflowRestoration)
   const [models, setModels] = useState<ModelInfo[]>([])
   const [loading, setLoading] = useState(false)
+  const [hasUserInteracted, setHasUserInteracted] = useState(false)
   // Removed searchQuery and activeTab since we only show user's models now
 
   useEffect(() => {
-    if (isExpanded) {
+    // Only auto-load models if:
+    // 1. Component is expanded AND
+    // 2. Either not in workflow restoration mode OR user has explicitly interacted
+    if (isExpanded && (!isWorkflowRestoration || hasUserInteracted)) {
       loadModels()
     }
-  }, [modelType, isExpanded])
+  }, [modelType, isExpanded, isWorkflowRestoration, hasUserInteracted])
 
   const loadModels = async () => {
     setLoading(true)
     try {
-      const token = localStorage.getItem("gitea_token")
-
-      if (!token) {
-        toast({
-          title: "Authentication Required",
-          description: `Please log in to view your ${modelType}s.`,
-          variant: "destructive"
-        })
-        setLoading(false)
-        return
-      }
-
-      const url = `${API}/playground/qubots/models`
+      const url = `${API}/api/playground/qubots/models`
       const headers: Record<string, string> = {
-        "Content-Type": "application/json",
-        "Authorization": `token ${token}`
+        "Content-Type": "application/json"
       }
 
-      const response = await fetch(url, { headers })
+      const response = await fetch(url, {
+        headers,
+        credentials: 'include' // Include cookies for authentication
+      })
 
       if (!response.ok) {
         throw new Error("Failed to fetch models")
@@ -135,7 +132,7 @@ export const CompactModelSelector: React.FC<CompactModelSelectorProps> = ({
       <div className="flex items-start justify-between">
         <div className="flex-1 min-w-0">
           <h4
-            className="font-medium text-sm truncate cursor-pointer hover:text-primary hover:underline transition-colors"
+            className="font-medium text-xs truncate cursor-pointer hover:text-primary hover:underline transition-colors"
             onClick={(e) => {
               e.stopPropagation()
               window.open(`https://rastion.com/${model.username}/${model.name}`, "_blank")
@@ -144,7 +141,7 @@ export const CompactModelSelector: React.FC<CompactModelSelectorProps> = ({
             {model.name}
           </h4>
           <p className="text-xs text-muted-foreground flex items-center gap-1">
-            <User className="h-3 w-3" />
+            <UserAvatar username={model.username} size="sm" showTooltip />
             <span
               className="cursor-pointer hover:text-primary hover:underline transition-colors"
               onClick={(e) => {
@@ -158,14 +155,14 @@ export const CompactModelSelector: React.FC<CompactModelSelectorProps> = ({
         </div>
       </div>
       {model.description && (
-        <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
+        <p className="text-xs text-muted-foreground mt-1 line-clamp-1">
           {model.description}
         </p>
       )}
-      <div className="flex items-center justify-between mt-2">
+      <div className="flex items-center justify-between mt-1">
         <div className="flex gap-1">
-          {model.tags.slice(0, 2).map((tag) => (
-            <Badge key={tag} variant="outline" className="text-xs px-1 py-0">
+          {model.tags.slice(0, 1).map((tag) => (
+            <Badge key={tag} variant="outline" className="text-xs px-1 py-0 h-4">
               {tag}
             </Badge>
           ))}
@@ -179,27 +176,30 @@ export const CompactModelSelector: React.FC<CompactModelSelectorProps> = ({
 
   return (
     <Card className={`${className}`}>
-      <CardHeader className="pb-2">
+      <CardHeader className="pb-1 pt-2">
         <div
           className="flex items-center justify-between cursor-pointer"
-          onClick={() => setIsExpanded(!isExpanded)}
+          onClick={() => {
+            setHasUserInteracted(true) // Mark user interaction
+            setIsExpanded(!isExpanded)
+          }}
         >
-          <CardTitle className="flex items-center gap-2 text-sm">
-            {modelType === "problem" ? <Package className="h-4 w-4" /> : <Settings className="h-4 w-4" />}
+          <CardTitle className="flex items-center gap-1 text-xs">
+            {modelType === "problem" ? <Package className="h-3 w-3" /> : <Settings className="h-3 w-3" />}
             {modelType === "problem" ? "Problem" : "Optimizer"}
           </CardTitle>
-          {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+          {isExpanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
         </div>
       </CardHeader>
 
-      <CardContent className="space-y-3">
+      <CardContent className="space-y-2 pt-1">
         {/* Selected Model Display */}
         {selectedModel && (
           <div className="p-2 bg-muted/50 rounded border">
             <div className="flex items-center justify-between">
               <div className="min-w-0 flex-1">
                 <p
-                  className="font-medium text-sm truncate cursor-pointer hover:text-primary hover:underline transition-colors"
+                  className="font-medium text-xs truncate cursor-pointer hover:text-primary hover:underline transition-colors"
                   onClick={(e) => {
                     e.stopPropagation()
                     window.open(`https://rastion.com/${selectedModel.username}/${selectedModel.name}`, "_blank")
@@ -220,7 +220,7 @@ export const CompactModelSelector: React.FC<CompactModelSelectorProps> = ({
                   </span>
                 </p>
               </div>
-              <Button variant="outline" size="sm" onClick={onModelClear} className="h-6 text-xs">
+              <Button variant="outline" size="sm" onClick={onModelClear} className="h-5 text-xs px-2">
                 Clear
               </Button>
             </div>
@@ -229,18 +229,21 @@ export const CompactModelSelector: React.FC<CompactModelSelectorProps> = ({
 
         {/* Expanded Model Selection */}
         {isExpanded && (
-          <div className="space-y-3">
+          <div className="space-y-2">
             {/* Header with Refresh */}
             <div className="flex items-center justify-between">
-              <h4 className="text-sm font-medium">
+              <h4 className="text-xs font-medium">
                 My {modelType === "problem" ? "Problems" : "Optimizers"}
               </h4>
               <Button
                 variant="outline"
                 size="sm"
-                onClick={loadModels}
+                onClick={() => {
+                  setHasUserInteracted(true) // Mark user interaction
+                  loadModels()
+                }}
                 disabled={loading}
-                className="h-7 w-7 p-0"
+                className="h-6 w-6 p-0"
               >
                 {loading ? (
                   <Loader2 className="h-3 w-3 animate-spin" />
@@ -251,7 +254,7 @@ export const CompactModelSelector: React.FC<CompactModelSelectorProps> = ({
             </div>
 
             {/* Models List */}
-            <ScrollArea className="h-[200px]">
+            <ScrollArea className="h-[180px]">
               <div className="space-y-2">
                 {loading ? (
                   <div className="flex items-center justify-center py-4">

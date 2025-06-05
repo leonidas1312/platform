@@ -1,6 +1,6 @@
 const express = require("express")
 const { knex } = require("../config/database")
-const auth = require("../middleware/auth")
+const { auth } = require("../middleware/auth")
 
 const router = express.Router()
 

@@ -1,7 +1,7 @@
 const express = require("express")
 const { knex } = require("../config/database")
 const GiteaService = require("../services/giteaService")
-const auth = require("../middleware/auth")
+const { auth } = require("../middleware/auth")
 
 const router = express.Router()
 const fetch = (...args) => import("node-fetch").then(({ default: fetch }) => fetch(...args))
@@ -87,7 +87,14 @@ router.get("/:owner/:repoName", async (req, res) => {
   const { owner, repoName } = req.params
 
   try {
-    const token = req.headers.authorization?.split(" ")[1]
+    // Try to get token from session first (HTTP-only cookie), then fallback to Authorization header
+    let token = req.session?.user_data?.token
+
+    // Fallback to Authorization header for backward compatibility during transition
+    if (!token) {
+      token = req.headers.authorization?.split(" ")[1]
+    }
+
     const repoRes = await fetch(`${GITEA_URL}/api/v1/repos/${owner}/${repoName}`, {
       headers: {
         ...(token && { Authorization: `token ${token}` }),
@@ -107,7 +114,11 @@ router.get("/:owner/:repoName", async (req, res) => {
     // Fetch README
     let readmeContent = ""
     try {
-      const readmeRes = await fetch(`${GITEA_URL}/api/v1/repos/${owner}/${repoName}/contents/README.md?ref=${branch}`)
+      const readmeRes = await fetch(`${GITEA_URL}/api/v1/repos/${owner}/${repoName}/contents/README.md?ref=${branch}`, {
+        headers: {
+          ...(token && { Authorization: `token ${token}` }),
+        },
+      })
       if (readmeRes.ok) {
         const readmeJson = await readmeRes.json()
         if (readmeJson.content) {
@@ -121,7 +132,11 @@ router.get("/:owner/:repoName", async (req, res) => {
     // Fetch config.json
     let configData = null
     try {
-      const configRes = await fetch(`${GITEA_URL}/api/v1/repos/${owner}/${repoName}/contents/config.json?ref=${branch}`)
+      const configRes = await fetch(`${GITEA_URL}/api/v1/repos/${owner}/${repoName}/contents/config.json?ref=${branch}`, {
+        headers: {
+          ...(token && { Authorization: `token ${token}` }),
+        },
+      })
       if (configRes.ok) {
         const configJson = await configRes.json()
         if (configJson.content) {
@@ -136,7 +151,11 @@ router.get("/:owner/:repoName", async (req, res) => {
     // Fetch file listing (root)
     let fileList = []
     try {
-      const filesRes = await fetch(`${GITEA_URL}/api/v1/repos/${owner}/${repoName}/contents?ref=${branch}`)
+      const filesRes = await fetch(`${GITEA_URL}/api/v1/repos/${owner}/${repoName}/contents?ref=${branch}`, {
+        headers: {
+          ...(token && { Authorization: `token ${token}` }),
+        },
+      })
       if (filesRes.ok) {
         fileList = await filesRes.json()
       }
@@ -159,7 +178,14 @@ router.get("/:owner/:repoName", async (req, res) => {
 // Delete repository
 router.delete("/:owner/:repoName", async (req, res) => {
   const { owner, repoName } = req.params
-  const token = req.headers.authorization?.split(" ")[1]
+
+  // Try to get token from session first (HTTP-only cookie), then fallback to Authorization header
+  let token = req.session?.user_data?.token
+
+  // Fallback to Authorization header for backward compatibility during transition
+  if (!token) {
+    token = req.headers.authorization?.split(" ")[1]
+  }
 
   if (!token) {
     return res.status(401).json({ message: "Unauthorized" })
@@ -193,10 +219,22 @@ router.get("/:owner/:repoName/contents/:path(*)", async (req, res) => {
   const { ref } = req.query
 
   try {
+    // Try to get token from session first (HTTP-only cookie), then fallback to Authorization header
+    let token = req.session?.user_data?.token
+
+    // Fallback to Authorization header for backward compatibility during transition
+    if (!token) {
+      token = req.headers.authorization?.split(" ")[1]
+    }
+
     const branch = ref || "main"
     const encodedPath = encodeURIComponent(path)
     const contentsUrl = `${GITEA_URL}/api/v1/repos/${owner}/${repoName}/contents/${encodedPath}?ref=${branch}`
-    const contentsRes = await fetch(contentsUrl)
+    const contentsRes = await fetch(contentsUrl, {
+      headers: {
+        ...(token && { Authorization: `token ${token}` }),
+      },
+    })
 
     if (!contentsRes.ok) {
       const errData = await contentsRes.json()
@@ -219,9 +257,21 @@ router.get("/:owner/:repoName/contents/", async (req, res) => {
   const { ref } = req.query
 
   try {
+    // Try to get token from session first (HTTP-only cookie), then fallback to Authorization header
+    let token = req.session?.user_data?.token
+
+    // Fallback to Authorization header for backward compatibility during transition
+    if (!token) {
+      token = req.headers.authorization?.split(" ")[1]
+    }
+
     const branch = ref || "main"
     const contentsUrl = `${GITEA_URL}/api/v1/repos/${owner}/${repoName}/contents?ref=${branch}`
-    const contentsRes = await fetch(contentsUrl)
+    const contentsRes = await fetch(contentsUrl, {
+      headers: {
+        ...(token && { Authorization: `token ${token}` }),
+      },
+    })
 
     if (!contentsRes.ok) {
       const errData = await contentsRes.json()
@@ -238,6 +288,66 @@ router.get("/:owner/:repoName/contents/", async (req, res) => {
   }
 })
 
+// Get commit history for a repository
+router.get("/:owner/:repoName/commits", async (req, res) => {
+  const { owner, repoName } = req.params
+  const { path, limit = 10, page = 1, ref } = req.query
+
+  try {
+    // Try to get token from session first (HTTP-only cookie), then fallback to Authorization header
+    let token = req.session?.user_data?.token
+
+    // Fallback to Authorization header for backward compatibility during transition
+    if (!token) {
+      token = req.headers.authorization?.split(" ")[1]
+    }
+
+    let commitsUrl = `${GITEA_URL}/api/v1/repos/${owner}/${repoName}/commits`
+
+    const queryParams = new URLSearchParams()
+    if (path) queryParams.append("path", String(path))
+    if (limit) queryParams.append("limit", String(limit))
+    if (page) queryParams.append("page", String(page))
+    if (ref) queryParams.append("sha", String(ref))
+
+    if (queryParams.toString()) {
+      commitsUrl += `?${queryParams.toString()}`
+    }
+
+    console.log(`Fetching commits from: ${commitsUrl}`)
+
+    const headers = {}
+    if (token) {
+      headers.Authorization = `token ${token}`
+    }
+    headers.Accept = "application/json"
+
+    const commitsRes = await fetch(commitsUrl, { headers })
+
+    if (!commitsRes.ok) {
+      const contentType = commitsRes.headers.get("content-type")
+      if (contentType && contentType.includes("application/json")) {
+        const errData = await commitsRes.json()
+        return res.status(commitsRes.status).json({
+          message: errData.message || "Failed to fetch commit history.",
+        })
+      } else {
+        const errText = await commitsRes.text()
+        console.error("Non-JSON error response:", errText)
+        return res.status(commitsRes.status).json({
+          message: "Failed to fetch commit history. Server returned a non-JSON response.",
+        })
+      }
+    }
+
+    const commitsData = await commitsRes.json()
+    return res.json(commitsData)
+  } catch (err) {
+    console.error("Error fetching commit history:", err)
+    return res.status(500).json({ message: "Internal server error" })
+  }
+})
+
 // Create or Update a file in a repository (POST) - Alias for repo-files route
 router.post("/:owner/:repoName/contents/:filepath(*)", async (req, res) => {
   const { owner, repoName, filepath } = req.params
@@ -248,7 +358,14 @@ router.post("/:owner/:repoName/contents/:filepath(*)", async (req, res) => {
   }
 
   const base64Content = Buffer.from(content, "utf8").toString("base64")
-  const token = req.headers.authorization?.split(" ")[1]
+
+  // Try to get token from session first (HTTP-only cookie), then fallback to Authorization header
+  let token = req.session?.user_data?.token
+
+  // Fallback to Authorization header for backward compatibility during transition
+  if (!token) {
+    token = req.headers.authorization?.split(" ")[1]
+  }
 
   if (!token) {
     return res.status(401).json({ message: "Unrecognised request." })
@@ -382,7 +499,14 @@ router.post("/:owner/:repoName/connections", auth, async (req, res) => {
 
   try {
     // Verify that the target repository exists
-    const token = req.headers.authorization?.split(" ")[1]
+    // Try to get token from session first (HTTP-only cookie), then fallback to Authorization header
+    let token = req.session?.user_data?.token
+
+    // Fallback to Authorization header for backward compatibility during transition
+    if (!token) {
+      token = req.headers.authorization?.split(" ")[1]
+    }
+
     const headers = token ? { Authorization: `token ${token}` } : {}
 
     const repoCheckRes = await fetch(`${GITEA_URL}/api/v1/repos/${targetOwner}/${targetRepo}`, { headers })
@@ -445,7 +569,14 @@ router.put("/:owner/:repoName/connections/:connectionId", auth, async (req, res)
     }
 
     // Verify that the target repository exists
-    const token = req.headers.authorization?.split(" ")[1]
+    // Try to get token from session first (HTTP-only cookie), then fallback to Authorization header
+    let token = req.session?.user_data?.token
+
+    // Fallback to Authorization header for backward compatibility during transition
+    if (!token) {
+      token = req.headers.authorization?.split(" ")[1]
+    }
+
     const headers = token ? { Authorization: `token ${token}` } : {}
 
     const repoCheckRes = await fetch(`${GITEA_URL}/api/v1/repos/${targetOwner}/${targetRepo}`, { headers })

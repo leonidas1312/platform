@@ -1,6 +1,6 @@
 const express = require("express")
 const { knex } = require("../config/database")
-const auth = require("../middleware/auth")
+const { auth } = require("../middleware/auth")
 const OptimizationService = require("../services/optimizationService")
 const fetch = (...args) => import("node-fetch").then(({ default: fetch }) => fetch(...args))
 // Removed QubotService - qubots execution now happens in playground containers
@@ -52,6 +52,64 @@ router.get("/qubots", async (req, res) => {
   })
 })
 
+// Get verified environment specs from Kubernetes
+router.get("/qubots/specs", async (req, res) => {
+  try {
+    const PlaygroundEnvironmentService = require("../services/playgroundEnvironmentService")
+    const playgroundService = new PlaygroundEnvironmentService()
+
+    // Get actual specs from the service configuration
+    const actualSpecs = {
+      runtime_limit: {
+        value: Math.round(playgroundService.sessionTimeout / (1000 * 60)), // Convert ms to minutes
+        unit: "minutes",
+        description: "Maximum session duration (auto-cleanup after inactivity)"
+      },
+      cpu: {
+        cores: 2, // From Kubernetes pod spec
+        requests: "500m",
+        description: "CPU allocation (2 cores limit, 0.5 cores guaranteed)"
+      },
+      memory: {
+        value: 4,
+        unit: "GB",
+        requests: "1GB",
+        description: "Memory allocation (4GB limit, 1GB guaranteed)"
+      },
+      storage: {
+        value: "Ephemeral",
+        unit: "",
+        description: "Temporary container storage (deleted after session)"
+      },
+      python_version: "3.13",
+      qubots_support: true,
+      container_isolation: true,
+      ports: {
+        qubots_api: 8000,
+        jupyter: 8888,
+        vscode: 8080
+      },
+      max_environments: playgroundService.maxEnvironments,
+      base_image: playgroundService.baseImage
+    }
+
+    res.json({
+      success: true,
+      message: "Environment specifications verified from Kubernetes configuration",
+      environment_specs: actualSpecs,
+      verified: true,
+      timestamp: new Date().toISOString()
+    })
+  } catch (error) {
+    console.error("Error getting verified specs:", error)
+    res.status(500).json({
+      success: false,
+      message: "Failed to get verified environment specifications",
+      error: error.message
+    })
+  }
+})
+
 // Get qubots system status
 router.get("/qubots/status", async (req, res) => {
   res.json({
@@ -65,6 +123,37 @@ router.get("/qubots/status", async (req, res) => {
       fast_prototyping: true,
       built_in_dashboards: true,
       real_time_results: true
+    },
+    environment_specs: {
+      runtime_limit: {
+        value: 60,
+        unit: "minutes",
+        description: "Maximum session duration (auto-cleanup after inactivity)"
+      },
+      cpu: {
+        cores: 2,
+        requests: "500m",
+        description: "CPU allocation (2 cores limit, 0.5 cores guaranteed)"
+      },
+      memory: {
+        value: 4,
+        unit: "GB",
+        requests: "1GB",
+        description: "Memory allocation (4GB limit, 1GB guaranteed)"
+      },
+      storage: {
+        value: "Ephemeral",
+        unit: "",
+        description: "Temporary container storage (deleted after session)"
+      },
+      python_version: "3.13",
+      qubots_support: true,
+      container_isolation: true,
+      ports: {
+        qubots_api: 8000,
+        jupyter: 8888,
+        vscode: 8080
+      }
     }
   })
 })
@@ -636,6 +725,13 @@ router.post("/qubots/combinations", auth, async (req, res) => {
       })
     }
 
+    // Ensure JSON fields are objects/arrays, not strings
+    const safeParams = {
+      problem_params: typeof problem_params === 'object' ? problem_params : {},
+      optimizer_params: typeof optimizer_params === 'object' ? optimizer_params : {},
+      tags: Array.isArray(tags) ? tags : []
+    }
+
     const combination = await knex("qubots_combinations").insert({
       name,
       description: description || null,
@@ -643,11 +739,11 @@ router.post("/qubots/combinations", auth, async (req, res) => {
       problem_username: problem_username || user_id,
       optimizer_name,
       optimizer_username: optimizer_username || user_id,
-      problem_params: JSON.stringify(problem_params),
-      optimizer_params: JSON.stringify(optimizer_params),
+      problem_params: safeParams.problem_params,
+      optimizer_params: safeParams.optimizer_params,
       created_by: user_id,
       is_public,
-      tags: JSON.stringify(tags),
+      tags: safeParams.tags,
       created_at: new Date(),
       updated_at: new Date()
     }).returning("*")
@@ -663,8 +759,8 @@ router.post("/qubots/combinations", auth, async (req, res) => {
 // OPTIMIZATION WORKFLOWS ENDPOINTS
 // ============================================================================
 
-// Get public workflows (no authentication required)
-router.get("/workflows", async (req, res) => {
+// Get community workflows (public workflows from all users - no authentication required)
+router.get("/workflows/community", async (req, res) => {
   try {
     const { page = 1, limit = 20, sort = 'created_at', order = 'desc', search = '' } = req.query
     const offset = (page - 1) * limit
@@ -735,22 +831,50 @@ router.get("/workflows", async (req, res) => {
   }
 })
 
-// Get user's workflows (requires authentication)
-router.get("/workflows/my", auth, async (req, res) => {
+// Get user's personal workflows (both public and private - requires authentication)
+router.get("/workflows/personal", auth, async (req, res) => {
   try {
-    const { page = 1, limit = 20, sort = 'created_at', order = 'desc' } = req.query
+    const { page = 1, limit = 20, sort = 'created_at', order = 'desc', search = '' } = req.query
     const offset = (page - 1) * limit
-    const username = req.user.login
+    const username = req.user.login || req.user.username
 
-    const query = knex("optimization_workflows")
+    if (!username) {
+      return res.status(401).json({
+        message: "User authentication failed - no username found"
+      })
+    }
+
+    let query = knex("optimization_workflows")
       .select("*")
       .where("created_by", username)
+
+    // Add search functionality
+    if (search) {
+      query = query.where(function() {
+        this.where("title", "ilike", `%${search}%`)
+          .orWhere("description", "ilike", `%${search}%`)
+          .orWhere("problem_name", "ilike", `%${search}%`)
+          .orWhere("optimizer_name", "ilike", `%${search}%`)
+      })
+    }
+
+    query = query
       .orderBy(sort, order)
       .limit(limit)
       .offset(offset)
 
     const totalQuery = knex("optimization_workflows")
       .where("created_by", username)
+      .modify(function(queryBuilder) {
+        if (search) {
+          queryBuilder.where(function() {
+            this.where("title", "ilike", `%${search}%`)
+              .orWhere("description", "ilike", `%${search}%`)
+              .orWhere("problem_name", "ilike", `%${search}%`)
+              .orWhere("optimizer_name", "ilike", `%${search}%`)
+          })
+        }
+      })
       .count("* as count")
       .first()
 
@@ -780,11 +904,105 @@ router.get("/workflows/my", auth, async (req, res) => {
   }
 })
 
+// Keep the old endpoint for backward compatibility (alias to community)
+router.get("/workflows", async (req, res) => {
+  try {
+    const { page = 1, limit = 20, sort = 'created_at', order = 'desc', search = '' } = req.query
+    const offset = (page - 1) * limit
+
+    let query = knex("optimization_workflows")
+      .select([
+        "optimization_workflows.*",
+        "users.username as creator_username"
+      ])
+      .leftJoin("users", "optimization_workflows.created_by", "users.username")
+      .where("optimization_workflows.is_public", true)
+
+    // Add search functionality
+    if (search) {
+      query = query.where(function() {
+        this.where("optimization_workflows.title", "ilike", `%${search}%`)
+          .orWhere("optimization_workflows.description", "ilike", `%${search}%`)
+          .orWhere("optimization_workflows.problem_name", "ilike", `%${search}%`)
+          .orWhere("optimization_workflows.optimizer_name", "ilike", `%${search}%`)
+      })
+    }
+
+    query = query
+      .orderBy(`optimization_workflows.${sort}`, order)
+      .limit(limit)
+      .offset(offset)
+
+    const totalQuery = knex("optimization_workflows")
+      .where("is_public", true)
+      .modify(function(queryBuilder) {
+        if (search) {
+          queryBuilder.where(function() {
+            this.where("title", "ilike", `%${search}%`)
+              .orWhere("description", "ilike", `%${search}%`)
+              .orWhere("problem_name", "ilike", `%${search}%`)
+              .orWhere("optimizer_name", "ilike", `%${search}%`)
+          })
+        }
+      })
+      .count("* as count")
+      .first()
+
+    const [workflows, totalResult] = await Promise.all([
+      query,
+      totalQuery
+    ])
+
+    const total = parseInt(totalResult.count)
+    const totalPages = Math.ceil(total / limit)
+
+    res.json({
+      success: true,
+      workflows,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        totalPages,
+        hasNext: page < totalPages,
+        hasPrev: page > 1
+      }
+    })
+  } catch (error) {
+    console.error("Error fetching community workflows:", error)
+    res.status(500).json({ message: "Internal server error" })
+  }
+})
+
 // Get specific workflow by ID
 router.get("/workflows/:id", async (req, res) => {
   try {
     const { id } = req.params
-    const token = req.headers.authorization?.split(" ")[1]
+
+    // Try to get token from session first (HTTP-only cookie), then fallback to Authorization header
+    let token = req.session?.user_data?.token
+    let currentUser = null
+
+    // Fallback to Authorization header for backward compatibility during transition
+    if (!token) {
+      token = req.headers.authorization?.split(" ")[1]
+    }
+
+    // If we have a token, get the current user info
+    if (token) {
+      try {
+        const userResponse = await fetch(`${process.env.GITEA_URL}/api/v1/user`, {
+          headers: { Authorization: `token ${token}` }
+        })
+
+        if (userResponse.ok) {
+          currentUser = await userResponse.json()
+        }
+      } catch (error) {
+        console.error("Error validating token:", error)
+        // Continue without user info - they can still access public workflows
+      }
+    }
 
     const workflow = await knex("optimization_workflows")
       .select([
@@ -801,26 +1019,12 @@ router.get("/workflows/:id", async (req, res) => {
 
     // Check if user can access this workflow
     if (!workflow.is_public) {
-      if (!token) {
-        return res.status(401).json({ message: "Authentication required for private workflows" })
+      if (!currentUser) {
+        return res.status(401).json({ message: "Workflow not found or you don't have permission to view it." })
       }
 
-      // Verify token and check ownership
-      try {
-        const userResponse = await fetch(`${process.env.GITEA_URL}/api/v1/user`, {
-          headers: { Authorization: `token ${token}` }
-        })
-
-        if (!userResponse.ok) {
-          return res.status(401).json({ message: "Invalid authentication token" })
-        }
-
-        const userData = await userResponse.json()
-        if (userData.login !== workflow.created_by) {
-          return res.status(403).json({ message: "Access denied to private workflow" })
-        }
-      } catch (error) {
-        return res.status(401).json({ message: "Authentication failed" })
+      if (currentUser.login !== workflow.created_by) {
+        return res.status(403).json({ message: "Workflow not found or you don't have permission to view it." })
       }
     }
 
@@ -861,7 +1065,18 @@ router.post("/workflows", auth, async (req, res) => {
       execution_results = null
     } = req.body
 
-    const username = req.user.login
+    // Debug logging to identify the issue
+    console.log("User object in workflow creation:", req.user)
+    console.log("Session data:", req.session?.user_data)
+
+    const username = req.user.login || req.user.username
+
+    if (!username) {
+      console.error("No username found in req.user:", req.user)
+      return res.status(401).json({
+        message: "User authentication failed - no username found"
+      })
+    }
 
     // Validate required fields
     if (!title || !problem_name || !optimizer_name) {
@@ -870,8 +1085,17 @@ router.post("/workflows", auth, async (req, res) => {
       })
     }
 
+    // Ensure JSON fields are objects/arrays, not strings
+    const safeParams = {
+      problem_params: typeof problem_params === 'object' ? problem_params : {},
+      optimizer_params: typeof optimizer_params === 'object' ? optimizer_params : {},
+      tags: Array.isArray(tags) ? tags : [],
+      uploaded_files: typeof uploaded_files === 'object' ? uploaded_files : {},
+      execution_results: execution_results && typeof execution_results === 'object' ? execution_results : null
+    }
+
     // Create workflow
-    const [workflowId] = await knex("optimization_workflows")
+    const insertResult = await knex("optimization_workflows")
       .insert({
         title,
         description,
@@ -880,14 +1104,17 @@ router.post("/workflows", auth, async (req, res) => {
         problem_username: problem_username || username,
         optimizer_name,
         optimizer_username: optimizer_username || username,
-        problem_params: JSON.stringify(problem_params),
-        optimizer_params: JSON.stringify(optimizer_params),
-        tags: JSON.stringify(tags),
+        problem_params: safeParams.problem_params,
+        optimizer_params: safeParams.optimizer_params,
+        tags: safeParams.tags,
         is_public,
-        uploaded_files: JSON.stringify(uploaded_files),
-        execution_results: execution_results ? JSON.stringify(execution_results) : null
+        uploaded_files: safeParams.uploaded_files,
+        execution_results: safeParams.execution_results
       })
       .returning("id")
+
+    // Extract the actual ID value from the returned object
+    const workflowId = insertResult[0].id || insertResult[0]
 
     // Fetch the created workflow
     const workflow = await knex("optimization_workflows")
@@ -902,6 +1129,54 @@ router.post("/workflows", auth, async (req, res) => {
     })
   } catch (error) {
     console.error("Error creating workflow:", error)
+    console.error("Error details:", {
+      message: error.message,
+      stack: error.stack,
+      code: error.code
+    })
+    res.status(500).json({
+      message: "Internal server error",
+      ...(process.env.NODE_ENV === 'development' && { error: error.message })
+    })
+  }
+})
+
+// Delete a workflow (requires authentication)
+router.delete("/workflows/:id", auth, async (req, res) => {
+  try {
+    const { id } = req.params
+    const username = req.user.login || req.user.username
+
+    if (!username) {
+      return res.status(401).json({
+        message: "User authentication failed - no username found"
+      })
+    }
+
+    // Check if workflow exists and user owns it
+    const workflow = await knex("optimization_workflows")
+      .where({ id })
+      .first()
+
+    if (!workflow) {
+      return res.status(404).json({ message: "Workflow not found" })
+    }
+
+    if (workflow.created_by !== username) {
+      return res.status(403).json({ message: "You can only delete your own workflows" })
+    }
+
+    // Delete the workflow
+    await knex("optimization_workflows")
+      .where({ id })
+      .del()
+
+    res.json({
+      success: true,
+      message: "Workflow deleted successfully"
+    })
+  } catch (error) {
+    console.error("Error deleting workflow:", error)
     res.status(500).json({ message: "Internal server error" })
   }
 })

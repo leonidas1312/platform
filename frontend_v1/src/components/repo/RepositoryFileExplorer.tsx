@@ -243,13 +243,7 @@ export default function RepositoryFileExplorer({
               </Button>
             </div>
 
-            {/* Add file button */}
-            {onAddFile && (
-              <Button variant="default" size="sm" onClick={onAddFile} className="h-9">
-                <Plus className="h-4 w-4 mr-2" />
-                Add file
-              </Button>
-            )}
+            
           </div>
         </div>
 

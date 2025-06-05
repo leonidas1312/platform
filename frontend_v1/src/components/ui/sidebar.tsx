@@ -22,11 +22,15 @@ const SIDEBAR_WIDTH = "16rem"
 const SIDEBAR_WIDTH_MOBILE = "18rem"
 const SIDEBAR_WIDTH_ICON = "4rem"
 
-// Simple context for mobile state only
+// Enhanced context with all required properties
 type SidebarContext = {
   isMobile: boolean
   openMobile: boolean
   setOpenMobile: (open: boolean) => void
+  state: "expanded" | "collapsed"
+  open: boolean
+  setOpen: (open: boolean) => void
+  toggleSidebar: () => void
 }
 
 const SidebarContext = React.createContext<SidebarContext | null>(null)
@@ -45,14 +49,29 @@ const SidebarProvider = React.forwardRef<
 >(({ className, style, children, ...props }, ref) => {
   const isMobile = useIsMobile()
   const [openMobile, setOpenMobile] = React.useState(false)
+  const [open, setOpen] = React.useState(true)
+
+  const state = open ? "expanded" : "collapsed"
+
+  const toggleSidebar = React.useCallback(() => {
+    if (isMobile) {
+      setOpenMobile(!openMobile)
+    } else {
+      setOpen(!open)
+    }
+  }, [isMobile, openMobile, open])
 
   const contextValue = React.useMemo<SidebarContext>(
     () => ({
       isMobile,
       openMobile,
       setOpenMobile,
+      state,
+      open,
+      setOpen,
+      toggleSidebar,
     }),
-    [isMobile, openMobile, setOpenMobile]
+    [isMobile, openMobile, setOpenMobile, state, open, setOpen, toggleSidebar]
   )
 
   return (

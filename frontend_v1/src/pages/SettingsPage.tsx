@@ -4,35 +4,17 @@ import type React from "react"
 
 import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
-import { AlertCircle, Copy, Eye, EyeOff, Key, Loader2, Plus, Trash2, CheckCircle2, User, Lock, Shield, Code } from "lucide-react"
+import { AlertCircle, Copy, Eye, EyeOff, Key, Loader2, CheckCircle2, User, Lock, Shield, Code } from "lucide-react"
 import Layout from "@/components/Layout"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
 import { toast } from "@/components/ui/use-toast"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Separator } from "@/components/ui/separator"
 
 const API = import.meta.env.VITE_API_BASE
-
-interface Token {
-  id: number
-  name: string
-  token_last_eight: string
-  created_at: string
-  expires_at: string | null
-}
 
 const SettingsPage = () => {
   const navigate = useNavigate()
@@ -51,14 +33,26 @@ const SettingsPage = () => {
   const [passwordError, setPasswordError] = useState("")
 
   useEffect(() => {
-    const token = localStorage.getItem("gitea_token")
-    if (!token) {
-      navigate("/auth")
-      return
+    const fetchToken = async () => {
+      try {
+        const response = await fetch(`${API}/api/auth/token`, {
+          credentials: 'include', // Include cookies in request
+        })
+
+        if (!response.ok) {
+          navigate("/auth")
+          return
+        }
+
+        const data = await response.json()
+        setApiToken(data.token)
+      } catch (error) {
+        console.error("Error fetching token:", error)
+        navigate("/auth")
+      }
     }
 
-    // Load the API token for display
-    setApiToken(token)
+    fetchToken()
   }, [navigate])
 
   // Copy to clipboard functionality
@@ -117,13 +111,12 @@ const SettingsPage = () => {
     setIsChangingPassword(true)
 
     try {
-      const token = localStorage.getItem("gitea_token")
       const response = await fetch(`${API}/change-password`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `token ${token}`,
         },
+        credentials: 'include', // Include cookies for authentication
         body: JSON.stringify({
           old_password: currentPassword,
           new_password: newPassword,

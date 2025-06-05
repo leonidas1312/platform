@@ -1,15 +1,15 @@
 const session = require("express-session")
 
 const sessionConfig = session({
-  secret: "RwsikosPromaxxwnas",
+  secret: process.env.SESSION_SECRET || "RwsikosPromaxxwnas",
   resave: false,
   saveUninitialized: false,
   cookie: {
-    domain: "rastion.com",
-    secure: true, // keep false locally (no HTTPS yet)
+    domain: process.env.NODE_ENV === 'production' ? "rastion.com" : undefined,
+    secure: process.env.NODE_ENV === 'production', // HTTPS in production
     httpOnly: true,
-    sameSite: "lax", // or "none" + secure:false if you prefer
-    maxAge: 6_000_000,
+    sameSite: process.env.NODE_ENV === 'production' ? "lax" : "lax",
+    maxAge: 24 * 60 * 60 * 1000, // 24 hours
   },
 })
 
