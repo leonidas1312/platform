@@ -48,6 +48,20 @@ class GiteaService {
     return response
   }
 
+  // Create user token as admin using sudo feature
+  static async createUserTokenAsAdmin(username, tokenData) {
+    const response = await fetch(`${GITEA_URL}/api/v1/users/${username}/tokens`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `token ${ADMIN_TOKEN}`,
+        Sudo: username,
+      },
+      body: JSON.stringify(tokenData),
+    })
+    return response
+  }
+
   static async deleteUserToken(username, tokenId) {
     const response = await fetch(`${GITEA_URL}/api/v1/users/${username}/tokens/${tokenId}`, {
       method: "DELETE",

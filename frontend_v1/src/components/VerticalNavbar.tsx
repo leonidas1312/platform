@@ -8,6 +8,11 @@ import {
   ChevronDown,
   Menu,
   Shield,
+  Trophy,
+  Users,
+  MessageSquare,
+  BookOpen,
+  DollarSign,
 } from "lucide-react"
 import { RastionLogo } from "@/components/ui/RastionLogo"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -29,6 +34,7 @@ import {
 import { useToast } from "@/hooks/use-toast"
 import { useAdmin } from "@/hooks/use-admin"
 import { ThemeToggleMenuItem } from "@/components/ThemeToggle"
+import { NotificationDropdown } from "@/components/NotificationDropdown"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import {
@@ -148,23 +154,9 @@ export function VerticalNavbar() {
                 <NavigationMenuContent>
                   <div className="grid gap-3 p-6 w-[400px]">
                     <div className="grid gap-1">
-                      <NavigationMenuLink asChild>
-                        <Link
-                          to="/qubots"
-                          className={cn(
-                            "block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground",
-                            isActive("/qubots") && "bg-accent text-accent-foreground"
-                          )}
-                        >
-                          <div className="flex items-center gap-2">
-                            <svg className="w-4 h-4" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg" fill="currentColor"><g id="SVGRepo_bgCarrier" strokeWidth="0"></g><g id="SVGRepo_tracerCarrier" strokeLinecap="round" strokeLinejoin="round"></g><g id="SVGRepo_iconCarrier"> <path fill="currentColor" d="M864 144H560c-8.8 0-16 7.2-16 16v304c0 8.8 7.2 16 16 16h304c8.8 0 16-7.2 16-16V160c0-8.8-7.2-16-16-16zm-52 268H612V212h200v200zM464 544H160c-8.8 0-16 7.2-16 16v304c0 8.8 7.2 16 16 16h304c8.8 0 16-7.2 16-16V560c0-8.8-7.2-16-16-16zm-52 268H212V612h200v200zm52-668H160c-8.8 0-16 7.2-16 16v304c0 8.8 7.2 16 16 16h304c8.8 0 16-7.2 16-16V160c0-8.8-7.2-16-16-16zm-52 268H212V212h200v200zm452 132H560c-8.8 0-16 7.2-16 16v304c0 8.8 7.2 16 16 16h304c8.8 0 16-7.2 16-16V560c0-8.8-7.2-16-16-16zm-52 268H612V612h200v200z"></path> </g></svg>
-                            <div className="text-sm font-medium leading-none">Tools</div>
-                          </div>
-                          <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
-                            Browse public optimization tools
-                          </p>
-                        </Link>
-                      </NavigationMenuLink>
+
+                      
+
                       <NavigationMenuLink asChild>
                         <Link
                           to="/qubots-playground"
@@ -178,49 +170,161 @@ export function VerticalNavbar() {
                             <div className="text-sm font-medium leading-none">Playground</div>
                           </div>
                           <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
-                            Test and experiment with optimization tools
+                            Experiment with optimizers and problems
                           </p>
                         </Link>
                       </NavigationMenuLink>
+
                       <NavigationMenuLink asChild>
                         <Link
-                          to="/optimization-workflows"
+                          to="/datasets"
                           className={cn(
                             "block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground",
-                            isActive("/optimization-workflows") && "bg-accent text-accent-foreground"
+                            isActive("/datasets") && "bg-accent text-accent-foreground"
                           )}
                         >
                           <div className="flex items-center gap-2">
-                            <svg className="w-4 h-4" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg" fill="currentColor"><g id="SVGRepo_bgCarrier" strokeWidth="0"></g><g id="SVGRepo_tracerCarrier" strokeLinecap="round" strokeLinejoin="round"></g><g id="SVGRepo_iconCarrier"> <path d="M916 210H376c-17.7 0-32 14.3-32 32v236H108c-17.7 0-32 14.3-32 32v272c0 17.7 14.3 32 32 32h540c17.7 0 32-14.3 32-32V546h236c17.7 0 32-14.3 32-32V242c0-17.7-14.3-32-32-32zM344 746H144V546h200v200zm268 0H412V546h200v200zm0-268H412V278h200v200zm268 0H680V278h200v200z"></path> </g></svg>
-                            <div className="text-sm font-medium leading-none">Workflows</div>
+                            <svg className="w-4 h-4" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg" fill="currentColor"><g id="SVGRepo_bgCarrier" strokeWidth="0"></g><g id="SVGRepo_tracerCarrier" strokeLinecap="round" strokeLinejoin="round"></g><g id="SVGRepo_iconCarrier"> <path fill="currentColor" d="M832 64H192c-17.7 0-32 14.3-32 32v832c0 17.7 14.3 32 32 32h640c17.7 0 32-14.3 32-32V96c0-17.7-14.3-32-32-32zm-260 72h96v209.9L621.5 312 572 347.4V136zm220 752H232V136h280v296.9c0 3.3 1 6.6 3 9.3a15.9 15.9 0 0 0 22.3 3.7l83.8-59.9 81.4 59.4c2.7 2 6 3.1 9.4 3.1 8.8 0 16-7.2 16-16V136h64v752z"></path> </g></svg>
+                            <div className="text-sm font-medium leading-none">Datasets</div>
                           </div>
                           <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
-                            Manage and share optimization workflows
+                            Upload and manage optimization datasets
                           </p>
                         </Link>
                       </NavigationMenuLink>
+
                       <NavigationMenuLink asChild>
                         <Link
-                          to="/benchmark"
+                          to="/workflow-automation"
                           className={cn(
                             "block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground",
-                            isActive("/benchmark") && "bg-accent text-accent-foreground"
+                            isActive("/workflow-automation") && "bg-accent text-accent-foreground"
                           )}
                         >
                           <div className="flex items-center gap-2">
-                            <svg className="w-4 h-4" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg" fill="currentColor"><g id="SVGRepo_bgCarrier" strokeWidth="0"></g><g id="SVGRepo_tracerCarrier" strokeLinecap="round" strokeLinejoin="round"></g><g id="SVGRepo_iconCarrier"> <path d="M832 112H724V72c0-4.4-3.6-8-8-8h-56c-4.4 0-8 3.6-8 8v40H500V72c0-4.4-3.6-8-8-8h-56c-4.4 0-8 3.6-8 8v40H320c-17.7 0-32 14.3-32 32v120h-96c-17.7 0-32 14.3-32 32v632c0 17.7 14.3 32 32 32h512c17.7 0 32-14.3 32-32v-96h96c17.7 0 32-14.3 32-32V144c0-17.7-14.3-32-32-32zM664 888H232V336h218v174c0 22.1 17.9 40 40 40h174v338zm0-402H514V336h.2L664 485.8v.2zm128 274h-56V456L544 264H360v-80h68v32c0 4.4 3.6 8 8 8h56c4.4 0 8-3.6 8-8v-32h152v32c0 4.4 3.6 8 8 8h56c4.4 0 8-3.6 8-8v-32h68v576z"></path> </g></svg>
-                            <div className="text-sm font-medium leading-none">Benchmarks</div>
+                            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                              <path d="M4 6h16M4 12h16M4 18h16" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                              <circle cx="8" cy="6" r="2" fill="currentColor"/>
+                              <circle cx="16" cy="12" r="2" fill="currentColor"/>
+                              <circle cx="8" cy="18" r="2" fill="currentColor"/>
+                            </svg>
+                            <div className="text-sm font-medium leading-none">Workflow Automation <span className="text-xs bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 px-1.5 py-0.5 rounded-full ml-1">Beta</span></div>
                           </div>
                           <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
-                            Connect your problem repositories as benchmarks
+                            Build visual optimization workflows with drag-and-drop
                           </p>
                         </Link>
                       </NavigationMenuLink>
+
+                      <NavigationMenuLink asChild>
+                        <Link
+                          to="/autosolve"
+                          className={cn(
+                            "block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground",
+                            isActive("/autosolve") && "bg-accent text-accent-foreground"
+                          )}
+                        >
+                          <div className="flex items-center gap-2">
+                            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                              <path d="M12 2L13.09 8.26L20 9L13.09 9.74L12 16L10.91 9.74L4 9L10.91 8.26L12 2Z" fill="currentColor"/>
+                              <path d="M19 15L19.5 17L21.5 17.5L19.5 18L19 20L18.5 18L16.5 17.5L18.5 17L19 15Z" fill="currentColor"/>
+                              <path d="M5 6L5.5 8L7.5 8.5L5.5 9L5 11L4.5 9L2.5 8.5L4.5 8L5 6Z" fill="currentColor"/>
+                            </svg>
+                            <div className="text-sm font-medium leading-none">AutoSolve <span className="text-xs bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300 px-1.5 py-0.5 rounded-full ml-1">Beta</span></div>
+                          </div>
+                          <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
+                            AI-powered optimization recommendations from your data files
+                          </p>
+                        </Link>
+                      </NavigationMenuLink>
+
                     </div>
                   </div>
                 </NavigationMenuContent>
               </NavigationMenuItem>
             )}
+
+            {/* Community Section */}
+            <NavigationMenuItem>
+              <NavigationMenuTrigger className="flex items-center gap-2">
+                <svg className="w-4 h-4" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg" fill="currentColor"><g id="SVGRepo_bgCarrier" strokeWidth="0"></g><g id="SVGRepo_tracerCarrier" strokeLinecap="round" strokeLinejoin="round"></g><g id="SVGRepo_iconCarrier"> <path d="M824.2 699.9a301.55 301.55 0 0 0-86.4-60.4C783.1 602.8 812 546.8 812 484c0-110.8-92.4-201.7-203.2-200-109.1 1.7-197 90.6-197 200 0 62.8 29 118.8 74.2 155.5a300.95 300.95 0 0 0-86.4 60.4C345 754.6 314 826.8 312 903.8a8 8 0 0 0 8 8.2h56c4.3 0 7.9-3.4 8-7.7 1.9-58 25.4-112.3 66.7-153.5A226.62 226.62 0 0 1 612 684c60.9 0 118.2 23.7 161.3 66.8C814.5 792 838 846.3 839.9 904.3c.1 4.3 3.7 7.7 8 7.7h56a8 8 0 0 0 8-8.2c-2-77-33-149.2-87.7-203.9zM612 612c-34.2 0-66.4-13.3-90.5-37.5a126.86 126.86 0 0 1-37.5-90.5c0-34.2 13.3-66.4 37.5-90.5a126.86 126.86 0 0 1 90.5-37.5c34.2 0 66.4 13.3 90.5 37.5a126.86 126.86 0 0 1 37.5 90.5c0 34.2-13.3 66.4-37.5 90.5A126.86 126.86 0 0 1 612 612zM361.5 510.4c-.9-8.7-1.4-17.5-1.4-26.4 0-15.9 1.5-31.4 4.3-46.5.7-3.6-1.2-7.3-4.5-8.8-13.6-6.1-26.1-14.5-36.9-25.1a127.54 127.54 0 0 1-38.7-91.4c0-34.5 13.7-66.6 38.6-90.5a127.32 127.32 0 0 1 91.5-37.7c34.5 0 66.6 13.7 90.5 38.6 2.5 2.5 4.8 5.1 7 7.8 2.1 2.7 5.8 3.4 8.9 1.9 12.5-6.1 26.3-10.5 40.8-13.1 3.9-.7 6.3-4.6 5.7-8.6-.4-2.6-.6-5.2-.6-7.9 0-49.3-20.2-94.1-56.9-126.8C471.4 52.4 426.6 32.2 377.1 32.2s-94.3 20.2-126.8 56.9A180.277 180.277 0 0 0 193.4 216c0 49.3 20.2 94.1 56.9 126.8 1.3 1.2 2.6 2.5 4 3.7 2.4 2.2 2.7 5.2 1.6 8.1-11.8 30.7-15.6 64.8-10.8 98.6 2.3 16.9 6.4 33.3 12.4 48.8 1.6 4.2 6.6 5.6 10.5 2.8a127.91 127.91 0 0 1 91.2-35.2c.6 0 1.1 0 1.7.1 4.7.1 8.7-3.2 9.3-7.9z"></path> </g></svg>
+                <span>Community</span>
+              </NavigationMenuTrigger>
+              <NavigationMenuContent>
+                <div className="grid gap-3 p-6 w-[400px]">
+                  <div className="grid gap-1">
+                    <NavigationMenuLink asChild>
+                      <Link
+                        to="/qubots"
+                        className={cn(
+                          "block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground",
+                          isActive("/qubots") && "bg-accent text-accent-foreground"
+                        )}
+                      >
+                        <div className="flex items-center gap-2">
+                          <svg className="w-4 h-4" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg" fill="currentColor"><g id="SVGRepo_bgCarrier" strokeWidth="0"></g><g id="SVGRepo_tracerCarrier" strokeLinecap="round" strokeLinejoin="round"></g><g id="SVGRepo_iconCarrier"> <path fill="currentColor" d="M864 144H560c-8.8 0-16 7.2-16 16v304c0 8.8 7.2 16 16 16h304c8.8 0 16-7.2 16-16V160c0-8.8-7.2-16-16-16zm-52 268H612V212h200v200zM464 544H160c-8.8 0-16 7.2-16 16v304c0 8.8 7.2 16 16 16h304c8.8 0 16-7.2 16-16V560c0-8.8-7.2-16-16-16zm-52 268H212V612h200v200zm52-668H160c-8.8 0-16 7.2-16 16v304c0 8.8 7.2 16 16 16h304c8.8 0 16-7.2 16-16V160c0-8.8-7.2-16-16-16zm-52 268H212V212h200v200zm452 132H560c-8.8 0-16 7.2-16 16v304c0 8.8 7.2 16 16 16h304c8.8 0 16-7.2 16-16V560c0-8.8-7.2-16-16-16zm-52 268H612V612h200v200z"></path> </g></svg>
+                          <div className="text-sm font-medium leading-none">Tools</div>
+                        </div>
+                        <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
+                          Browse public optimization repositories
+                        </p>
+                      </Link>
+                    </NavigationMenuLink>
+                    <NavigationMenuLink asChild>
+                      <Link
+                        to="/optimization-workflows"
+                        className={cn(
+                          "block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground",
+                          isActive("/optimization-workflows") && "bg-accent text-accent-foreground"
+                        )}
+                      >
+                        <div className="flex items-center gap-2">
+                          <svg className="w-4 h-4" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg" fill="currentColor"><g id="SVGRepo_bgCarrier" strokeWidth="0"></g><g id="SVGRepo_tracerCarrier" strokeLinecap="round" strokeLinejoin="round"></g><g id="SVGRepo_iconCarrier"> <path d="M916 210H376c-17.7 0-32 14.3-32 32v236H108c-17.7 0-32 14.3-32 32v272c0 17.7 14.3 32 32 32h540c17.7 0 32-14.3 32-32V546h236c17.7 0 32-14.3 32-32V242c0-17.7-14.3-32-32-32zM344 746H144V546h200v200zm268 0H412V546h200v200zm0-268H412V278h200v200zm268 0H680V278h200v200z"></path> </g></svg>
+                          <div className="text-sm font-medium leading-none">Experiments</div>
+                        </div>
+                        <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
+                          View public optimization experiments
+                        </p>
+                      </Link>
+                    </NavigationMenuLink>
+                    <NavigationMenuLink asChild>
+                      <Link
+                        to="/leaderboard"
+                        className={cn(
+                          "block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground",
+                          isActive("/leaderboard") && "bg-accent text-accent-foreground"
+                        )}
+                      >
+                        <div className="flex items-center gap-2">
+                          <Trophy className="h-4 w-4" />
+                          <div className="text-sm font-medium leading-none">Leaderboard</div>
+                        </div>
+                        <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
+                          Join public leaderboards
+                        </p>
+                      </Link>
+                    </NavigationMenuLink>
+                    <NavigationMenuLink asChild>
+                      <Link
+                        to="/benchmark"
+                        className={cn(
+                          "block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground",
+                          isActive("/benchmark") && "bg-accent text-accent-foreground"
+                        )}
+                      >
+                        <div className="flex items-center gap-2">
+                          <svg className="w-4 h-4" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg" fill="currentColor"><g id="SVGRepo_bgCarrier" strokeWidth="0"></g><g id="SVGRepo_tracerCarrier" strokeLinecap="round" strokeLinejoin="round"></g><g id="SVGRepo_iconCarrier"> <path d="M832 112H724V72c0-4.4-3.6-8-8-8h-56c-4.4 0-8 3.6-8 8v40H500V72c0-4.4-3.6-8-8-8h-56c-4.4 0-8 3.6-8 8v40H320c-17.7 0-32 14.3-32 32v120h-96c-17.7 0-32 14.3-32 32v632c0 17.7 14.3 32 32 32h512c17.7 0 32-14.3 32-32v-96h96c17.7 0 32-14.3 32-32V144c0-17.7-14.3-32-32-32zM664 888H232V336h218v174c0 22.1 17.9 40 40 40h174v338zm0-402H514V336h.2L664 485.8v.2zm128 274h-56V456L544 264H360v-80h68v32c0 4.4 3.6 8 8 8h56c4.4 0 8-3.6 8-8v-32h152v32c0 4.4 3.6 8 8 8h56c4.4 0 8-3.6 8-8v-32h68v576z"></path> </g></svg>
+                          <div className="text-sm font-medium leading-none">Benchmarks</div>
+                        </div>
+                        <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
+                          View public benchmarks
+                        </p>
+                      </Link>
+                    </NavigationMenuLink>
+                  </div>
+                </div>
+              </NavigationMenuContent>
+            </NavigationMenuItem>
 
             {/* Resources Section */}
             <NavigationMenuItem>
@@ -231,9 +335,10 @@ export function VerticalNavbar() {
               <NavigationMenuContent>
                 <div className="grid gap-3 p-6 w-[300px]">
                   <div className="grid gap-1">
+
                     <NavigationMenuLink asChild>
                       <button
-                        onClick={() => window.open("https://github.com/Rastion/qubots", "_blank")}
+                        onClick={() => window.open("https://docs.rastion.com", "_blank")}
                         className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground cursor-pointer text-left"
                       >
                         <div className="flex items-center gap-2">
@@ -255,10 +360,10 @@ export function VerticalNavbar() {
                       >
                         <div className="flex items-center gap-2">
                           <svg className="w-4 h-4" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg" fill="currentColor"><g id="SVGRepo_bgCarrier" strokeWidth="0"></g><g id="SVGRepo_tracerCarrier" strokeLinecap="round" strokeLinejoin="round"></g><g id="SVGRepo_iconCarrier"> <path d="M854.6 288.6L639.4 73.4c-6-6-14.1-9.4-22.6-9.4H192c-17.7 0-32 14.3-32 32v832c0 17.7 14.3 32 32 32h640c17.7 0 32-14.3 32-32V311.3c0-8.5-3.4-16.7-9.4-22.7zM602 137.8L790.2 326H602V137.8zM792 888H232V136h302v216a42 42 0 0 0 42 42h216v494z"></path> </g></svg>
-                          <div className="text-sm font-medium leading-none">Terms of Service</div>
+                          <div className="text-sm font-medium leading-none">Experimental preview</div>
                         </div>
                         <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
-                          Review our terms and conditions
+                          Review our experimental preview
                         </p>
                       </Link>
                     </NavigationMenuLink>
@@ -302,17 +407,23 @@ export function VerticalNavbar() {
                       <div className="px-3 py-2 text-sm font-medium text-muted-foreground">
                         Optimization
                       </div>
+
                       <Link
-                        to="/qubots"
+                        to="/autosolve"
                         className={cn(
                           "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors hover:bg-accent hover:text-accent-foreground ml-4",
-                          isActive("/qubots") && "bg-accent text-accent-foreground"
+                          isActive("/autosolve") && "bg-accent text-accent-foreground"
                         )}
                         onClick={() => setMobileMenuOpen(false)}
                       >
-                        <svg className="w-4 h-4" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg" fill="currentColor"><g id="SVGRepo_bgCarrier" strokeWidth="0"></g><g id="SVGRepo_tracerCarrier" strokeLinecap="round" strokeLinejoin="round"></g><g id="SVGRepo_iconCarrier"> <path fill="currentColor" d="M864 144H560c-8.8 0-16 7.2-16 16v304c0 8.8 7.2 16 16 16h304c8.8 0 16-7.2 16-16V160c0-8.8-7.2-16-16-16zm-52 268H612V212h200v200zM464 544H160c-8.8 0-16 7.2-16 16v304c0 8.8 7.2 16 16 16h304c8.8 0 16-7.2 16-16V560c0-8.8-7.2-16-16-16zm-52 268H212V612h200v200zm52-668H160c-8.8 0-16 7.2-16 16v304c0 8.8 7.2 16 16 16h304c8.8 0 16-7.2 16-16V160c0-8.8-7.2-16-16-16zm-52 268H212V212h200v200zm452 132H560c-8.8 0-16 7.2-16 16v304c0 8.8 7.2 16 16 16h304c8.8 0 16-7.2 16-16V560c0-8.8-7.2-16-16-16zm-52 268H612V612h200v200z"></path> </g></svg>
-                        <span>Tools</span>
+                        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <path d="M12 2L13.09 8.26L20 9L13.09 9.74L12 16L10.91 9.74L4 9L10.91 8.26L12 2Z" fill="currentColor"/>
+                          <path d="M19 15L19.5 17L21.5 17.5L19.5 18L19 20L18.5 18L16.5 17.5L18.5 17L19 15Z" fill="currentColor"/>
+                          <path d="M5 6L5.5 8L7.5 8.5L5.5 9L5 11L4.5 9L2.5 8.5L4.5 8L5 6Z" fill="currentColor"/>
+                        </svg>
+                        <span>AutoSolve <span className="text-xs bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300 px-1.5 py-0.5 rounded-full ml-1">Beta</span></span>
                       </Link>
+
                       <Link
                         to="/qubots-playground"
                         className={cn(
@@ -324,34 +435,113 @@ export function VerticalNavbar() {
                         <svg className="w-4 h-4" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg" fill="currentColor"><g id="SVGRepo_bgCarrier" strokeWidth="0"></g><g id="SVGRepo_tracerCarrier" strokeLinecap="round" strokeLinejoin="round"></g><g id="SVGRepo_iconCarrier"> <path fill="currentColor" d="M880 112H144c-17.7 0-32 14.3-32 32v736c0 17.7 14.3 32 32 32h736c17.7 0 32-14.3 32-32V144c0-17.7-14.3-32-32-32zm-40 728H184V184h656v656z"></path> <path fill="currentColor" d="M321.1 679.1l192-161c3.9-3.2 3.9-9.1 0-12.3l-192-160.9A7.95 7.95 0 0 0 308 351v62.7c0 2.4 1 4.6 2.9 6.1L420.7 512l-109.8 92.2a8.1 8.1 0 0 0-2.9 6.1V673c0 6.8 7.9 10.5 13.1 6.1zM516 673c0 4.4 3.4 8 7.5 8h185c4.1 0 7.5-3.6 7.5-8v-48c0-4.4-3.4-8-7.5-8h-185c-4.1 0-7.5 3.6-7.5 8v48z"></path> </g></svg>
                         <span>Playground</span>
                       </Link>
+
                       <Link
-                        to="/optimization-workflows"
+                        to="/datasets"
                         className={cn(
                           "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors hover:bg-accent hover:text-accent-foreground ml-4",
-                          isActive("/optimization-workflows") && "bg-accent text-accent-foreground"
+                          isActive("/datasets") && "bg-accent text-accent-foreground"
                         )}
                         onClick={() => setMobileMenuOpen(false)}
                       >
-                        <svg className="w-4 h-4" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg" fill="currentColor"><g id="SVGRepo_bgCarrier" strokeWidth="0"></g><g id="SVGRepo_tracerCarrier" strokeLinecap="round" strokeLinejoin="round"></g><g id="SVGRepo_iconCarrier"> <path d="M916 210H376c-17.7 0-32 14.3-32 32v236H108c-17.7 0-32 14.3-32 32v272c0 17.7 14.3 32 32 32h540c17.7 0 32-14.3 32-32V546h236c17.7 0 32-14.3 32-32V242c0-17.7-14.3-32-32-32zM344 746H144V546h200v200zm268 0H412V546h200v200zm0-268H412V278h200v200zm268 0H680V278h200v200z"></path> </g></svg>
-                        <span>Workflows</span>
+                        <svg className="w-4 h-4" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg" fill="currentColor"><g id="SVGRepo_bgCarrier" strokeWidth="0"></g><g id="SVGRepo_tracerCarrier" strokeLinecap="round" strokeLinejoin="round"></g><g id="SVGRepo_iconCarrier"> <path fill="currentColor" d="M832 64H192c-17.7 0-32 14.3-32 32v832c0 17.7 14.3 32 32 32h640c17.7 0 32-14.3 32-32V96c0-17.7-14.3-32-32-32zm-260 72h96v209.9L621.5 312 572 347.4V136zm220 752H232V136h280v296.9c0 3.3 1 6.6 3 9.3a15.9 15.9 0 0 0 22.3 3.7l83.8-59.9 81.4 59.4c2.7 2 6 3.1 9.4 3.1 8.8 0 16-7.2 16-16V136h64v752z"></path> </g></svg>
+                        <span>Datasets</span>
                       </Link>
+
                       <Link
-                        to="/benchmark"
+                        to="/workflow-automation"
                         className={cn(
                           "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors hover:bg-accent hover:text-accent-foreground ml-4",
-                          isActive("/benchmark") && "bg-accent text-accent-foreground"
+                          isActive("/workflow-automation") && "bg-accent text-accent-foreground"
                         )}
                         onClick={() => setMobileMenuOpen(false)}
                       >
-                        <svg className="w-4 h-4" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg" fill="currentColor"><g id="SVGRepo_bgCarrier" strokeWidth="0"></g><g id="SVGRepo_tracerCarrier" strokeLinecap="round" strokeLinejoin="round"></g><g id="SVGRepo_iconCarrier"> <path d="M832 112H724V72c0-4.4-3.6-8-8-8h-56c-4.4 0-8 3.6-8 8v40H500V72c0-4.4-3.6-8-8-8h-56c-4.4 0-8 3.6-8 8v40H320c-17.7 0-32 14.3-32 32v120h-96c-17.7 0-32 14.3-32 32v632c0 17.7 14.3 32 32 32h512c17.7 0 32-14.3 32-32v-96h96c17.7 0 32-14.3 32-32V144c0-17.7-14.3-32-32-32zM664 888H232V336h218v174c0 22.1 17.9 40 40 40h174v338zm0-402H514V336h.2L664 485.8v.2zm128 274h-56V456L544 264H360v-80h68v32c0 4.4 3.6 8 8 8h56c4.4 0 8-3.6 8-8v-32h152v32c0 4.4 3.6 8 8 8h56c4.4 0 8-3.6 8-8v-32h68v576z"></path> </g></svg>
-                        <span>Benchmarks</span>
+                        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <path d="M4 6h16M4 12h16M4 18h16" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                          <circle cx="8" cy="6" r="2" fill="currentColor"/>
+                          <circle cx="16" cy="12" r="2" fill="currentColor"/>
+                          <circle cx="8" cy="18" r="2" fill="currentColor"/>
+                        </svg>
+                        <span>Workflow Automation <span className="text-xs bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 px-1.5 py-0.5 rounded-full ml-1">Beta</span></span>
                       </Link>
+
                     </>
                   )}
 
                   <div className="px-3 py-2 text-sm font-medium text-muted-foreground">
+                    Community
+                  </div>
+                  <Link
+                    to="/qubots"
+                    className={cn(
+                      "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors hover:bg-accent hover:text-accent-foreground ml-4",
+                      isActive("/qubots") && "bg-accent text-accent-foreground"
+                    )}
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    <svg className="w-4 h-4" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg" fill="currentColor"><g id="SVGRepo_bgCarrier" strokeWidth="0"></g><g id="SVGRepo_tracerCarrier" strokeLinecap="round" strokeLinejoin="round"></g><g id="SVGRepo_iconCarrier"> <path fill="currentColor" d="M864 144H560c-8.8 0-16 7.2-16 16v304c0 8.8 7.2 16 16 16h304c8.8 0 16-7.2 16-16V160c0-8.8-7.2-16-16-16zm-52 268H612V212h200v200zM464 544H160c-8.8 0-16 7.2-16 16v304c0 8.8 7.2 16 16 16h304c8.8 0 16-7.2 16-16V560c0-8.8-7.2-16-16-16zm-52 268H212V612h200v200zm52-668H160c-8.8 0-16 7.2-16 16v304c0 8.8 7.2 16 16 16h304c8.8 0 16-7.2 16-16V160c0-8.8-7.2-16-16-16zm-52 268H212V212h200v200zm452 132H560c-8.8 0-16 7.2-16 16v304c0 8.8 7.2 16 16 16h304c8.8 0 16-7.2 16-16V560c0-8.8-7.2-16-16-16zm-52 268H612V612h200v200z"></path> </g></svg>
+                    <span>Tools</span>
+                  </Link>
+                  <Link
+                    to="/optimization-workflows"
+                    className={cn(
+                      "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors hover:bg-accent hover:text-accent-foreground ml-4",
+                      isActive("/optimization-workflows") && "bg-accent text-accent-foreground"
+                    )}
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    <svg className="w-4 h-4" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg" fill="currentColor"><g id="SVGRepo_bgCarrier" strokeWidth="0"></g><g id="SVGRepo_tracerCarrier" strokeLinecap="round" strokeLinejoin="round"></g><g id="SVGRepo_iconCarrier"> <path d="M916 210H376c-17.7 0-32 14.3-32 32v236H108c-17.7 0-32 14.3-32 32v272c0 17.7 14.3 32 32 32h540c17.7 0 32-14.3 32-32V546h236c17.7 0 32-14.3 32-32V242c0-17.7-14.3-32-32-32zM344 746H144V546h200v200zm268 0H412V546h200v200zm0-268H412V278h200v200zm268 0H680V278h200v200z"></path> </g></svg>
+                    <span>Experiments</span>
+                  </Link>
+                  <Link
+                    to="/leaderboard"
+                    className={cn(
+                      "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors hover:bg-accent hover:text-accent-foreground ml-4",
+                      isActive("/leaderboard") && "bg-accent text-accent-foreground"
+                    )}
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    <Trophy className="h-4 w-4" />
+                    <span>Leaderboard</span>
+                  </Link>
+                  <Link
+                    to="/benchmark"
+                    className={cn(
+                      "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors hover:bg-accent hover:text-accent-foreground ml-4",
+                      isActive("/benchmark") && "bg-accent text-accent-foreground"
+                    )}
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    <svg className="w-4 h-4" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg" fill="currentColor"><g id="SVGRepo_bgCarrier" strokeWidth="0"></g><g id="SVGRepo_tracerCarrier" strokeLinecap="round" strokeLinejoin="round"></g><g id="SVGRepo_iconCarrier"> <path d="M832 112H724V72c0-4.4-3.6-8-8-8h-56c-4.4 0-8 3.6-8 8v40H500V72c0-4.4-3.6-8-8-8h-56c-4.4 0-8 3.6-8 8v40H320c-17.7 0-32 14.3-32 32v120h-96c-17.7 0-32 14.3-32 32v632c0 17.7 14.3 32 32 32h512c17.7 0 32-14.3 32-32v-96h96c17.7 0 32-14.3 32-32V144c0-17.7-14.3-32-32-32zM664 888H232V336h218v174c0 22.1 17.9 40 40 40h174v338zm0-402H514V336h.2L664 485.8v.2zm128 274h-56V456L544 264H360v-80h68v32c0 4.4 3.6 8 8 8h56c4.4 0 8-3.6 8-8v-32h152v32c0 4.4 3.6 8 8 8h56c4.4 0 8-3.6 8-8v-32h68v576z"></path> </g></svg>
+                    <span>Benchmarks</span>
+                  </Link>
+                  <Link
+                    to="/community/posts"
+                    className={cn(
+                      "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors hover:bg-accent hover:text-accent-foreground ml-4",
+                      isActive("/community/posts") && "bg-accent text-accent-foreground"
+                    )}
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    <MessageSquare className="h-4 w-4" />
+                    <span>Community Posts</span>
+                  </Link>
+                  <Link
+                    to="/community/blogs"
+                    className={cn(
+                      "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors hover:bg-accent hover:text-accent-foreground ml-4",
+                      isActive("/community/blogs") && "bg-accent text-accent-foreground"
+                    )}
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    <BookOpen className="h-4 w-4" />
+                    <span>Blogs</span>
+                  </Link>
+
+                  <div className="px-3 py-2 text-sm font-medium text-muted-foreground">
                     Resources
                   </div>
+
                   <button
                     onClick={() => {
                       window.open("https://docs.rastion.com", "_blank")
@@ -378,15 +568,20 @@ export function VerticalNavbar() {
             </SheetContent>
           </Sheet>
 
-          {/* User Menu */}
-          {loading ? (
-            <div className="flex items-center gap-2">
-              <div className="h-8 w-8 rounded-full bg-muted animate-pulse" />
-              <div className="hidden md:block">
-                <div className="h-4 w-16 bg-muted rounded animate-pulse" />
+          {/* Notifications and User Menu */}
+          <div className="flex items-center gap-2">
+            {/* Notification Bell */}
+            {user && <NotificationDropdown />}
+
+            {/* User Menu */}
+            {loading ? (
+              <div className="flex items-center gap-2">
+                <div className="h-8 w-8 rounded-full bg-muted animate-pulse" />
+                <div className="hidden md:block">
+                  <div className="h-4 w-16 bg-muted rounded animate-pulse" />
+                </div>
               </div>
-            </div>
-          ) : user ? (
+            ) : user ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
@@ -446,14 +641,24 @@ export function VerticalNavbar() {
                   </Link>
                 </DropdownMenuItem>
                 {isAdmin && (
-                  <DropdownMenuItem asChild>
-                    <Link to="/admin/waitlist" className="flex items-center gap-3 p-3 hover:bg-accent rounded-lg mx-2 my-1">
-                      <div className="p-1.5 rounded-lg bg-orange-100 dark:bg-orange-900">
-                        <Shield className="h-4 w-4 text-orange-600 dark:text-orange-400" />
-                      </div>
-                      <span className="font-medium">Admin Dashboard</span>
-                    </Link>
-                  </DropdownMenuItem>
+                  <>
+                    <DropdownMenuItem asChild>
+                      <Link to="/admin/waitlist" className="flex items-center gap-3 p-3 hover:bg-accent rounded-lg mx-2 my-1">
+                        <div className="p-1.5 rounded-lg bg-orange-100 dark:bg-orange-900">
+                          <Shield className="h-4 w-4 text-orange-600 dark:text-orange-400" />
+                        </div>
+                        <span className="font-medium">Admin Dashboard</span>
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link to="/admin/pricing" className="flex items-center gap-3 p-3 hover:bg-accent rounded-lg mx-2 my-1">
+                        <div className="p-1.5 rounded-lg bg-green-100 dark:bg-green-900">
+                          <DollarSign className="h-4 w-4 text-green-600 dark:text-green-400" />
+                        </div>
+                        <span className="font-medium">Pricing Configuration</span>
+                      </Link>
+                    </DropdownMenuItem>
+                  </>
                 )}
                 <DropdownMenuSeparator className="bg-border/50" />
                 <div className="p-2">
@@ -478,6 +683,7 @@ export function VerticalNavbar() {
               </Link>
             </Button>
           )}
+          </div>
         </div>
       </div>
     </header>

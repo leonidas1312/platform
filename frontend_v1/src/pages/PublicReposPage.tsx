@@ -535,7 +535,7 @@ export default function PublicReposPage() {
   return (
     <Layout>
       <div className="min-h-screen bg-background py-8">
-        <div className="w-full px-4 lg:px-6">
+        <div className="container mx-auto px-4 lg:px-6">
           {/* Page Header with Search */}
           <div className="mb-8">
             <h1
@@ -577,71 +577,77 @@ export default function PublicReposPage() {
             </div>
           </div>
 
-          <div className="flex flex-col lg:flex-row gap-8">
-            {/* Sidebar with Filters */}
+          {/* Vertical Navbar with Categories and Keywords */}
+          <div className="flex flex-col lg:flex-row gap-6 mb-6">
+            {/* Compact Vertical Sidebar */}
             <div className="w-full lg:w-80 flex-shrink-0">
-              <div className="sticky top-32 bg-card/50 backdrop-blur-sm border border-border/50 rounded-2xl overflow-hidden shadow-soft">
-                {/* Vertical Category List */}
-                <div className="border-b border-border/50">
-                  <div className="p-4 border-b border-border/30">
-                    <h3
-                      className="text-sm font-semibold text-foreground"
-                      style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}
-                    >
-                      Filter by Category
-                    </h3>
+              <div className="bg-card/50 backdrop-blur-sm border border-border/50 rounded-xl overflow-hidden shadow-sm">
+                {/* Categories Section */}
+                <div className="p-4 border-b border-border/30">
+                  <h3 className="text-sm font-semibold text-foreground mb-3">Categories</h3>
+                  {/* Desktop: Vertical layout */}
+                  <div className="hidden lg:flex flex-col gap-1">
+                    {keywordCategories.map((category) => (
+                      <button
+                        key={category.name}
+                        onClick={() => setActiveCategory(category.name.toLowerCase())}
+                        className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 text-left ${
+                          activeCategory === category.name.toLowerCase()
+                            ? "text-primary bg-primary/10 border border-primary/20"
+                            : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                        }`}
+                      >
+                        <div className={`p-1 rounded ${activeCategory === category.name.toLowerCase() ? 'bg-primary/20' : 'bg-muted/50'}`}>
+                          {category.icon}
+                        </div>
+                        {category.name}
+                      </button>
+                    ))}
                   </div>
-                  {keywordCategories.map((category) => (
-                    <button
-                      key={category.name}
-                      onClick={() => setActiveCategory(category.name.toLowerCase())}
-                      className={`w-full px-4 py-3 flex items-center gap-3 text-sm font-medium transition-all duration-200 border-l-3
-${
-  activeCategory === category.name.toLowerCase()
-    ? "text-primary border-l-primary bg-primary/8 shadow-sm"
-    : "text-muted-foreground border-l-transparent hover:text-foreground hover:bg-muted/30 hover:border-l-muted-foreground/30"
-}`}
-                      style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}
-                    >
-                      <div className={`p-1.5 rounded-lg ${activeCategory === category.name.toLowerCase() ? 'bg-primary/10' : 'bg-muted/50'}`}>
-                        {category.icon}
-                      </div>
-                      {category.name}
-                    </button>
-                  ))}
+
+                  {/* Mobile: Horizontal layout */}
+                  <div className="flex lg:hidden gap-2 overflow-x-auto">
+                    {keywordCategories.map((category) => (
+                      <button
+                        key={category.name}
+                        onClick={() => setActiveCategory(category.name.toLowerCase())}
+                        className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 whitespace-nowrap ${
+                          activeCategory === category.name.toLowerCase()
+                            ? "text-primary bg-primary/10 border border-primary/20"
+                            : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                        }`}
+                      >
+                        <div className={`p-1 rounded ${activeCategory === category.name.toLowerCase() ? 'bg-primary/20' : 'bg-muted/50'}`}>
+                          {category.icon}
+                        </div>
+                        {category.name}
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
-                {/* Keywords Section */}
+                {/* Keywords Section - Show all when category is active */}
                 <div className="p-4">
-                  <div
-                    className="text-sm font-medium text-muted-foreground mb-3"
-                    style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}
-                  >
-                    Keywords
-                  </div>
-                  <div className="flex flex-wrap gap-2 max-h-[calc(100vh-400px)] overflow-y-auto pr-2">
+                  <h3 className="text-sm font-semibold text-foreground mb-3">
+                    {getActiveCategoryData().name} Keywords
+                  </h3>
+                  <div className="flex flex-wrap gap-2 max-h-64 overflow-y-auto">
                     {getActiveCategoryData().keywords.map((keyword) => {
-                      // Check if this keyword is selected (using normalization)
                       const normalizedKeyword = normalizeKeyword(keyword)
                       const isSelected = selectedKeywords.some(k => normalizeKeyword(k) === normalizedKeyword)
 
                       return (
-                        <div
+                        <button
                           key={keyword}
                           onClick={() => toggleKeyword(keyword)}
-                          className={`
-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm cursor-pointer transition-all duration-200 font-medium
-${
-  isSelected
-    ? `bg-primary text-primary-foreground shadow-sm hover:bg-primary/90`
-    : "bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground border border-border/50 hover:border-border"
-}
-`}
-                          style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}
+                          className={`px-2 py-1 rounded-md text-xs font-medium transition-all duration-200 ${
+                            isSelected
+                              ? "bg-primary text-primary-foreground"
+                              : "bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground"
+                          }`}
                         >
-                          <span className="truncate">{keyword}</span>
-                          {isSelected && <X className="h-3.5 w-3.5 ml-0.5 flex-shrink-0" />}
-                        </div>
+                          {keyword}
+                        </button>
                       )
                     })}
                   </div>
@@ -649,22 +655,15 @@ ${
 
                 {/* Selected Filters */}
                 {selectedKeywords.length > 0 && (
-                  <div className="p-4 border-t border-border/50">
+                  <div className="p-4 border-t border-border/30">
                     <div className="flex items-center justify-between mb-3">
-                      <span
-                        className="text-sm font-medium text-muted-foreground"
-                        style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}
-                      >
-                        Selected Filters
-                      </span>
+                      <h3 className="text-sm font-semibold text-foreground">Active Filters</h3>
                       <Button
                         variant="ghost"
                         size="sm"
                         onClick={clearFilters}
-                        className="h-8 px-3 text-sm text-destructive hover:text-destructive hover:bg-destructive/10 rounded-lg"
-                        style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}
+                        className="h-6 px-2 text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
                       >
-                        <X className="h-3.5 w-3.5 mr-1.5" />
                         Clear All
                       </Button>
                     </div>
@@ -672,12 +671,11 @@ ${
                       {selectedKeywords.map((keyword) => (
                         <Badge
                           key={keyword}
-                          className="px-3 py-1.5 text-sm bg-primary/10 text-primary border-primary/20 hover:bg-primary/20 transition-colors rounded-lg"
-                          style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}
+                          className="px-2 py-1 text-xs bg-primary/10 text-primary border-primary/20 hover:bg-primary/20 transition-colors"
                         >
                           {keyword}
                           <X
-                            className="h-3.5 w-3.5 ml-1.5 cursor-pointer hover:text-destructive transition-colors"
+                            className="h-3 w-3 ml-1 cursor-pointer hover:text-destructive transition-colors"
                             onClick={(e) => {
                               e.stopPropagation()
                               toggleKeyword(keyword)
@@ -759,126 +757,79 @@ ${
                       {repos.map((repo) => (
                         <Card
                           key={repo.id}
-                          className="overflow-hidden hover:shadow-lg transition-all duration-300 cursor-pointer h-full bg-card/50 backdrop-blur-sm border-border/50 hover:border-border hover:bg-card/80 group rounded-xl"
+                          className="overflow-hidden hover:shadow-lg transition-all duration-300 cursor-pointer bg-card/50 backdrop-blur-sm border-border/50 hover:border-border hover:bg-card/80 group rounded-xl h-20"
                           onClick={() => handleRepoClick(repo)}
                         >
-                          <CardHeader className="pb-3 px-5 pt-5">
-                            <div className="flex items-start justify-between">
-                              <div className="flex items-start gap-3 flex-1 min-w-0">
-                                {repo.owner?.avatar_url ? (
-                                  <img
-                                    src={repo.owner.avatar_url || "/placeholder.svg"}
-                                    alt={repo.owner.login}
-                                    className="w-10 h-10 rounded-full ring-2 ring-border/20"
-                                  />
-                                ) : (
-                                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center ring-2 ring-border/20">
-                                    <Users className="h-5 w-5 text-primary" />
+                          <div className="flex items-center gap-3 p-4 h-full">
+                            {repo.owner?.avatar_url ? (
+                              <img
+                                src={repo.owner.avatar_url || "/placeholder.svg"}
+                                alt={repo.owner.login}
+                                className="w-8 h-8 rounded-full ring-2 ring-border/20 flex-shrink-0"
+                              />
+                            ) : (
+                              <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center ring-2 ring-border/20 flex-shrink-0">
+                                <Users className="h-4 w-4 text-primary" />
+                              </div>
+                            )}
+
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-1.5 mb-1">
+                                <Link
+                                  to={`/u/${repo.owner.login}`}
+                                  className="inline-block font-semibold text-sm hover:text-primary hover:underline transition-colors flex-shrink-0"
+                                  style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  {repo.owner.login}
+                                </Link>
+                                <span className="text-muted-foreground flex-shrink-0 text-sm">/</span>
+                                <span
+                                  className="font-semibold text-sm text-foreground truncate"
+                                  style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}
+                                >
+                                  {repo.name}
+                                </span>
+                              </div>
+
+                              <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                                {repo.qubot_type && (
+                                  <Badge
+                                    variant="outline"
+                                    className={`px-2 py-0.5 text-xs font-small border-none text-white ${
+                                      repo.qubot_type === "problem"
+                                        ? "bg-gradient-to-r from-blue-500 to-cyan-500"
+                                        : "bg-gradient-to-r from-orange-500 to-red-500"
+                                    }`}
+                                  >
+                                    {repo.qubot_type.charAt(0).toUpperCase() + repo.qubot_type.slice(1)}
+                                  </Badge>
+                                )}
+
+                                {repo.language && (
+                                  <div className="flex items-center gap-1">
+                                    <span
+                                      className={`w-2 h-2 rounded-full ${languageColors[repo.language] || languageColors.default}`}
+                                    ></span>
+                                    <span className="text-xs">{repo.language}</span>
                                   </div>
                                 )}
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-center gap-1.5 mb-1">
-                                    <Link
-                                      to={`/u/${repo.owner.login}`}
-                                      className="inline-block font-semibold text-base hover:text-primary hover:underline transition-colors flex-shrink-0"
-                                      style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}
-                                      onClick={(e) => e.stopPropagation()}
-                                    >
-                                      {repo.owner.login}
-                                    </Link>
-                                    <span className="text-muted-foreground flex-shrink-0">/</span>
-                                    <span
-                                      className="font-semibold text-base text-foreground truncate"
-                                      style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}
-                                    >
-                                      {repo.name}
-                                    </span>
-                                  </div>
-                                </div>
-                              </div>
-                              <Badge
-                                variant={repo.private ? "outline" : "secondary"}
-                                className="text-xs px-3 py-1 h-7 ml-3 flex-shrink-0 rounded-lg"
-                                style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}
-                              >
-                                {repo.private ? "Private" : "Public"}
-                              </Badge>
-                            </div>
-                          </CardHeader>
-                          <CardContent className="px-3 pb-3">
-                            {/* Show matching keywords from config.json if any */}
-                            {repo.matching_keywords && repo.matching_keywords.length > 0 && (
-                              <div className="mb-2 bg-primary/5 p-1.5 rounded-md border border-primary/10">
-                                <div className="flex items-center gap-1 text-xs text-primary mb-1">
-                                  <FileJson className="h-3.5 w-3.5" />
-                                  <span>Matched keywords in qubot card:</span>
-                                </div>
-                                <div className="flex flex-wrap gap-1">
-                                  {repo.matching_keywords.map((kw, index) => {
-                                    // Handle both new format (object) and legacy format (string)
-                                    const keyword = typeof kw === 'string' ? kw : kw.keyword
-                                    const similarity = typeof kw === 'object' ? kw.similarity : undefined
-                                    const matchType = typeof kw === 'object' ? kw.type : 'exact'
 
-                                    return (
-                                      <Badge
-                                        key={`${keyword}-${index}`}
-                                        variant="outline"
-                                        className={`text-xs border-primary/20 hover:bg-primary/20 transition-colors ${
-                                          matchType === 'exact' ? 'bg-primary/10' :
-                                          matchType === 'substring' ? 'bg-blue/10' :
-                                          'bg-orange/10'
-                                        }`}
-                                        title={similarity ? `${Math.round(similarity * 100)}% match (${matchType})` : undefined}
-                                      >
-                                        {keyword}
-                                        {matchType !== 'exact' && (
-                                          <span className="ml-1 text-xs opacity-70">
-                                            {matchType === 'fuzzy' ? '~' : '⊃'}
-                                          </span>
-                                        )}
-                                      </Badge>
-                                    )
-                                  })}
-                                </div>
-                              </div>
-                            )}
-
-                            {repo.qubot_type && (
-                              <Badge
-                                variant="outline"
-                                className={`px-3 py-1 text-sm font-small border-none text-white ${
-                                  repo.qubot_type === "problem"
-                                    ? "bg-gradient-to-r from-blue-500 to-cyan-500"
-                                    : "bg-gradient-to-r from-orange-500 to-red-500"
-                                }`}
-                              >
-
-                                {repo.qubot_type.charAt(0).toUpperCase() + repo.qubot_type.slice(1)}
-                              </Badge>
-                            )}
-
-                            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mt-3 text-sm text-muted-foreground">
-                              {repo.language && (
                                 <div className="flex items-center gap-1">
-                                  <span
-                                    className={`w-2 h-2 rounded-full ${languageColors[repo.language] || languageColors.default}`}
-                                  ></span>
-                                  {repo.language}
+                                  <Star className="h-3 w-3" />
+                                  <span className="text-xs">{repo.stars_count}</span>
                                 </div>
-                              )}
-
-                              <div className="flex items-center gap-1">
-                                <Star className="h-4 w-4" />
-                                {repo.stars_count}
                               </div>
-
-
-
-                              <Clock className="h-4 w-4 flex-shrink-0" />
-                              <span>{timeAgo(repo.updated_at)}</span>
                             </div>
-                          </CardContent>
+
+                            <Badge
+                              variant={repo.private ? "outline" : "secondary"}
+                              className="text-xs px-2 py-1 h-6 flex-shrink-0 rounded-lg"
+                              style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}
+                            >
+                              {repo.private ? "Private" : "Public"}
+                            </Badge>
+                          </div>
                         </Card>
                       ))}
                     </div>

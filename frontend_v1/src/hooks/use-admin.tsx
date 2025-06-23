@@ -22,7 +22,7 @@ export function useAdmin() {
 
       // Simple admin check based on username
       // This matches the backend admin check in routes/index.js
-      const adminUsers = ['ileo']
+      const adminUsers = ['Rastion']
       const userIsAdmin = adminUsers.includes(user.login)
 
       setIsAdmin(userIsAdmin)

@@ -206,7 +206,8 @@ def clone_and_install_requirements(repo_name, username):
         # Clone repository if it doesn't exist
         if not repo_path.exists():
             print(f"📥 Cloning repository {username}/{repo_name}...")
-            base_url = "https://hub.rastion.com"
+            # Use environment variable for Gitea URL, fallback to hub.rastion.com
+            base_url = os.environ.get('GITEA_URL', 'https://hub.rastion.com')
             repo_url = f"{base_url}/{username}/{repo_name}.git"
 
             result = subprocess.run([
@@ -282,10 +283,46 @@ try:
     # Import after requirements installation
     from qubots.playground_integration import execute_playground_optimization
 
+    # Handle standardized problems
+    problem_name = "${params.problemName}"
+    if problem_name.startswith("standardized-problem-"):
+        # Extract problem ID and load standardized problem
+        problem_id = problem_name.replace("standardized-problem-", "")
+        print(f"Loading standardized problem {problem_id}")
+
+        # Use the standardized benchmarks from qubots
+        from qubots.standardized_benchmarks import StandardizedBenchmarkRegistry
+
+        # Get the problem specification by ID
+        try:
+            problem_id_int = int(problem_id)
+            # Map problem IDs to benchmark specs (this should match the database seeding)
+            benchmark_specs = StandardizedBenchmarkRegistry.get_benchmark_specs()
+
+            if problem_id_int <= len(benchmark_specs):
+                spec = benchmark_specs[problem_id_int - 1]  # 1-based indexing
+                print(f"Using standardized benchmark: {spec.name}")
+
+                # Create the standardized problem instance
+                standardized_problem = StandardizedBenchmarkRegistry.create_problem(spec)
+                problem_name = f"standardized_{spec.problem_type}_{problem_id}"
+                problem_username = "standardized"
+
+                # Store the problem instance for use in optimization
+                globals()[f'standardized_problem_{problem_id}'] = standardized_problem
+            else:
+                raise ValueError(f"Standardized problem ID {problem_id} not found")
+
+        except (ValueError, IndexError) as e:
+            print(f"Error loading standardized problem {problem_id}: {e}")
+            raise ValueError(f"Invalid standardized problem ID: {problem_id}")
+    else:
+        problem_username = "${params.problemUsername}"
+
     result = execute_playground_optimization(
-        problem_name="${params.problemName}",
+        problem_name=problem_name,
         optimizer_name="${params.optimizerName}",
-        problem_username="${params.problemUsername}",
+        problem_username=problem_username,
         optimizer_username="${params.optimizerUsername}",
         problem_params=${this.convertToPythonDict(params.problemParams)},
         optimizer_params=${this.convertToPythonDict(params.optimizerParams)}

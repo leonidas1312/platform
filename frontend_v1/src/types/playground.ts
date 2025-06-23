@@ -49,6 +49,7 @@ export interface ModelInfo {
 }
 
 export interface QubotResult {
+  // Execution metadata
   success: boolean
   problem_name: string
   optimizer_name: string
@@ -56,9 +57,36 @@ export interface QubotResult {
   optimizer_username: string
   execution_time: number
   timestamp: string
-  best_solution?: number[]
+  message?: string
+  error_message?: string
+  error_type?: string
+
+  // Core OptimizationResult fields
+  best_solution?: any
   best_value?: number
+  is_feasible?: boolean
+
+  // Optimization statistics
   iterations?: number
+  evaluations?: number
+  runtime_seconds?: number
+  convergence_achieved?: boolean
+  termination_reason?: string
+
+  // Detailed tracking
+  optimization_history?: Array<{
+    iteration?: number
+    best_value?: number
+    [key: string]: any
+  }>
+  parameter_values?: Record<string, any>
+  additional_metrics?: Record<string, number>
+
+  // Problem and optimizer info
+  problem_metadata?: Record<string, any>
+  optimizer_metadata?: Record<string, any>
+
+  // Legacy fields for backward compatibility
   history?: Array<{
     iteration: number
     best_value: number
@@ -71,9 +99,6 @@ export interface QubotResult {
     optimizer_metadata: Record<string, any>
     result_type: string
   }
-  error_message?: string
-  error_type?: string
-  message?: string
 }
 
 /**

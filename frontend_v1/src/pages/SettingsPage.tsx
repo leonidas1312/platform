@@ -3,8 +3,8 @@
 import type React from "react"
 
 import { useState, useEffect } from "react"
-import { useNavigate } from "react-router-dom"
-import { AlertCircle, Copy, Eye, EyeOff, Key, Loader2, CheckCircle2, User, Lock, Shield, Code } from "lucide-react"
+import { useNavigate, useSearchParams } from "react-router-dom"
+import { AlertCircle, Copy, Eye, EyeOff, Key, Loader2, CheckCircle2, User, Lock, Shield, Code, FileText, Package, Target } from "lucide-react"
 import Layout from "@/components/Layout"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -14,16 +14,34 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { toast } from "@/components/ui/use-toast"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
+import PersonalWorkflows from "@/components/settings/PersonalWorkflows"
+import PersonalBenchmarks from "@/components/settings/PersonalBenchmarks"
+
 const API = import.meta.env.VITE_API_BASE
 
 const SettingsPage = () => {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const [activeTab, setActiveTab] = useState("account")
+
+  // Check for tab and submission parameters from URL
+  useEffect(() => {
+    const tab = searchParams.get('tab')
+    if (tab && ['account', 'developer', 'workflows', 'benchmarks'].includes(tab)) {
+      setActiveTab(tab)
+    }
+  }, [searchParams])
 
   // API Token state
   const [apiToken, setApiToken] = useState("")
   const [showApiToken, setShowApiToken] = useState(false)
   const [copySuccess, setCopySuccess] = useState(false)
+
+  // Rastion Token state
+  const [rastionToken, setRastionToken] = useState("")
+  const [showRastionToken, setShowRastionToken] = useState(false)
+  const [copyRastionSuccess, setCopyRastionSuccess] = useState(false)
+  const [hasGithubAuth, setHasGithubAuth] = useState(false)
 
   // Password change state
   const [currentPassword, setCurrentPassword] = useState("")
@@ -33,8 +51,9 @@ const SettingsPage = () => {
   const [passwordError, setPasswordError] = useState("")
 
   useEffect(() => {
-    const fetchToken = async () => {
+    const fetchTokens = async () => {
       try {
+        // Fetch Rastion API token
         const response = await fetch(`${API}/api/auth/token`, {
           credentials: 'include', // Include cookies in request
         })
@@ -46,13 +65,28 @@ const SettingsPage = () => {
 
         const data = await response.json()
         setApiToken(data.token)
+
+        // Fetch Rastion API token
+        try {
+          const rastionResponse = await fetch(`${API}/api/users/gitea-token`, {
+            credentials: 'include',
+          })
+
+          if (rastionResponse.ok) {
+            const rastionData = await rastionResponse.json()
+            setRastionToken(rastionData.gitea_token)
+            setHasGithubAuth(rastionData.has_github_auth)
+          }
+        } catch (rastionError) {
+          console.warn("Could not fetch Rastion token:", rastionError)
+        }
       } catch (error) {
-        console.error("Error fetching token:", error)
+        console.error("Error fetching tokens:", error)
         navigate("/auth")
       }
     }
 
-    fetchToken()
+    fetchTokens()
   }, [navigate])
 
   // Copy to clipboard functionality
@@ -74,10 +108,28 @@ const SettingsPage = () => {
     }
   }
 
+  const handleCopyRastionToken = async () => {
+    try {
+      await navigator.clipboard.writeText(rastionToken)
+      setCopyRastionSuccess(true)
+      toast({
+        title: "Success",
+        description: "Rastion API token copied to clipboard",
+      })
+      setTimeout(() => setCopyRastionSuccess(false), 2000)
+    } catch (err) {
+      toast({
+        title: "Error",
+        description: "Failed to copy Rastion token to clipboard",
+        variant: "destructive",
+      })
+    }
+  }
+
   // Format token for display (show only last 4 characters)
-  const formatToken = (token: string) => {
+  const formatToken = (token: string, show: boolean = showApiToken) => {
     if (!token) return ""
-    if (showApiToken) return token
+    if (show) return token
     return "•".repeat(Math.max(0, token.length - 4)) + token.slice(-4)
   }
 
@@ -173,6 +225,21 @@ const SettingsPage = () => {
                       >
                         <Code className="h-4 w-4 mr-2" />
                         Developer
+                      </TabsTrigger>
+
+                      <TabsTrigger
+                        value="workflows"
+                        className="justify-start px-4 py-2 data-[state=active]:bg-muted rounded-none"
+                      >
+                        <Package className="h-4 w-4 mr-2" />
+                        Personal Workflows
+                      </TabsTrigger>
+                      <TabsTrigger
+                        value="benchmarks"
+                        className="justify-start px-4 py-2 data-[state=active]:bg-muted rounded-none"
+                      >
+                        <Target className="h-4 w-4 mr-2" />
+                        Personal Benchmarks
                       </TabsTrigger>
                     </TabsList>
                   </Tabs>
@@ -337,6 +404,100 @@ const SettingsPage = () => {
                           </p>
                         </div>
                       </div>
+
+                      {/* Rastion API Token Section */}
+                      {rastionToken && (
+                        <div className="space-y-4 mt-8 pt-8 border-t">
+                          <div className="flex items-center gap-2">
+                            <div className="p-2 rounded-lg bg-green-500/10">
+                              <Key className="h-5 w-5 text-green-600" />
+                            </div>
+                            <h3 className="text-lg font-medium">Rastion API Token</h3>
+                            {hasGithubAuth && (
+                              <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
+                                GitHub Connected
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-sm text-muted-foreground">
+                            Your personal access token for the Rastion platform. This token is automatically generated when you sign up and provides access to repositories and Git operations.
+                          </p>
+
+                          <div className="space-y-3">
+                            <Label htmlFor="rastion-token">Rastion API Token</Label>
+                            <div className="flex gap-2">
+                              <div className="relative flex-1">
+                                <Input
+                                  id="rastion-token"
+                                  type="text"
+                                  value={formatToken(rastionToken, showRastionToken)}
+                                  readOnly
+                                  className="pr-20 font-mono text-sm"
+                                  placeholder="No token available"
+                                />
+                                <div className="absolute right-2 top-1/2 transform -translate-y-1/2 flex gap-1">
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon-sm"
+                                    onClick={() => setShowRastionToken(!showRastionToken)}
+                                    className="h-6 w-6"
+                                  >
+                                    {showRastionToken ? (
+                                      <EyeOff className="h-3 w-3" />
+                                    ) : (
+                                      <Eye className="h-3 w-3" />
+                                    )}
+                                  </Button>
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon-sm"
+                                    onClick={handleCopyRastionToken}
+                                    disabled={!rastionToken}
+                                    className="h-6 w-6"
+                                  >
+                                    {copyRastionSuccess ? (
+                                      <CheckCircle2 className="h-3 w-3 text-green-600" />
+                                    ) : (
+                                      <Copy className="h-3 w-3" />
+                                    )}
+                                  </Button>
+                                </div>
+                              </div>
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                              Use this token to access your repositories and perform Git operations through the Rastion platform.
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+
+
+
+                <TabsContent value="workflows" className="mt-0">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-2xl">Personal Workflows</CardTitle>
+                      <CardDescription>Manage your private optimization workflows and configurations</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <PersonalWorkflows />
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+
+                <TabsContent value="benchmarks" className="mt-0">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-2xl">Personal Benchmarks</CardTitle>
+                      <CardDescription>Create and manage your private benchmark suites for optimization testing</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <PersonalBenchmarks />
                     </CardContent>
                   </Card>
                 </TabsContent>

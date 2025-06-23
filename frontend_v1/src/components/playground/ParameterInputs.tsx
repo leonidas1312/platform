@@ -33,6 +33,7 @@ interface ParameterInputsProps {
   modelType: 'problem' | 'optimizer'
   onParametersChange: (parameters: Record<string, any>) => void
   initialParameters?: Record<string, any>
+  disabled?: boolean
 }
 
 export function ParameterInputs({
@@ -40,7 +41,8 @@ export function ParameterInputs({
   username,
   modelType,
   onParametersChange,
-  initialParameters = {}
+  initialParameters = {},
+  disabled = false
 }: ParameterInputsProps) {
   const [schema, setSchema] = useState<ParameterSchema | null>(null)
   const [parameters, setParameters] = useState<Record<string, any>>(initialParameters)
@@ -51,6 +53,10 @@ export function ParameterInputs({
   useEffect(() => {
     if (modelName) {
       fetchParameterSchema()
+    } else {
+      // Clear parameters when no model is selected
+      setParameters({})
+      setSchema(null)
     }
   }, [modelName, username])
 
@@ -81,14 +87,23 @@ export function ParameterInputs({
               parameters: schema.parameters
             })
 
-            // Initialize parameters with defaults
+            // Initialize parameters with defaults, but only use initialParameters if they match the current schema
             const defaultParams: Record<string, any> = {}
             Object.entries(schema.parameters).forEach(([key, param]: [string, any]) => {
               if (param.default !== undefined) {
                 defaultParams[key] = param.default
               }
             })
-            setParameters(prev => ({ ...defaultParams, ...prev }))
+
+            // Only preserve initialParameters that are valid for the current schema
+            const validInitialParams: Record<string, any> = {}
+            Object.keys(initialParameters).forEach(key => {
+              if (schema.parameters[key]) {
+                validInitialParams[key] = initialParameters[key]
+              }
+            })
+
+            setParameters({ ...defaultParams, ...validInitialParams })
           } else {
             // No parameters found in config.json
             setSchema({
@@ -138,6 +153,7 @@ export function ParameterInputs({
                 id={key}
                 checked={value || false}
                 onCheckedChange={(checked) => updateParameter(key, checked)}
+                disabled={disabled}
               />
               <span className="text-xs text-muted-foreground">{value ? 'Enabled' : 'Disabled'}</span>
             </div>
@@ -166,6 +182,8 @@ export function ParameterInputs({
               step="1"
               placeholder={param.default?.toString() || '0'}
               className="h-7 text-xs"
+              disabled={disabled}
+              readOnly={disabled}
             />
             <p className="text-xs text-muted-foreground leading-tight">{param.description}</p>
           </div>
@@ -192,6 +210,8 @@ export function ParameterInputs({
               step={param.step || 'any'}
               placeholder={param.default?.toString() || '0'}
               className="h-7 text-xs"
+              disabled={disabled}
+              readOnly={disabled}
             />
             <p className="text-xs text-muted-foreground leading-tight">{param.description}</p>
           </div>
@@ -211,6 +231,7 @@ export function ParameterInputs({
                 }
               }}
               className="cursor-pointer h-7 text-xs"
+              disabled={disabled}
             />
             {value && (
               <p className="text-xs text-muted-foreground">
@@ -239,6 +260,8 @@ export function ParameterInputs({
               placeholder='["item1", "item2"] or [1, 2, 3]'
               rows={2}
               className="text-xs font-mono"
+              disabled={disabled}
+              readOnly={disabled}
             />
             <p className="text-xs text-muted-foreground leading-tight">
               {param.description} (Enter as JSON array)
@@ -257,6 +280,8 @@ export function ParameterInputs({
               onChange={(e) => updateParameter(key, e.target.value)}
               placeholder={param.default?.toString() || ''}
               className="h-7 text-xs"
+              disabled={disabled}
+              readOnly={disabled}
             />
             <p className="text-xs text-muted-foreground leading-tight">{param.description}</p>
           </div>

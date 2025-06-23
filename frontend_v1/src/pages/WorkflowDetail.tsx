@@ -22,7 +22,8 @@ import {
   Loader2,
   CheckCircle,
   AlertTriangle,
-  BarChart3
+  BarChart3,
+  ExternalLink
 } from "lucide-react"
 import { toast } from "@/components/ui/use-toast"
 import { OptimizationWorkflow } from "@/types/playground"
@@ -145,7 +146,7 @@ const WorkflowDetail = () => {
             className="flex items-center gap-2"
           >
             <Play className="h-4 w-4" />
-            Open in Playground
+            Open in playground
           </Button>
         </div>
 
@@ -235,7 +236,15 @@ const WorkflowDetail = () => {
                     <span className="font-medium">Problem</span>
                   </div>
                   <div className="pl-6 space-y-1">
-                    <p className="font-medium">{workflow.problem_username}/{workflow.problem_name}</p>
+                    <a
+                      href={`https://rastion.com/${workflow.problem_username}/${workflow.problem_name}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-medium text-blue-600 hover:underline flex items-center gap-1"
+                    >
+                      {workflow.problem_username}/{workflow.problem_name}
+                      <ExternalLink className="h-3 w-3" />
+                    </a>
                     {Object.keys(workflow.problem_params || {}).length > 0 && (
                       <div className="space-y-1">
                         <p className="text-sm text-muted-foreground">Parameters:</p>
@@ -253,7 +262,15 @@ const WorkflowDetail = () => {
                     <span className="font-medium">Optimizer</span>
                   </div>
                   <div className="pl-6 space-y-1">
-                    <p className="font-medium">{workflow.optimizer_username}/{workflow.optimizer_name}</p>
+                    <a
+                      href={`https://rastion.com/${workflow.optimizer_username}/${workflow.optimizer_name}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-medium text-blue-600 hover:underline flex items-center gap-1"
+                    >
+                      {workflow.optimizer_username}/{workflow.optimizer_name}
+                      <ExternalLink className="h-3 w-3" />
+                    </a>
                     {Object.keys(workflow.optimizer_params || {}).length > 0 && (
                       <div className="space-y-1">
                         <p className="text-sm text-muted-foreground">Parameters:</p>

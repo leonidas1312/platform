@@ -16,6 +16,7 @@ import DeleteRepoDialog from "@/components/repo/DeleteRepoDialog"
 import QubotEditDialog from "@/components/repo/QubotEditDialog"
 
 import RepositoryFileExplorer from "@/components/repo/RepositoryFileExplorer"
+import GitHubStyleFileExplorer from "@/components/repo/GitHubStyleFileExplorer"
 import OptimizationToolConfigCard from "@/components/repo/OptimizationToolConfigCard"
 import NotebookViewer from "@/components/repo/NotebookViewer"
 
@@ -95,6 +96,11 @@ export default function RepoPage() {
   // File search dialog state
   const [showFileSearchDialog, setShowFileSearchDialog] = useState(false)
   const [allRepoFiles, setAllRepoFiles] = useState<any[]>([])
+
+  // Caching for performance
+  const [branchCache, setBranchCache] = useState<Map<string, string[]>>(new Map())
+  const [fileContentCache, setFileContentCache] = useState<Map<string, string>>(new Map())
+  const [commitCache, setCommitCache] = useState<Map<string, any>>(new Map())
 
   const [hasRepoStarred, setHasRepoStarred] = useState(false)
 
@@ -203,10 +209,14 @@ export default function RepoPage() {
     // Force the Files tab to be active when viewing a file or directory
     if (splat && splat.startsWith("src/branch/")) {
       console.log("Setting active tab to files")
-      setActiveTab("files")
+      if (activeTab !== "files") {
+        setActiveTab("files")
+      }
     } else {
       // Default to overview tab for repository root
-      setActiveTab("overview")
+      if (activeTab !== "overview") {
+        setActiveTab("overview")
+      }
     }
 
     processingUrlChange.current = false
@@ -230,8 +240,8 @@ export default function RepoPage() {
       return
     }
 
-    // Set active tab based on URL
-    if (location.pathname.includes("/src/branch/")) {
+    // Set active tab based on URL only if not already processing a URL change
+    if (!processingUrlChange.current && location.pathname.includes("/src/branch/")) {
       setActiveTab("files")
     }
 
@@ -272,23 +282,38 @@ export default function RepoPage() {
         const branch = currentBranch || data.repo.default_branch || "main"
         setCurrentBranch(branch)
 
-        // Fetch commit information for files
-        fetchFileCommits(data.files, branch).then((filesWithCommits) => {
-          setFiles(filesWithCommits)
-        })
-
+        // Set files immediately without commit data for faster initial load
+        setFiles(data.files)
         setLoading(false)
+
+        // Start parallel operations for better performance
+        const parallelOperations = [
+          // Load branches in parallel
+          loadBranches(data.repo.owner.login, data.repo.name),
+          // Load all files for search functionality in parallel
+          loadAllFiles(data.repo.owner.login, data.repo.name, data.repo.default_branch || "main")
+        ]
 
         // If a file is selected, load its content
         if (selectedFile) {
-          loadFileContent(selectedFile)
+          parallelOperations.push(loadFileContent(selectedFile))
         }
 
-        // Load branches
-        loadBranches(data.repo.owner.login, data.repo.name)
+        // Execute parallel operations
+        Promise.allSettled(parallelOperations).then(() => {
+          console.log("Parallel operations completed")
+        })
 
-        // Load all files for search functionality
-        loadAllFiles(data.repo.owner.login, data.repo.name, data.repo.default_branch || "main")
+        // Fetch commit information in the background (deferred for performance)
+        setTimeout(() => {
+          fetchFileCommits(data.files, branch).then((filesWithCommits) => {
+            setFiles(filesWithCommits)
+            console.log("Commit data loaded and applied to files")
+          }).catch(error => {
+            console.error("Failed to fetch commit data:", error)
+            // Keep the files without commit data if commit fetching fails
+          })
+        }, 500) // Increased delay to let the UI render and be interactive first
       })
       .catch((err) => {
         setError(err.message || "Unknown error")
@@ -296,13 +321,25 @@ export default function RepoPage() {
       })
   }, [owner, repoName, location.search])
 
-  // Load branches
+  // Load branches with caching
   const loadBranches = async (repoOwner: string, repoName: string) => {
+    const cacheKey = `${repoOwner}/${repoName}`
+
+    // Check cache first
+    if (branchCache.has(cacheKey)) {
+      setBranches(branchCache.get(cacheKey)!)
+      return
+    }
+
     try {
       const response = await fetch(`${API}/repos/${repoOwner}/${repoName}/branches`)
       if (response.ok) {
         const branchesData = await response.json()
-        setBranches(branchesData.map((branch: any) => branch.name))
+        const branchNames = branchesData.map((branch: any) => branch.name)
+        setBranches(branchNames)
+
+        // Cache the result
+        setBranchCache(prev => new Map(prev.set(cacheKey, branchNames)))
       }
     } catch (error) {
       console.error("Failed to load branches:", error)
@@ -334,7 +371,8 @@ export default function RepoPage() {
     setRepo(data.repo)
     setReadme(data.readme)
     setConfig(data.config)
-    setFiles(enhanceFilesWithCommitData(data.files))
+    const filesWithCommits = await fetchFileCommits(data.files, data.repo.default_branch || "main")
+    setFiles(filesWithCommits)
 
     // If config exists now, we're no longer in new repo state
     if (data.config) {
@@ -355,18 +393,29 @@ export default function RepoPage() {
     }
   }
 
-  // Load file content
+  // Load file content with caching
   const loadFileContent = async (filePath: string) => {
     if (!owner || !repoName) return
 
     const branch = currentBranch || repo?.default_branch || "main"
     if (!branch) return
 
+    const cacheKey = `${owner}/${repoName}/${branch}/${filePath}`
+
+    // Check cache first
+    if (fileContentCache.has(cacheKey)) {
+      const cachedContent = fileContentCache.get(cacheKey)!
+      setFileContent(cachedContent)
+      setSelectedFileSha("cached")
+      return
+    }
+
     console.log(`Loading file content: ${filePath} from branch: ${branch}`)
     setEditorLoading(true)
     try {
       const fileRes = await fetch(`${API}/api/repos/${owner}/${repoName}/contents/${filePath}?ref=${branch}`, {
-        credentials: 'include', // Include cookies for authentication
+        credentials: 'include',
+        signal: AbortSignal.timeout(10000), // 10 second timeout
       })
 
       if (fileRes.ok) {
@@ -376,6 +425,13 @@ export default function RepoPage() {
           console.log("File content loaded successfully, length:", decoded.length)
           setFileContent(decoded)
           setSelectedFileSha(fileJson.sha)
+
+          // Cache the content (limit cache size to prevent memory issues)
+          if (fileContentCache.size > 50) {
+            const firstKey = fileContentCache.keys().next().value
+            fileContentCache.delete(firstKey)
+          }
+          setFileContentCache(prev => new Map(prev.set(cacheKey, decoded)))
         } else {
           console.log("File content is empty")
           setFileContent("")
@@ -384,17 +440,17 @@ export default function RepoPage() {
       } else {
         console.log(`Error loading file: ${filePath}, status: ${fileRes.status}`)
         // For demo purposes, generate some content based on file type
+        let fallbackContent = ""
         if (filePath.endsWith(".md")) {
-          setFileContent(`# ${filePath.split("/").pop()?.replace(".md", "")}\n\nThis is a sample markdown file.`)
+          fallbackContent = `# ${filePath.split("/").pop()?.replace(".md", "")}\n\nThis is a sample markdown file.`
         } else if (filePath.endsWith(".json")) {
-          setFileContent(JSON.stringify({ sample: "data" }, null, 2))
+          fallbackContent = JSON.stringify({ sample: "data" }, null, 2)
         } else if (filePath.endsWith(".py")) {
-          setFileContent(
-            'def hello_world():\n    print("Hello, World!")\n\nif __name__ == "__main__":\n    hello_world()',
-          )
+          fallbackContent = 'def hello_world():\n    print("Hello, World!")\n\nif __name__ == "__main__":\n    hello_world()'
         } else {
-          setFileContent(`Sample content for ${filePath}`)
+          fallbackContent = `Sample content for ${filePath}`
         }
+        setFileContent(fallbackContent)
         setSelectedFileSha("sample-sha")
       }
     } catch (err) {
@@ -491,13 +547,31 @@ export default function RepoPage() {
     const branch = currentBranch || repo?.default_branch || "main"
 
     if (file.type === "dir") {
-      // Navigate to directory
-      const newPath = currentPath ? `${currentPath}/${file.name}` : file.name
-      console.log("Navigating to directory:", newPath)
+      // Handle navigation to directory or back to root
+      let newPath: string
 
-      // Immediately load the directory contents
-      const branch = currentBranch || repo?.default_branch || "main"
-      const apiUrl = `${API}/api/repos/${owner}/${repoName}/contents/${newPath}?ref=${branch}`
+      // Check if this is a navigation back to root (empty name and path)
+      if (file.name === '' && file.path === '') {
+        newPath = ''
+        console.log("Navigating back to repository root")
+      } else if (file.path) {
+        // Use the provided path (from breadcrumb navigation)
+        newPath = file.path
+        console.log("Navigating to path:", newPath)
+      } else {
+        // Regular directory navigation
+        newPath = currentPath ? `${currentPath}/${file.name}` : file.name
+        console.log("Navigating to directory:", newPath)
+      }
+
+      // Set processing flag to prevent URL parsing conflicts
+      processingUrlChange.current = true
+
+      // Determine the API URL based on whether we're going to root or a specific path
+      const apiUrl = newPath
+        ? `${API}/api/repos/${owner}/${repoName}/contents/${newPath}?ref=${branch}`
+        : `${API}/api/repos/${owner}/${repoName}/contents?ref=${branch}`
+
       setLoading(true)
 
       fetch(apiUrl, {
@@ -528,12 +602,25 @@ export default function RepoPage() {
           // Update the current path after successful load
           setCurrentPath(newPath)
 
-          // Then navigate to the directory URL
-          navigate(`/${owner}/${repoName}/src/branch/${branch}/${newPath}`)
+          // Ensure we stay in files tab
+          setActiveTab("files")
+
+          // Navigate to the appropriate URL
+          if (newPath) {
+            navigate(`/${owner}/${repoName}/src/branch/${branch}/${newPath}`)
+          } else {
+            navigate(`/${owner}/${repoName}/src/branch/${branch}`)
+          }
+
+          // Reset processing flag after navigation
+          setTimeout(() => {
+            processingUrlChange.current = false
+          }, 100)
         })
         .catch((err) => {
           console.error("Error loading directory:", err)
           setLoading(false)
+          processingUrlChange.current = false
           toast({
             title: "Error",
             description: "Failed to load directory contents",
@@ -844,7 +931,8 @@ export default function RepoPage() {
         )
         if (dirResponse.ok) {
           const dirData = await dirResponse.json()
-          setFiles(enhanceFilesWithCommitData(dirData))
+          const filesWithCommits = await fetchFileCommits(dirData, branch || currentBranch || repo?.default_branch || "main")
+          setFiles(filesWithCommits)
         }
       } else {
         await reloadRepoData()
@@ -934,7 +1022,8 @@ export default function RepoPage() {
         )
         if (dirResponse.ok) {
           const dirData = await dirResponse.json()
-          setFiles(enhanceFilesWithCommitData(dirData))
+          const filesWithCommits = await fetchFileCommits(dirData, uploadBranch)
+          setFiles(filesWithCommits)
         }
       } else {
         await reloadRepoData()
@@ -1057,63 +1146,120 @@ export default function RepoPage() {
     handleGoToFile(filePath)
   }
 
-  // Fetch commit information for files in the current directory
+  // Fetch commit information for files in the current directory with optimizations
   const fetchFileCommits = async (files: any[], branch: string) => {
     if (!owner || !repoName || files.length === 0) return files
+
+    console.log(`Fetching commits for ${files.length} files in branch ${branch}, currentPath: ${currentPath}`)
 
     try {
       const enhancedFiles = [...files]
 
-      // For each file, fetch its latest commit
-      for (let i = 0; i < enhancedFiles.length; i++) {
-        const file = enhancedFiles[i]
+      // For performance, only fetch commits for the first 10 files
+      const filesToProcess = enhancedFiles.slice(0, 10)
+
+      // Process files with a simple Promise.all but with individual error handling
+      const commitPromises = filesToProcess.map(async (file, index) => {
         const filePath = currentPath ? `${currentPath}/${file.name}` : file.name
+        const commitCacheKey = `${owner}/${repoName}/${branch}/${filePath}`
 
-        const commitResponse = await fetch(
-          `${API}/api/repos/${owner}/${repoName}/commits?path=${encodeURIComponent(filePath)}&limit=1&ref=${branch}`,
-          {
-            credentials: 'include', // Include cookies for authentication
-          },
-        )
+        console.log(`Fetching commit for file: ${filePath}`)
 
-        if (commitResponse.ok) {
-          const commits = await commitResponse.json()
-          if (commits && commits.length > 0) {
-            enhancedFiles[i] = {
-              ...file,
-              commit: {
+        // Check cache first
+        if (commitCache.has(commitCacheKey)) {
+          console.log(`Using cached commit for: ${filePath}`)
+          return {
+            index,
+            commit: commitCache.get(commitCacheKey)!,
+          }
+        }
+
+        try {
+          const commitUrl = `${API}/api/repos/${owner}/${repoName}/commits?path=${encodeURIComponent(filePath)}&limit=1&ref=${branch}`
+          console.log(`Fetching from URL: ${commitUrl}`)
+
+          const commitResponse = await fetch(commitUrl, {
+            credentials: 'include',
+            signal: AbortSignal.timeout(5000), // Increased timeout
+          })
+
+          console.log(`Commit response for ${filePath}: ${commitResponse.status}`)
+
+          if (commitResponse.ok) {
+            const commits = await commitResponse.json()
+            console.log(`Commits data for ${filePath}:`, commits)
+
+            if (commits && commits.length > 0) {
+              const commitData = {
                 message: commits[0].commit.message,
                 date: commits[0].commit.author.date,
                 author: commits[0].author?.login || commits[0].commit.author.name,
+                authorAvatar: commits[0].author?.avatar_url || null,
                 sha: commits[0].sha,
-              },
+              }
+
+              console.log(`Successfully fetched commit for ${filePath}:`, commitData)
+
+              // Cache the commit data (limit cache size)
+              if (commitCache.size > 100) {
+                const firstKey = commitCache.keys().next().value
+                commitCache.delete(firstKey)
+              }
+              setCommitCache(prev => new Map(prev.set(commitCacheKey, commitData)))
+
+              return {
+                index,
+                commit: commitData,
+              }
+            } else {
+              console.log(`No commits found for ${filePath}`)
             }
           } else {
-            // Provide fallback commit data when no commits are found
-            enhancedFiles[i] = {
-              ...file,
-              commit: {
-                message: "No commit history",
-                date: null,
-                author: "Unknown",
-                sha: null,
-              },
-            }
+            console.log(`Failed to fetch commits for ${filePath}: ${commitResponse.status}`)
+          }
+        } catch (error) {
+          console.warn(`Failed to fetch commit for ${filePath}:`, error)
+        }
+
+        // Return fallback data
+        return {
+          index,
+          commit: {
+            message: "No commit history",
+            date: null,
+            author: "Unknown",
+            authorAvatar: null,
+            sha: null,
+          },
+        }
+      })
+
+      // Wait for all commit requests to complete
+      const results = await Promise.allSettled(commitPromises)
+
+      // Apply commit data to files
+      results.forEach((result, index) => {
+        if (result.status === 'fulfilled') {
+          enhancedFiles[result.value.index] = {
+            ...enhancedFiles[result.value.index],
+            commit: result.value.commit,
           }
         } else {
-          // Provide fallback commit data when API call fails
-          enhancedFiles[i] = {
-            ...file,
+          // Fallback for rejected promises
+          enhancedFiles[index] = {
+            ...enhancedFiles[index],
             commit: {
               message: "Unable to fetch commit data",
               date: null,
               author: "Unknown",
+              authorAvatar: null,
               sha: null,
             },
           }
         }
-      }
+      })
 
+      console.log(`Finished processing commits, returning ${enhancedFiles.length} files`)
       return enhancedFiles
     } catch (error) {
       console.error("Error fetching file commits:", error)
@@ -1121,14 +1267,22 @@ export default function RepoPage() {
     }
   }
 
-  // Function to load all files in the repository for the file search dialog
+  // Function to load all files in the repository for the file search dialog (optimized)
   const loadAllFiles = async (repoOwner: string, repoName: string, defaultBranch: string) => {
     try {
+      // Limit recursion depth for performance
+      const MAX_DEPTH = 3
+
       // Instead of using a non-existent endpoint, we'll recursively fetch all files
-      // starting from the root directory
-      const fetchFilesRecursively = async (path = ""): Promise<any[]> => {
+      // starting from the root directory with depth limiting
+      const fetchFilesRecursively = async (path = "", depth = 0): Promise<any[]> => {
+        if (depth > MAX_DEPTH) {
+          return []
+        }
+
         const response = await fetch(`${API}/api/repos/${repoOwner}/${repoName}/contents/${path}?ref=${defaultBranch}`, {
-          credentials: 'include', // Include cookies for authentication
+          credentials: 'include',
+          signal: AbortSignal.timeout(5000), // 5 second timeout
         })
 
         if (!response.ok) {
@@ -1139,6 +1293,7 @@ export default function RepoPage() {
         const items = await response.json()
         let allFiles: any[] = []
 
+        // Process files first (they're more important for search)
         for (const item of items) {
           if (item.type === "file") {
             allFiles.push({
@@ -1148,12 +1303,22 @@ export default function RepoPage() {
               size: item.size,
               sha: item.sha,
             })
-          } else if (item.type === "dir") {
-            const subPath = path ? `${path}/${item.name}` : item.name
-            const subFiles = await fetchFilesRecursively(subPath)
-            allFiles = [...allFiles, ...subFiles]
           }
         }
+
+        // Process directories with limited concurrency
+        const directories = items.filter((item: any) => item.type === "dir").slice(0, 10) // Limit to 10 directories
+        const dirPromises = directories.map(async (item: any) => {
+          const subPath = path ? `${path}/${item.name}` : item.name
+          return fetchFilesRecursively(subPath, depth + 1)
+        })
+
+        const dirResults = await Promise.allSettled(dirPromises)
+        dirResults.forEach(result => {
+          if (result.status === 'fulfilled') {
+            allFiles = [...allFiles, ...result.value]
+          }
+        })
 
         return allFiles
       }
@@ -1193,13 +1358,24 @@ export default function RepoPage() {
 
   // Handle tab change
   const handleTabChange = (tab: string) => {
+    // Prevent processing URL changes during tab navigation
+    processingUrlChange.current = true
+
     setActiveTab(tab)
     if (tab === "overview") {
       navigate(`/${owner}/${repoName}`)
     } else if (tab === "files") {
       const branch = currentBranch || repo?.default_branch || "main"
-      navigate(`/${owner}/${repoName}/src/branch/${branch}`)
+      // If we're already in files view, don't navigate again
+      if (!location.pathname.includes("/src/branch/")) {
+        navigate(`/${owner}/${repoName}/src/branch/${branch}`)
+      }
     }
+
+    // Reset the flag after a short delay
+    setTimeout(() => {
+      processingUrlChange.current = false
+    }, 100)
   }
 
 
@@ -1342,7 +1518,7 @@ export default function RepoPage() {
             <div className="space-y-4">
               {/* File Browser or File Viewer */}
               {!selectedFile ? (
-                <RepositoryFileExplorer
+                <GitHubStyleFileExplorer
                   files={files.map(file => ({
                     name: file.name,
                     type: file.type,
@@ -1353,9 +1529,20 @@ export default function RepoPage() {
                   }))}
                   onFileClick={handleFileClick}
                   onAddFile={() => setShowFileUploadDialog(true)}
-                  onNavigateToParent={currentPath ? handleNavigateToParentDirectory : undefined}
                   path={currentPath}
-                  isLoading={loading}
+                  branch={currentBranch || repo?.default_branch || "main"}
+                  branches={branches}
+                  onBranchChange={handleBranchChange}
+                  repositoryName={repoName}
+                  repositoryOwner={owner}
+                  commitCount={repo?.watchers_count} // Using watchers as commit count placeholder
+                  lastCommit={files.length > 0 && files[0].commit ? {
+                    message: files[0].commit.message,
+                    sha: files[0].commit.sha || '',
+                    author: files[0].commit.author || 'Unknown',
+                    authorAvatar: files[0].commit.authorAvatar || null,
+                    date: files[0].commit.date
+                  } : undefined}
                   className="w-full"
                 />
               ) : (

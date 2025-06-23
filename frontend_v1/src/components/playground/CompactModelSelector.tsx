@@ -42,6 +42,7 @@ interface CompactModelSelectorProps {
   className?: string
   initiallyExpanded?: boolean
   isWorkflowRestoration?: boolean // Add flag to prevent auto-expansion during workflow restoration
+  disabled?: boolean // Add disabled prop for locked mode
 }
 
 export const CompactModelSelector: React.FC<CompactModelSelectorProps> = ({
@@ -51,7 +52,8 @@ export const CompactModelSelector: React.FC<CompactModelSelectorProps> = ({
   onModelClear,
   className = "",
   initiallyExpanded = false,
-  isWorkflowRestoration = false
+  isWorkflowRestoration = false,
+  disabled = false
 }) => {
   const [isExpanded, setIsExpanded] = useState(initiallyExpanded && !isWorkflowRestoration)
   const [models, setModels] = useState<ModelInfo[]>([])
@@ -175,20 +177,23 @@ export const CompactModelSelector: React.FC<CompactModelSelectorProps> = ({
   )
 
   return (
-    <Card className={`${className}`}>
+    <Card className={`${className} ${disabled ? 'opacity-60' : ''}`}>
       <CardHeader className="pb-1 pt-2">
         <div
-          className="flex items-center justify-between cursor-pointer"
+          className={`flex items-center justify-between ${disabled ? 'cursor-not-allowed' : 'cursor-pointer'}`}
           onClick={() => {
-            setHasUserInteracted(true) // Mark user interaction
-            setIsExpanded(!isExpanded)
+            if (!disabled) {
+              setHasUserInteracted(true) // Mark user interaction
+              setIsExpanded(!isExpanded)
+            }
           }}
         >
           <CardTitle className="flex items-center gap-1 text-xs">
             {modelType === "problem" ? <Package className="h-3 w-3" /> : <Settings className="h-3 w-3" />}
             {modelType === "problem" ? "Problem" : "Optimizer"}
+            {disabled && <span className="text-xs text-muted-foreground ml-1">(Locked)</span>}
           </CardTitle>
-          {isExpanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+          {!disabled && (isExpanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />)}
         </div>
       </CardHeader>
 
@@ -220,7 +225,13 @@ export const CompactModelSelector: React.FC<CompactModelSelectorProps> = ({
                   </span>
                 </p>
               </div>
-              <Button variant="outline" size="sm" onClick={onModelClear} className="h-5 text-xs px-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onModelClear}
+                className="h-5 text-xs px-2"
+                disabled={disabled}
+              >
                 Clear
               </Button>
             </div>
@@ -228,7 +239,7 @@ export const CompactModelSelector: React.FC<CompactModelSelectorProps> = ({
         )}
 
         {/* Expanded Model Selection */}
-        {isExpanded && (
+        {isExpanded && !disabled && (
           <div className="space-y-2">
             {/* Header with Refresh */}
             <div className="flex items-center justify-between">

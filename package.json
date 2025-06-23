@@ -1,5 +1,8 @@
 {
   "dependencies": {
-    "express-session": "^1.18.1"
+    "@xyflow/react": "^12.7.0",
+    "express-session": "^1.18.1",
+    "reactflow": "^11.11.4",
+    "uuid": "^11.1.0"
   }
 }

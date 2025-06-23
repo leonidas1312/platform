@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import {Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger} from "@/components/ui/dialog"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { useAuth } from "@/hooks/use-auth"
 import {
@@ -19,13 +19,17 @@ import {
   Play,
   Square,
   Download,
-  User
+  User,
+  Trophy,
+  Lock,
+  Edit
 } from "lucide-react"
 import { toast } from "@/components/ui/use-toast"
 import { CompactModelSelector } from "@/components/playground/CompactModelSelector"
 import { TerminalViewer } from "@/components/playground/TerminalViewer"
 import { ParameterInputs } from "@/components/playground/ParameterInputs"
 import { ShareWorkflowDialog } from "@/components/playground/ShareWorkflowDialog"
+import { OptimizationResultDisplay } from "@/components/playground/OptimizationResultDisplay"
 import EnvironmentSpecs from "@/components/playground/EnvironmentSpecs"
 import { ModelInfo, QubotResult, ExecutionLog, ExecutionMetrics, ExecutionState } from "@/types/playground"
 
@@ -47,8 +51,15 @@ const QubotPlayground = () => {
   const [isSharing, setIsSharing] = useState(false)
   const [resultsModalOpen, setResultsModalOpen] = useState(false)
 
+  // Leaderboard submission state
+  const [submittingToLeaderboard, setSubmittingToLeaderboard] = useState(false)
+
   // Workflow restoration state
   const [isRestoringWorkflow, setIsRestoringWorkflow] = useState(false)
+
+  // Leaderboard locked mode state
+  const [isLockedMode, setIsLockedMode] = useState(false)
+  const [leaderboardProblemId, setLeaderboardProblemId] = useState<string | null>(null)
 
   // Enhanced execution state
   const [executionState, setExecutionState] = useState<ExecutionState>({
@@ -73,6 +84,20 @@ const QubotPlayground = () => {
     checkSystemStatus()
   }, [])
 
+  // Clear problem parameters when problem changes
+  useEffect(() => {
+    if (!isRestoringWorkflow) {
+      setProblemParams({})
+    }
+  }, [selectedProblem?.name, selectedProblem?.username, isRestoringWorkflow])
+
+  // Clear optimizer parameters when optimizer changes
+  useEffect(() => {
+    if (!isRestoringWorkflow) {
+      setOptimizerParams({})
+    }
+  }, [selectedOptimizer?.name, selectedOptimizer?.username, isRestoringWorkflow])
+
   // Workflow restoration effect
   useEffect(() => {
     const workflowId = searchParams.get('workflow_id')
@@ -82,8 +107,16 @@ const QubotPlayground = () => {
     const optimizerUsername = searchParams.get('optimizer_username')
     const problemParamsStr = searchParams.get('problem_params')
     const optimizerParamsStr = searchParams.get('optimizer_params')
+    const locked = searchParams.get('locked')
+    const leaderboardProblemIdParam = searchParams.get('leaderboard_problem_id')
 
-    if (workflowId || (problemName && optimizerName)) {
+    // Set locked mode if coming from leaderboard
+    if (locked === 'true' && leaderboardProblemIdParam) {
+      setIsLockedMode(true)
+      setLeaderboardProblemId(leaderboardProblemIdParam)
+    }
+
+    if (workflowId || (problemName && (optimizerName || locked === 'true'))) {
       restoreWorkflow({
         workflowId,
         problemName,
@@ -149,8 +182,8 @@ const QubotPlayground = () => {
             description: `Loaded workflow: ${workflow.title}`,
           })
         }
-      } else if (workflowData.problemName && workflowData.optimizerName) {
-        // Direct parameter restoration from URL
+      } else if (workflowData.problemName) {
+        // Direct parameter restoration from URL (problem required, optimizer optional for locked mode)
         setSelectedProblem({
           name: workflowData.problemName,
           username: workflowData.problemUsername || '',
@@ -162,24 +195,33 @@ const QubotPlayground = () => {
           metadata: { stars: 0, forks: 0, size: 0 }
         })
 
-        setSelectedOptimizer({
-          name: workflowData.optimizerName,
-          username: workflowData.optimizerUsername || '',
-          description: '',
-          model_type: 'optimizer',
-          repository_url: '',
-          last_updated: '',
-          tags: [],
-          metadata: { stars: 0, forks: 0, size: 0 }
-        })
+        if (workflowData.optimizerName) {
+          setSelectedOptimizer({
+            name: workflowData.optimizerName,
+            username: workflowData.optimizerUsername || '',
+            description: '',
+            model_type: 'optimizer',
+            repository_url: '',
+            last_updated: '',
+            tags: [],
+            metadata: { stars: 0, forks: 0, size: 0 }
+          })
+        }
 
         setProblemParams(workflowData.problemParams || {})
         setOptimizerParams(workflowData.optimizerParams || {})
 
-        toast({
-          title: "Workflow Restored",
-          description: "Configuration loaded from shared workflow",
-        })
+        if (isLockedMode) {
+          toast({
+            title: "Leaderboard Problem Loaded",
+            description: "Problem and its parameters are locked. Choose any optimizer to compete.",
+          })
+        } else {
+          toast({
+            title: "Workflow Restored",
+            description: "Configuration loaded from shared workflow",
+          })
+        }
       }
     } catch (error: any) {
       console.error('Error restoring workflow:', error)
@@ -574,6 +616,83 @@ const QubotPlayground = () => {
     }
   }
 
+
+
+  const handleSubmitToLeaderboard = async (problemId: number) => {
+
+    if (!result || !selectedProblem || !selectedOptimizer) {
+      toast({
+        title: "Cannot Submit",
+        description: "Please run an optimization first to get results.",
+        variant: "destructive"
+      })
+      return
+    }
+
+    if (!result.best_value || !result.execution_time) {
+      toast({
+        title: "Incomplete Results",
+        description: "Results must include best value and execution time.",
+        variant: "destructive"
+      })
+      return
+    }
+
+    setSubmittingToLeaderboard(true)
+
+    try {
+      const response = await fetch(`${API}/api/leaderboard/problems/${problemId}/submit-playground`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          problem_name: selectedProblem.name,
+          problem_username: selectedProblem.username,
+          optimizer_name: selectedOptimizer.name,
+          optimizer_username: selectedOptimizer.username,
+          best_value: result.best_value,
+          runtime_seconds: result.execution_time || result.runtime_seconds,
+          iterations: result.iterations,
+          evaluations: result.evaluations,
+          problem_params: problemParams,
+          optimizer_params: optimizerParams
+        })
+      })
+
+      const data = await response.json()
+
+      if (response.ok && data.success) {
+        toast({
+          title: "Submitted to Leaderboard!",
+          description: data.message || "Your results have been submitted successfully.",
+          action: (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => window.location.href = '/leaderboard'}
+            >
+              View Leaderboard
+            </Button>
+          )
+        })
+
+      } else {
+        throw new Error(data.message || 'Failed to submit to leaderboard')
+      }
+    } catch (error: any) {
+      console.error('Error submitting to leaderboard:', error)
+      toast({
+        title: "Submission Failed",
+        description: error.message || "Failed to submit results to leaderboard.",
+        variant: "destructive"
+      })
+    } finally {
+      setSubmittingToLeaderboard(false)
+    }
+  }
+
   if (statusLoading) {
     return (
       <Layout>
@@ -594,21 +713,21 @@ const QubotPlayground = () => {
           <div className="px-4 py-2">
             <div className="flex items-center justify-between gap-4">
               {/* Left: System Status & Workflow Restoration */}
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
                 {!isAuthenticated ? (
                   <Badge variant="secondary" className="text-xs h-6">
                     <User className="h-3 w-3 mr-1" />
                     Sign in to run
                   </Badge>
                 ) : systemStatus?.success ? (
-                  <div className="flex items-start gap-3">
+                  <div className="flex items-center gap-2">
                     <Badge variant="default" className="text-xs h-6">
                       <CheckCircle className="h-3 w-3 mr-1" />
-                      Qubots Environment Ready
+                      Ready
                     </Badge>
                     <EnvironmentSpecs
                       specs={systemStatus?.environment_specs}
-                      variant="badge"
+                      variant="compact"
                     />
                   </div>
                 ) : (
@@ -626,22 +745,22 @@ const QubotPlayground = () => {
               </div>
 
               {/* Center: Primary Actions */}
-              <div className="flex items-center gap-2">
+              <div className="flex items-center justify-center gap-3 flex-1">
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Button
                       variant="default"
-                      size="sm"
+                      size="default"
                       onClick={runOptimization}
                       disabled={!isAuthenticated || executionState.isRunning || !selectedProblem || !selectedOptimizer}
-                      className="h-8 px-3"
+                      className="h-10 px-6 font-medium"
                     >
                       {executionState.isRunning ? (
-                        <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
                       ) : (
-                        <Play className="h-3 w-3 mr-1" />
+                        <Play className="h-4 w-4 mr-2" />
                       )}
-                      {executionState.isRunning ? 'Running' : 'Run'}
+                      {executionState.isRunning ? 'Running' : 'Run Optimization'}
                     </Button>
                   </TooltipTrigger>
                   {!isAuthenticated && (
@@ -653,12 +772,12 @@ const QubotPlayground = () => {
 
                 <Button
                   variant="outline"
-                  size="sm"
+                  size="default"
                   onClick={stopOptimization}
                   disabled={!executionState.isRunning}
-                  className="h-8 px-3"
+                  className="h-10 px-6"
                 >
-                  <Square className="h-3 w-3 mr-1" />
+                  <Square className="h-4 w-4 mr-2" />
                   Stop
                 </Button>
               </div>
@@ -694,6 +813,37 @@ const QubotPlayground = () => {
                   </TooltipTrigger>
                   <TooltipContent side="bottom">Export Logs</TooltipContent>
                 </Tooltip>
+
+                {/* Only show submit to leaderboard button when opened from leaderboard */}
+                {leaderboardProblemId && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={(e) => {
+                          e.preventDefault()
+                          e.stopPropagation()
+                          if (leaderboardProblemId) {
+                            handleSubmitToLeaderboard(parseInt(leaderboardProblemId))
+                          }
+                        }}
+                        disabled={!isAuthenticated || !result || executionState.isRunning || submittingToLeaderboard}
+                        className="h-8 px-2"
+                      >
+                        {submittingToLeaderboard ? (
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                        ) : (
+                          <Trophy className="h-3 w-3" />
+                        )}
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom">
+                      {!isAuthenticated ? "Please sign in to submit to leaderboard" :
+                       !result ? "Run optimization to submit results" : "Submit to Leaderboard"}
+                    </TooltipContent>
+                  </Tooltip>
+                )}
 
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -747,6 +897,26 @@ const QubotPlayground = () => {
           </div>
         )}
 
+        {/* Playground Information Banner */}
+        <div className="flex-shrink-0 bg-muted/30 border-b">
+          <div className="px-4 py-3">
+            <div className="max-w-6xl mx-auto">
+              <h2 className="text-lg font-semibold mb-2 text-foreground">Qubots Playground</h2>
+              <div className="space-y-1 text-sm text-muted-foreground">
+                <p>
+                  • This is a containerized cloud environment with Python + Qubots framework + utils functions for pip installing 3rd party packages installed
+                </p>
+                <p>
+                  • You can experiment with qubot optimizers and problems by simply uploading them to the platform
+                </p>
+                <p>
+                  • Underneath the playground uses the autoloading function to load the qubot problem and optimizer, and then calls the optimize function to solve the problem, and returns raw results from the optimizer
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* Main Content - Optimized Three-Column Layout */}
         <div className="flex-1 overflow-hidden">
           <div className="h-full flex min-w-0 max-w-full">
@@ -760,6 +930,7 @@ const QubotPlayground = () => {
                   onModelSelect={setSelectedProblem}
                   onModelClear={() => setSelectedProblem(null)}
                   initiallyExpanded={!selectedProblem}
+                  disabled={isLockedMode}
                   isWorkflowRestoration={isRestoringWorkflow}
                 />
 
@@ -771,6 +942,12 @@ const QubotPlayground = () => {
                         <Settings className="h-3 w-3" />
                         Problem Parameters
                         <Badge variant="outline" className="text-xs h-4">config</Badge>
+                        {isLockedMode && (
+                          <Badge variant="secondary" className="text-xs h-4 bg-orange-100 text-orange-700 border-orange-200 flex items-center gap-1">
+                            <Lock className="h-2.5 w-2.5" />
+                            locked
+                          </Badge>
+                        )}
                       </CardTitle>
                     </CardHeader>
                     <CardContent className="pt-2">
@@ -780,6 +957,7 @@ const QubotPlayground = () => {
                         modelType="problem"
                         onParametersChange={setProblemParams}
                         initialParameters={problemParams}
+                        disabled={isLockedMode}
                       />
                     </CardContent>
                   </Card>
@@ -825,6 +1003,12 @@ const QubotPlayground = () => {
                         <Settings className="h-3 w-3" />
                         Optimizer Parameters
                         <Badge variant="outline" className="text-xs h-4">config</Badge>
+                        {isLockedMode && (
+                          <Badge variant="secondary" className="text-xs h-4 bg-green-100 text-green-700 border-green-200 flex items-center gap-1">
+                            <Edit className="h-2.5 w-2.5" />
+                            editable
+                          </Badge>
+                        )}
                       </CardTitle>
                     </CardHeader>
                     <CardContent className="pt-2">
@@ -834,6 +1018,7 @@ const QubotPlayground = () => {
                         modelType="optimizer"
                         onParametersChange={setOptimizerParams}
                         initialParameters={optimizerParams}
+                        disabled={false}
                       />
                     </CardContent>
                   </Card>
@@ -868,149 +1053,19 @@ const QubotPlayground = () => {
             </DialogHeader>
 
             {result && (
-              <div className="space-y-6">
-                {/* Summary Section */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-lg flex items-center gap-2">
-                      Summary
-                      {result.message === 'Optimization completed with streaming logs' && (
-                        <Badge variant="outline" className="text-xs">
-                          Results from logs
-                        </Badge>
-                      )}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                      <div className="text-center">
-                        <div className="text-2xl font-bold text-green-600">
-                          {result.success ? '✅' : '❌'}
-                        </div>
-                        <div className="text-sm text-muted-foreground">Status</div>
-                      </div>
-
-                      {(result.best_value !== undefined && result.best_value !== null) && (
-                        <div className="text-center">
-                          <div className="text-2xl font-bold">
-                            {typeof result.best_value === 'number'
-                              ? result.best_value.toFixed(4)
-                              : result.best_value}
-                          </div>
-                          <div className="text-sm text-muted-foreground">Best Value</div>
-                        </div>
-                      )}
-
-                      {(result.iterations !== undefined && result.iterations !== null) && (
-                        <div className="text-center">
-                          <div className="text-2xl font-bold">
-                            {result.iterations?.toLocaleString() || 'N/A'}
-                          </div>
-                          <div className="text-sm text-muted-foreground">Iterations</div>
-                        </div>
-                      )}
-
-                      <div className="text-center">
-                        <div className="text-2xl font-bold">
-                          {result.execution_time && result.execution_time > 0
-                            ? `${result.execution_time.toFixed(2)}s`
-                            : 'N/A'}
-                        </div>
-                        <div className="text-sm text-muted-foreground">Execution Time</div>
-                      </div>
-                    </div>
-
-                    {/* Show additional info if results were extracted from logs */}
-                    {result.message === 'Optimization completed with streaming logs' && (
-                      <Alert className="mt-4">
-                        <CheckCircle className="h-4 w-4" />
-                        <AlertDescription>
-                          Results were extracted from optimization logs. Some detailed metrics may not be available.
-                        </AlertDescription>
-                      </Alert>
-                    )}
-                  </CardContent>
-                </Card>
-
-                {/* Configuration Section */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-lg">Configuration</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <h4 className="font-medium mb-2">Problem</h4>
-                        <div className="text-sm space-y-1">
-                          <div><strong>Name:</strong> {selectedProblem?.name}</div>
-                          <div><strong>Owner:</strong> {selectedProblem?.username}</div>
-                        </div>
-                      </div>
-                      <div>
-                        <h4 className="font-medium mb-2">Optimizer</h4>
-                        <div className="text-sm space-y-1">
-                          <div><strong>Name:</strong> {selectedOptimizer?.name}</div>
-                          <div><strong>Owner:</strong> {selectedOptimizer?.username}</div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {(Object.keys(problemParams).length > 0 || Object.keys(optimizerParams).length > 0) && (
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                        {Object.keys(problemParams).length > 0 && (
-                          <div>
-                            <h4 className="font-medium mb-2">Problem Parameters</h4>
-                            <pre className="text-xs bg-muted p-2 rounded overflow-x-auto">
-                              {JSON.stringify(problemParams, null, 2)}
-                            </pre>
-                          </div>
-                        )}
-                        {Object.keys(optimizerParams).length > 0 && (
-                          <div>
-                            <h4 className="font-medium mb-2">Optimizer Parameters</h4>
-                            <pre className="text-xs bg-muted p-2 rounded overflow-x-auto">
-                              {JSON.stringify(optimizerParams, null, 2)}
-                            </pre>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-
-                {/* Raw Results Section */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-lg">Raw Results</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <pre className="text-xs bg-muted p-4 rounded overflow-x-auto max-h-96">
-                      {JSON.stringify(result, null, 2)}
-                    </pre>
-                  </CardContent>
-                </Card>
-
-                {/* Error Details (if failed) */}
-                {!result.success && result.error_message && (
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-lg text-red-600">Error Details</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-2">
-                        <div><strong>Error:</strong> {result.error_message}</div>
-                        {result.error_type && (
-                          <div><strong>Type:</strong> {result.error_type}</div>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
-              </div>
+              <OptimizationResultDisplay
+                result={result}
+                selectedProblem={selectedProblem}
+                selectedOptimizer={selectedOptimizer}
+                problemParams={problemParams}
+                optimizerParams={optimizerParams}
+              />
             )}
             </div>
           </DialogContent>
         </Dialog>
+
+
       </div>
     </Layout>
   )

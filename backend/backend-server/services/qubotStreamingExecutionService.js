@@ -22,6 +22,16 @@ class QubotStreamingExecutionService {
     this.baseImage = process.env.PLAYGROUND_IMAGE || 'registry.digitalocean.com/rastion/qubots-playground:latest'
     this.jobTimeout = 300 // 5 minutes
 
+    // Debug logging for namespace
+    console.log(`🔧 QubotStreamingExecutionService initialized with namespace: ${this.namespace}`)
+    console.log(`🔧 Environment PLAYGROUND_NAMESPACE: ${process.env.PLAYGROUND_NAMESPACE}`)
+
+    // Ensure namespace is never null/undefined
+    if (!this.namespace) {
+      console.error('❌ Namespace is null/undefined, forcing to "playground"')
+      this.namespace = 'playground'
+    }
+
     // Store active executions and their WebSocket connections
     this.activeExecutions = new Map()
   }
@@ -156,8 +166,48 @@ class QubotStreamingExecutionService {
       }
     }
 
-    const response = await this.batchV1Api.createNamespacedJob(this.namespace, jobSpec)
-    return response.body
+    // Safety check for namespace
+    if (!this.namespace) {
+      console.error('❌ Namespace is null/undefined at job creation time')
+      this.namespace = 'playground'
+    }
+
+    // Additional validation and logging
+    console.log(`🚀 Creating job in namespace: ${this.namespace}`)
+    console.log(`🔍 Namespace type: ${typeof this.namespace}`)
+    console.log(`🔍 Namespace value: "${this.namespace}"`)
+    console.log(`🔍 Job spec metadata namespace: ${jobSpec.metadata.namespace}`)
+
+    // Ensure namespace is a string and not empty
+    const validatedNamespace = String(this.namespace).trim()
+    if (!validatedNamespace) {
+      throw new Error('Namespace validation failed: namespace is empty or invalid')
+    }
+
+    console.log(`✅ Using validated namespace: "${this.namespace}"`)
+
+    // Debug the actual parameters being passed
+    console.log(`🔍 About to call createNamespacedJob with:`)
+    console.log(`🔍 - namespace: "${this.namespace}" (type: ${typeof this.namespace})`)
+    console.log(`🔍 - jobSpec: ${JSON.stringify(jobSpec, null, 2)}`)
+
+    // Ensure we're passing the parameters correctly
+    const namespace = String(this.namespace).trim()
+    if (!namespace) {
+      throw new Error('Namespace is empty after validation')
+    }
+
+    console.log(`🔍 Final namespace parameter: "${namespace}"`)
+
+    // Use object format for the API call (newer API style)
+    console.log(`🔍 Creating job with object format: createNamespacedJob({ namespace, body: jobSpec })`)
+    const response = await this.batchV1Api.createNamespacedJob({
+      namespace: namespace,
+      body: jobSpec
+    })
+
+    // Handle different response structures
+    return response.body || response
   }
 
   /**
@@ -298,8 +348,21 @@ except Exception as e:
 
     while (attempts < maxAttempts) {
       try {
-        const jobResponse = await this.batchV1Api.readNamespacedJobStatus(jobName, this.namespace)
-        const job = jobResponse.body
+        const jobResponse = await this.batchV1Api.readNamespacedJobStatus({
+          name: jobName,
+          namespace: this.namespace
+        })
+
+        // Debug the response structure
+        console.log(`🔍 Job response structure:`, JSON.stringify(jobResponse, null, 2))
+
+        // Handle different response structures
+        const job = jobResponse.body || jobResponse
+
+        if (!job || !job.status) {
+          console.log(`⚠️ Job status not available yet for ${jobName}`)
+          continue
+        }
 
         if (job.status.succeeded) {
           // Job completed successfully, get the result
@@ -442,8 +505,19 @@ except Exception as e:
 
     while (Date.now() - startTime < maxWaitTime) {
       try {
-        const podResponse = await this.coreV1Api.readNamespacedPod(podName, this.namespace)
-        const pod = podResponse.body
+        const podResponse = await this.coreV1Api.readNamespacedPod({
+          name: podName,
+          namespace: this.namespace
+        })
+
+        // Handle different response structures
+        const pod = podResponse.body || podResponse
+
+        if (!pod || !pod.status) {
+          console.log(`⏳ Pod ${podName} status not available yet`)
+          await new Promise(resolve => setTimeout(resolve, 1000))
+          continue
+        }
 
         if (pod.status.phase === 'Running') {
           console.log(`✅ Pod ${podName} is ready`)
@@ -481,13 +555,13 @@ except Exception as e:
         pollCount++
 
         // Get current logs
-        const logResponse = await this.coreV1Api.readNamespacedPodLog(
-          podName,
-          this.namespace,
-          'qubots-executor'
-        )
+        const logResponse = await this.coreV1Api.readNamespacedPodLog({
+          name: podName,
+          namespace: this.namespace,
+          container: 'qubots-executor'
+        })
 
-        const currentLogs = logResponse.body
+        const currentLogs = logResponse.body || logResponse
 
         // Only process new log content
         if (currentLogs.length > lastLogLength) {
@@ -763,13 +837,13 @@ except Exception as e:
       // Get all logs from the pod using Kubernetes API
       console.log(`📋 Extracting logs from pod: ${podName}`)
 
-      const logResponse = await this.coreV1Api.readNamespacedPodLog(
-        podName,
-        this.namespace,
-        'qubots-executor'
-      )
+      const logResponse = await this.coreV1Api.readNamespacedPodLog({
+        name: podName,
+        namespace: this.namespace,
+        container: 'qubots-executor'
+      })
 
-      const stdout = logResponse.body
+      const stdout = logResponse.body || logResponse
       if (!stdout) {
         console.log('No logs found in pod')
         return null
@@ -1036,16 +1110,15 @@ except Exception as e:
    */
   async getPodNameForJob(jobName) {
     try {
-      const podsResponse = await this.coreV1Api.listNamespacedPod(
-        this.namespace,
-        undefined, // pretty
-        undefined, // allowWatchBookmarks
-        undefined, // continue
-        undefined, // fieldSelector
-        `job-name=${jobName}` // labelSelector
-      )
+      const podsResponse = await this.coreV1Api.listNamespacedPod({
+        namespace: this.namespace,
+        labelSelector: `job-name=${jobName}`
+      })
 
-      const pods = podsResponse.body.items
+      // Handle different response structures
+      const responseBody = podsResponse.body || podsResponse
+      const pods = responseBody.items || []
+
       if (pods.length > 0) {
         return pods[0].metadata.name
       }
@@ -1062,7 +1135,18 @@ except Exception as e:
    */
   async deleteJob(jobName) {
     try {
-      await this.batchV1Api.deleteNamespacedJob(jobName, this.namespace)
+      // Validate namespace before deletion
+      const validatedNamespace = String(this.namespace).trim()
+      if (!validatedNamespace) {
+        throw new Error('Cannot delete job: namespace is empty or invalid')
+      }
+
+      console.log(`🗑️ Deleting job ${jobName} from namespace ${validatedNamespace}`)
+      await this.batchV1Api.deleteNamespacedJob({
+        name: jobName,
+        namespace: validatedNamespace,
+        propagationPolicy: 'Background'
+      })
       console.log(`🗑️ Job deleted: ${jobName}`)
     } catch (error) {
       console.error(`Error deleting job ${jobName}:`, error.message)

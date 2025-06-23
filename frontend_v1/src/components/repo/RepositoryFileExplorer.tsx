@@ -17,7 +17,8 @@ import {
   SortAsc,
   SortDesc,
   Grid,
-  List
+  List,
+  TreePine
 } from "lucide-react"
 import {
   DropdownMenu,
@@ -28,8 +29,9 @@ import {
   DropdownMenuLabel
 } from "@/components/ui/dropdown-menu"
 import { getFileTypeInfo, getFolderIcon, isNotebook, isQubotConfig } from "./FileTypeIcons"
+import { formatFileSize, formatRelativeTime } from "./FileTreeUtils"
 import { cn } from "@/lib/utils"
-import { formatDistanceToNow } from "date-fns"
+import EnhancedFileTree from "./EnhancedFileTree"
 
 interface FileItem {
   name: string
@@ -56,7 +58,7 @@ interface RepositoryFileExplorerProps {
 
 type SortField = 'name' | 'type' | 'size' | 'modified'
 type SortOrder = 'asc' | 'desc'
-type ViewMode = 'list' | 'grid'
+type ViewMode = 'list' | 'grid' | 'tree'
 
 export default function RepositoryFileExplorer({
   files,
@@ -72,6 +74,7 @@ export default function RepositoryFileExplorer({
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc')
   const [viewMode, setViewMode] = useState<ViewMode>('list')
   const [filterType, setFilterType] = useState<string>('all')
+  const [useEnhancedTree, setUseEnhancedTree] = useState(false)
 
   // Filter and sort files
   const processedFiles = useMemo(() => {
@@ -234,6 +237,15 @@ export default function RepositoryFileExplorer({
                 <List className="h-4 w-4" />
               </Button>
               <Button
+                variant={viewMode === 'tree' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setViewMode('tree')}
+                className="h-8 px-3 rounded-none border-l border-border/40"
+                title="Tree view"
+              >
+                <TreePine className="h-4 w-4" />
+              </Button>
+              <Button
                 variant={viewMode === 'grid' ? 'default' : 'ghost'}
                 size="sm"
                 onClick={() => setViewMode('grid')}
@@ -275,6 +287,20 @@ export default function RepositoryFileExplorer({
               {searchTerm ? `No files found matching "${searchTerm}"` : "This directory is empty"}
             </p>
           </div>
+        ) : viewMode === 'tree' ? (
+          <EnhancedFileTree
+            files={files}
+            onFileClick={onFileClick}
+            onDirectoryClick={(dirPath) => {
+              // Handle directory navigation
+              console.log('Directory clicked:', dirPath)
+            }}
+            onAddFile={onAddFile}
+            onNavigateToParent={onNavigateToParent}
+            path={path}
+            isLoading={isLoading}
+            className="border-0 shadow-none"
+          />
         ) : viewMode === 'list' ? (
           <div className="overflow-x-auto">
             <table className="w-full">

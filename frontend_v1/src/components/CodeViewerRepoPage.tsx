@@ -8,6 +8,8 @@ import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
 import { Loader2, Copy, Download, FileCode, FileText, Check, Eye, ArrowLeft, Trash2 } from "lucide-react"
 import ReactMarkdown from "react-markdown"
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
+import { useTheme } from "@/components/ThemeContext"
 import {
   Dialog,
   DialogContent,
@@ -16,37 +18,8 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import { PrismLight as SyntaxHighlighter } from "react-syntax-highlighter"
-import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism"
 
-// Import language support
-import javascript from "react-syntax-highlighter/dist/esm/languages/prism/javascript"
-import typescript from "react-syntax-highlighter/dist/esm/languages/prism/typescript"
-import python from "react-syntax-highlighter/dist/esm/languages/prism/python"
-import json from "react-syntax-highlighter/dist/esm/languages/prism/json"
-import markdown from "react-syntax-highlighter/dist/esm/languages/prism/markdown"
-import css from "react-syntax-highlighter/dist/esm/languages/prism/css"
-import yaml from "react-syntax-highlighter/dist/esm/languages/prism/yaml"
-import jsx from "react-syntax-highlighter/dist/esm/languages/prism/jsx"
-import tsx from "react-syntax-highlighter/dist/esm/languages/prism/tsx"
-import bash from "react-syntax-highlighter/dist/esm/languages/prism/bash"
-import sql from "react-syntax-highlighter/dist/esm/languages/prism/sql"
-import markup from "react-syntax-highlighter/dist/esm/languages/prism/markup"
 
-// Register languages
-SyntaxHighlighter.registerLanguage("javascript", javascript)
-SyntaxHighlighter.registerLanguage("typescript", typescript)
-SyntaxHighlighter.registerLanguage("python", python)
-SyntaxHighlighter.registerLanguage("json", json)
-SyntaxHighlighter.registerLanguage("markdown", markdown)
-SyntaxHighlighter.registerLanguage("css", css)
-SyntaxHighlighter.registerLanguage("yaml", yaml)
-SyntaxHighlighter.registerLanguage("jsx", jsx)
-SyntaxHighlighter.registerLanguage("tsx", tsx)
-SyntaxHighlighter.registerLanguage("bash", bash)
-SyntaxHighlighter.registerLanguage("sql", sql)
-SyntaxHighlighter.registerLanguage("html", markup)
-SyntaxHighlighter.registerLanguage("xml", markup)
 
 interface CodeViewerProps {
   fileName: string
@@ -80,11 +53,16 @@ const getLanguage = (fileName: string) => {
     case "json":
       return "json"
     case "md":
+    case "markdown":
       return "markdown"
     case "html":
+    case "htm":
       return "html"
     case "css":
       return "css"
+    case "scss":
+    case "sass":
+      return "scss"
     case "yml":
     case "yaml":
       return "yaml"
@@ -93,35 +71,136 @@ const getLanguage = (fileName: string) => {
       return "bash"
     case "sql":
       return "sql"
+    case "xml":
+      return "xml"
+    case "java":
+      return "java"
+    case "c":
+      return "c"
+    case "cpp":
+    case "cc":
+    case "cxx":
+      return "cpp"
+    case "cs":
+      return "csharp"
+    case "php":
+      return "php"
+    case "rb":
+      return "ruby"
+    case "go":
+      return "go"
+    case "rs":
+      return "rust"
+    case "swift":
+      return "swift"
+    case "kt":
+      return "kotlin"
+    case "r":
+      return "r"
+    case "dockerfile":
+      return "dockerfile"
+    case "toml":
+      return "toml"
+    case "ini":
+    case "cfg":
+    case "conf":
+      return "ini"
+    case "log":
+      return "log"
+    case "txt":
+      return "text"
     default:
-      return "plaintext"
+      return "text"
   }
 }
 
-// Function to add line numbers to code (for plaintext files)
-const addLineNumbers = (code: string) => {
-  const lines = code.split("\n")
-  return lines.map((line, index) => (
-    <div key={index} className="table-row group hover:bg-muted/30">
-      <div className="table-cell text-right pr-4 text-muted-foreground select-none w-12 text-xs py-0.5 group-hover:bg-muted/20">
-        {index + 1}
-      </div>
-      <div className="table-cell pl-4 border-l border-muted whitespace-pre-wrap break-all font-mono py-0.5">{line || " "}</div>
-    </div>
-  ))
+// Function to check if file should be treated as binary/non-text
+const isBinaryFile = (fileName: string) => {
+  const binaryExtensions = [
+    'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx',
+    'zip', 'rar', '7z', 'tar', 'gz', 'bz2',
+    'jpg', 'jpeg', 'png', 'gif', 'bmp', 'svg', 'ico',
+    'mp3', 'mp4', 'avi', 'mov', 'wmv', 'flv',
+    'exe', 'dll', 'so', 'dylib'
+  ]
+  const extension = fileName.split('.').pop()?.toLowerCase()
+  return extension ? binaryExtensions.includes(extension) : false
 }
 
-// Customize the theme for better visibility
-const customizedTheme = {
-  ...oneDark,
-  'pre[class*="language-"]': {
-    ...oneDark['pre[class*="language-"]'],
-    background: "transparent",
-  },
-  'code[class*="language-"]': {
-    ...oneDark['code[class*="language-"]'],
-    background: "transparent",
-  },
+// Get file type for styling
+const getFileTypeColor = (fileName: string) => {
+  const extension = fileName.split(".").pop()?.toLowerCase()
+
+  switch (extension) {
+    case "js":
+    case "jsx":
+      return "text-yellow-500"
+    case "ts":
+    case "tsx":
+      return "text-blue-500"
+    case "py":
+      return "text-green-500"
+    case "json":
+      return "text-orange-500"
+    case "md":
+    case "markdown":
+      return "text-blue-400"
+    case "html":
+    case "htm":
+      return "text-red-500"
+    case "css":
+    case "scss":
+    case "sass":
+      return "text-purple-500"
+    case "yml":
+    case "yaml":
+      return "text-pink-500"
+    case "xml":
+      return "text-orange-400"
+    case "java":
+      return "text-red-600"
+    case "c":
+    case "cpp":
+    case "cc":
+    case "cxx":
+      return "text-blue-600"
+    case "cs":
+      return "text-purple-600"
+    case "php":
+      return "text-indigo-500"
+    case "rb":
+      return "text-red-400"
+    case "go":
+      return "text-cyan-500"
+    case "rs":
+      return "text-orange-600"
+    case "swift":
+      return "text-orange-500"
+    case "kt":
+      return "text-purple-400"
+    case "r":
+      return "text-blue-400"
+    case "sql":
+      return "text-blue-500"
+    case "sh":
+    case "bash":
+      return "text-green-400"
+    case "dockerfile":
+      return "text-blue-600"
+    case "toml":
+    case "ini":
+    case "cfg":
+    case "conf":
+      return "text-gray-500"
+    case "log":
+      return "text-gray-400"
+    case "txt":
+      return "text-gray-600"
+    case "pdf":
+      return "text-red-500"
+    default:
+      return "text-gray-500"
+  }
 }
 
 export default function CodeViewer({
@@ -129,9 +208,9 @@ export default function CodeViewer({
   content,
   isLoading,
   isEditing,
-  onEdit,
-  onSave,
-  onCancel,
+  onEdit: _onEdit,
+  onSave: _onSave,
+  onCancel: _onCancel,
   onChange,
   onBack,
   onDelete,
@@ -139,17 +218,22 @@ export default function CodeViewer({
 }: CodeViewerProps) {
   const [copied, setCopied] = useState(false)
   const [viewMode, setViewMode] = useState<"rendered" | "source">("source")
+  const { actualTheme } = useTheme()
   const isMarkdown = fileName.endsWith(".md")
   const language = getLanguage(fileName)
+  const isBinary = isBinaryFile(fileName)
+
+  // Ensure content is a string and handle null/undefined
+  const safeContent = content || ''
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(content)
+    navigator.clipboard.writeText(safeContent)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
   }
 
   const handleDownload = () => {
-    const blob = new Blob([content], { type: "text/plain" })
+    const blob = new Blob([safeContent], { type: "text/plain" })
     const url = URL.createObjectURL(blob)
     const a = document.createElement("a")
     a.href = url
@@ -176,9 +260,9 @@ export default function CodeViewer({
             </Button>
             <Separator orientation="vertical" className="h-6" />
             {fileName.endsWith(".md") ? (
-              <FileText className="h-4 w-4 text-blue-500" />
+              <FileText className={`h-4 w-4 ${getFileTypeColor(fileName)}`} />
             ) : (
-              <FileCode className="h-4 w-4 text-yellow-500" />
+              <FileCode className={`h-4 w-4 ${getFileTypeColor(fileName)}`} />
             )}
             <CardTitle className="text-base font-medium">{fileName.split("/").pop()}</CardTitle>
             <Badge variant="outline" className="ml-2 text-xs">
@@ -245,7 +329,7 @@ export default function CodeViewer({
         ) : isEditing ? (
           <textarea
             className="w-full h-full border-0 p-4 font-mono text-sm resize-none focus:outline-none"
-            value={content}
+            value={safeContent}
             onChange={(e) => onChange(e.target.value)}
             spellCheck={false}
           />
@@ -270,40 +354,77 @@ export default function CodeViewer({
                 )
               }}
             >
-              {content}
+              {safeContent}
             </ReactMarkdown>
           </div>
+        ) : isBinary ? (
+          <div className="flex flex-col items-center justify-center h-full p-8 text-center">
+            <FileCode className="h-16 w-16 text-muted-foreground mb-4" />
+            <h3 className="text-lg font-medium mb-2">Binary File</h3>
+            <p className="text-muted-foreground mb-4">
+              This file cannot be displayed in the browser. You can download it to view its contents.
+            </p>
+            <Button onClick={handleDownload} variant="outline">
+              <Download className="h-4 w-4 mr-2" />
+              Download File
+            </Button>
+          </div>
         ) : (
-          <div className="p-0 overflow-auto bg-muted/30">
-            {language !== "plaintext" ? (
-              <div className="bg-[#282c34] rounded-b-lg">
-                <SyntaxHighlighter
-                  language={language}
-                  style={customizedTheme}
-                  showLineNumbers={true}
-                  customStyle={{
-                    margin: 0,
-                    padding: "1rem",
-                    fontSize: "0.875rem",
-                    fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
-                    borderRadius: 0,
-                  }}
-                  lineNumberStyle={{
-                    minWidth: "2.5rem",
-                    paddingRight: "1rem",
-                    textAlign: "right",
-                    color: "#636e7b",
-                    userSelect: "none",
-                  }}
-                  wrapLines={true}
-                  wrapLongLines={true}
-                >
-                  {content}
-                </SyntaxHighlighter>
-              </div>
-            ) : (
-              <div className="table w-full text-sm overflow-hidden">{addLineNumbers(content)}</div>
-            )}
+          <div className="overflow-auto">
+            {/* Fallback to simple code display if SyntaxHighlighter fails */}
+            {(() => {
+              try {
+                return (
+                  <SyntaxHighlighter
+                    language={language === 'text' ? 'plaintext' : language}
+                    showLineNumbers={true}
+                    lineNumberStyle={{
+                      minWidth: '3em',
+                      paddingRight: '1em',
+                      textAlign: 'right',
+                      userSelect: 'none',
+                      fontSize: '0.75rem',
+                      color: actualTheme === 'dark' ? '#6b7280' : '#9ca3af'
+                    }}
+                    customStyle={{
+                      margin: 0,
+                      padding: '1rem',
+                      background: actualTheme === 'dark' ? '#1e1e1e' : '#ffffff',
+                      color: actualTheme === 'dark' ? '#d4d4d4' : '#24292e',
+                      fontSize: '0.875rem',
+                      lineHeight: '1.5',
+                      border: 'none'
+                    }}
+                    codeTagProps={{
+                      style: {
+                        fontFamily: 'JetBrains Mono, Fira Code, Monaco, Consolas, monospace',
+                        background: 'transparent'
+                      }
+                    }}
+                  >
+                    {safeContent}
+                  </SyntaxHighlighter>
+                )
+              } catch (error) {
+                console.error('SyntaxHighlighter error:', error)
+                // Fallback to simple pre/code display
+                const lines = safeContent.split('\n')
+                return (
+                  <div className="font-mono text-sm">
+                    {lines.map((line, index) => (
+                      <div key={index} className="flex hover:bg-muted/30 group">
+                        <div className="flex-shrink-0 w-12 text-right pr-3 py-0.5 text-muted-foreground select-none text-xs border-r border-border group-hover:bg-muted/20">
+                          {index + 1}
+                        </div>
+                        <div className="flex-1 pl-3 py-0.5 whitespace-pre-wrap break-all overflow-hidden">
+                          {line || " "}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )
+              }
+            })()}
           </div>
         )}
       </CardContent>

@@ -3,12 +3,24 @@
 import { useEffect, useRef } from "react"
 import { motion, useAnimation, useInView } from "framer-motion"
 import { ChevronDown } from "lucide-react"
-import { PrismLight as SyntaxHighlighter } from "react-syntax-highlighter"
-import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism"
-import python from "react-syntax-highlighter/dist/esm/languages/prism/python"
-
-// Register Python language
-SyntaxHighlighter.registerLanguage("python", python)
+// Simple code display component for hero section
+const HeroCodeDisplay = ({ code }: { code: string }) => {
+  const lines = code.split("\n")
+  return (
+    <div className="font-mono text-sm bg-black/90 text-white">
+      {lines.map((line, index) => (
+        <div key={index} className="flex">
+          <div className="flex-shrink-0 w-8 text-right pr-2 py-0.5 text-gray-500 select-none text-xs">
+            {index + 1}
+          </div>
+          <div className="flex-1 pl-2 py-0.5 whitespace-pre-wrap break-all overflow-hidden">
+            {line || " "}
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
 
 const pythonSnippets = [
   {
@@ -45,18 +57,7 @@ print("Best Cost:", best_cost)`,
   },
 ]
 
-// Customize the theme for better visibility
-const customizedTheme = {
-  ...oneDark,
-  'pre[class*="language-"]': {
-    ...oneDark['pre[class*="language-"]'],
-    background: "transparent",
-  },
-  'code[class*="language-"]': {
-    ...oneDark['code[class*="language-"]'],
-    background: "transparent",
-  },
-}
+
 
 export default function CodeFlowHero() {
   const controls = useAnimation()
@@ -88,30 +89,7 @@ export default function CodeFlowHero() {
                     <h3 className="font-semibold text-primary">{snippet.title}</h3>
                   </div>
                   <div className="p-4 bg-black/90 text-white overflow-hidden h-full">
-                    <SyntaxHighlighter
-                      language="python"
-                      style={customizedTheme}
-                      showLineNumbers={true}
-                      customStyle={{
-                        margin: 0,
-                        padding: "1rem",
-                        fontSize: "0.875rem",
-                        fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
-                        borderRadius: 0,
-                        background: "transparent",
-                      }}
-                      lineNumberStyle={{
-                        minWidth: "2.5rem",
-                        paddingRight: "1rem",
-                        textAlign: "right",
-                        color: "#636e7b",
-                        userSelect: "none",
-                      }}
-                      wrapLines={true}
-                      wrapLongLines={false}
-                    >
-                      {snippet.code}
-                    </SyntaxHighlighter>
+                    <HeroCodeDisplay code={snippet.code} />
                   </div>
                 </div>
 

@@ -29,7 +29,7 @@ interface EnvironmentSpecsData {
 
 interface EnvironmentSpecsProps {
   specs: EnvironmentSpecsData | null
-  variant?: "badge" | "card" | "inline"
+  variant?: "badge" | "card" | "inline" | "compact"
   className?: string
 }
 
@@ -84,6 +84,22 @@ const EnvironmentSpecs: React.FC<EnvironmentSpecsProps> = ({
       <div className={`p-3 bg-muted/50 rounded-lg ${className}`}>
         <div className="text-xs font-medium text-muted-foreground mb-2">Environment Specs</div>
         {specsContent}
+      </div>
+    )
+  }
+
+  if (variant === "compact") {
+    return (
+      <div className={`flex gap-1 ${className}`}>
+        <Badge variant="outline" className="text-xs h-6">
+          {specs.cpu.cores} CPU
+        </Badge>
+        <Badge variant="outline" className="text-xs h-6">
+          {specs.memory.value}{specs.memory.unit} RAM
+        </Badge>
+        <Badge variant="outline" className="text-xs h-6">
+          {specs.runtime_limit.value}{specs.runtime_limit.unit}
+        </Badge>
       </div>
     )
   }

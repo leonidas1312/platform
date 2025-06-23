@@ -18,6 +18,8 @@ const apiRoutes = require("./routes")
 // Import WebSocket handler
 const PlaygroundWebSocketHandler = require("./routes/playgroundWebSocket")
 
+// ArXiv service removed - functionality deprecated
+
 const app = express()
 const server = http.createServer(app)
 
@@ -25,13 +27,19 @@ const server = http.createServer(app)
 const wss = new WebSocket.Server({
   server,
   verifyClient: (info) => {
-    // Accept connections to any path under /api/playground
-    return info.req.url.startsWith('/api/playground')
+    // Accept connections to playground, notifications, submissions, and workflow automation
+    return info.req.url.startsWith('/api/playground') ||
+           info.req.url.startsWith('/api/notifications') ||
+           info.req.url.startsWith('/api/submissions') ||
+           info.req.url.startsWith('/api/workflow-automation')
   }
 })
 
 // Initialize WebSocket handler
 const wsHandler = new PlaygroundWebSocketHandler()
+
+// Make WebSocket handler globally available for notifications
+global.wsHandler = wsHandler
 
 // Handle WebSocket connections
 wss.on('connection', (ws, request) => {
@@ -74,6 +82,8 @@ server.listen(PORT, () => {
   console.log(`🏥 Health check at http://localhost:${PORT}/api/health`)
   console.log(`🔌 WebSocket server available at ws://localhost:${PORT}/api/playground`)
 })
+
+// ArXiv functionality removed - tables dropped in migration 20250128000001_drop_arxiv_papers_tables.js
 
 // Graceful shutdown
 process.on('SIGTERM', () => {

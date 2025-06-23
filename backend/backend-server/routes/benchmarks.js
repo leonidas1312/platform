@@ -3,6 +3,7 @@ const { knex } = require("../config/database")
 const { auth } = require("../middleware/auth")
 const upload = require("../middleware/upload")
 const fs = require("fs")
+const BenchmarkValidationService = require("../services/benchmarkValidationService")
 
 const router = express.Router()
 
@@ -664,6 +665,44 @@ router.get("/:id/stats", async (req, res) => {
   }
 })
 
+// Export benchmark as code snippet
+router.get("/:id/export-code", async (req, res) => {
+  const { id } = req.params
+
+  try {
+    // Check benchmark access permissions
+    const accessCheck = await checkBenchmarkAccess(id, req)
+    if (!accessCheck.hasAccess) {
+      return res.status(accessCheck.statusCode).json({ message: accessCheck.error })
+    }
+
+    // Get benchmark details with connections
+    const benchmark = await knex("benchmarks")
+      .where({ id })
+      .first()
+
+    if (!benchmark) {
+      return res.status(404).json({ message: "Benchmark not found" })
+    }
+
+    const connections = await knex("benchmark_connections")
+      .where({ benchmark_id: id })
+
+    // Generate code snippet
+    const codeSnippet = generateBenchmarkCodeSnippet(benchmark, connections)
+
+    res.json({
+      success: true,
+      code_snippet: codeSnippet,
+      benchmark_title: benchmark.title,
+      generated_at: new Date().toISOString()
+    })
+  } catch (error) {
+    console.error("Error generating benchmark code snippet:", error)
+    res.status(500).json({ message: "Internal server error" })
+  }
+})
+
 // Update a benchmark result
 router.put("/results/:resultId", auth, async (req, res) => {
   const { resultId } = req.params
@@ -728,5 +767,268 @@ router.delete("/results/:resultId", auth, async (req, res) => {
     res.status(500).json({ message: "Internal server error" })
   }
 })
+
+// Export benchmark as leaderboard
+router.post("/:id/export-leaderboard", auth, async (req, res) => {
+  const { id } = req.params
+
+  try {
+    // Check benchmark access permissions
+    const accessCheck = await checkBenchmarkAccess(id, req)
+    if (!accessCheck.hasAccess) {
+      return res.status(accessCheck.statusCode).json({ message: accessCheck.error })
+    }
+
+    // Validate benchmark for leaderboard export
+    const validation = await BenchmarkValidationService.validateBenchmarkForExport(id)
+
+    if (!validation.isValid) {
+      return res.status(400).json({
+        message: "Benchmark validation failed",
+        errors: validation.errors,
+        warnings: validation.warnings,
+        fairness_score: validation.fairnessScore
+      })
+    }
+
+    // Get benchmark details with connections
+    const benchmark = await knex("benchmarks")
+      .where({ id })
+      .first()
+
+    if (!benchmark) {
+      return res.status(404).json({ message: "Benchmark not found" })
+    }
+
+    const connections = await knex("benchmark_connections")
+      .where({ benchmark_id: id })
+
+    // Create standardized problems for each connection
+    const createdProblems = []
+
+    for (const connection of connections) {
+      const problemName = `${benchmark.title} - ${connection.connected_repo_path}`
+      const problemConfig = await generateStandardizedProblemConfig(connection.connected_repo_path)
+
+      // Check if problem already exists
+      const existingProblem = await knex("standardized_problems")
+        .where({ name: problemName })
+        .first()
+
+      if (!existingProblem) {
+        const [problemId] = await knex("standardized_problems")
+          .insert({
+            name: problemName,
+            problem_type: problemConfig.problem_type || 'combinatorial',
+            description: `${benchmark.description} - Problem: ${connection.connected_repo_path}`,
+            difficulty_level: problemConfig.difficulty_level || 'medium',
+            problem_config: JSON.stringify(problemConfig),
+            evaluation_config: JSON.stringify({
+              time_limit: 300,
+              memory_limit: 1024,
+              fairness_mode: true
+            }),
+            reference_value: problemConfig.reference_value || null,
+            time_limit_seconds: 300,
+            is_active: true,
+            created_by: req.user.login,
+            created_at: knex.fn.now(),
+            updated_at: knex.fn.now()
+          })
+          .returning('id')
+
+        createdProblems.push({
+          id: problemId,
+          name: problemName,
+          repository: connection.connected_repo_path
+        })
+      } else {
+        createdProblems.push({
+          id: existingProblem.id,
+          name: problemName,
+          repository: connection.connected_repo_path,
+          existed: true
+        })
+      }
+    }
+
+    // Generate evaluation criteria for fairness
+    const evaluationCriteria = BenchmarkValidationService.generateEvaluationCriteria(benchmark, connections)
+
+    res.json({
+      success: true,
+      leaderboard_name: benchmark.title,
+      created_problems: createdProblems,
+      validation: {
+        fairness_score: validation.fairnessScore,
+        warnings: validation.warnings,
+        recommendations: validation.recommendations
+      },
+      evaluation_criteria: evaluationCriteria,
+      message: `Successfully exported benchmark as leaderboard with ${createdProblems.length} problem(s)`
+    })
+  } catch (error) {
+    console.error("Error exporting benchmark as leaderboard:", error)
+    res.status(500).json({ message: "Internal server error" })
+  }
+})
+
+// Helper function to generate standardized problem config
+async function generateStandardizedProblemConfig(repoPath) {
+  // This would ideally fetch the config.json from the repository
+  // For now, we'll return a basic configuration
+  const [owner, repo] = repoPath.split('/')
+
+  // Default configuration based on common problem types
+  const defaultConfigs = {
+    'maxcut': {
+      problem_type: 'maxcut',
+      difficulty_level: 'medium',
+      reference_value: null
+    },
+    'tsp': {
+      problem_type: 'tsp',
+      difficulty_level: 'medium',
+      reference_value: null
+    },
+    'vrp': {
+      problem_type: 'vrp',
+      difficulty_level: 'hard',
+      reference_value: null
+    }
+  }
+
+  // Try to infer problem type from repository name
+  const repoLower = repo.toLowerCase()
+  for (const [type, config] of Object.entries(defaultConfigs)) {
+    if (repoLower.includes(type)) {
+      return {
+        ...config,
+        repository_path: repoPath,
+        auto_generated: true
+      }
+    }
+  }
+
+  // Default fallback
+  return {
+    problem_type: 'combinatorial',
+    difficulty_level: 'medium',
+    repository_path: repoPath,
+    auto_generated: true,
+    reference_value: null
+  }
+}
+
+// Helper function to generate benchmark code snippet with fairness guarantees
+function generateBenchmarkCodeSnippet(benchmark, connections) {
+  const problemRepos = connections.map(conn => conn.connected_repo_path)
+  const randomSeed = Math.floor(Math.random() * 10000)
+
+  // Generate comprehensive code snippet with fairness and reproducibility
+  let codeSnippet = `# Benchmark: ${benchmark.title}
+# Description: ${benchmark.description}
+# Generated: ${new Date().toISOString()}
+# Qubots Version: 1.0.0
+
+# Required packages: qubots, numpy, scipy
+from qubots import AutoProblem, AutoOptimizer, BenchmarkSuite
+import numpy as np
+import time
+import random
+
+# Set random seed for reproducibility
+RANDOM_SEED = ${randomSeed}
+random.seed(RANDOM_SEED)
+np.random.seed(RANDOM_SEED)
+
+# Benchmark configuration for fairness
+BENCHMARK_CONFIG = {
+    "time_limit_seconds": 300,
+    "memory_limit_mb": 1024,
+    "evaluation_runs": 5,
+    "validation_mode": True,
+    "hardware_normalization": True
+}
+
+def create_benchmark():
+    """Create and configure the benchmark suite."""
+
+    # Initialize benchmark suite
+    benchmark = BenchmarkSuite(
+        name="${benchmark.title.replace(/"/g, '\\"')}",
+        description="${benchmark.description.replace(/"/g, '\\"')}"
+    )
+
+    # Load problems from repositories
+    problems = {}
+`
+
+  // Add problem loading code
+  problemRepos.forEach((repoPath, index) => {
+    const varName = `problem_${index + 1}`
+    codeSnippet += `
+    # Load problem ${index + 1}: ${repoPath}
+    ${varName} = AutoProblem.from_repo("${repoPath}")
+    problems["${repoPath}"] = ${varName}
+    benchmark.add_problem("${repoPath}", ${varName})
+`
+  })
+
+  // Add execution and validation code
+  codeSnippet += `
+    return benchmark, problems
+
+def run_standardized_benchmark(optimizer_repo: str):
+    """Run benchmark with standardization and fairness checks."""
+
+    benchmark, problems = create_benchmark()
+
+    # Load optimizer
+    optimizer = AutoOptimizer.from_repo(optimizer_repo)
+    benchmark.add_optimizer("test_optimizer", optimizer)
+
+    # Run benchmark with fairness validation
+    results = []
+    for problem_name in problems.keys():
+        print(f"Running benchmark on {problem_name}...")
+
+        result = benchmark.run_benchmark(
+            problem_name,
+            "test_optimizer",
+            num_runs=BENCHMARK_CONFIG["evaluation_runs"],
+            time_limit=BENCHMARK_CONFIG["time_limit_seconds"]
+        )
+
+        # Basic validation (extend with actual fairness checks)
+        if len(result.individual_runs) >= 3:
+            results.append(result)
+            print(f"✓ Valid result: {result.metrics.mean_best_value:.4f}")
+        else:
+            print(f"✗ Invalid result - insufficient runs")
+
+    return results
+
+# Example usage:
+if __name__ == "__main__":
+    # Replace with your optimizer repository
+    optimizer_repo = "your_username/your_optimizer"
+
+    print("Creating standardized benchmark...")
+    results = run_standardized_benchmark(optimizer_repo)
+
+    print(f"\\nBenchmark completed with {len(results)} valid results")
+    for i, result in enumerate(results):
+        print(f"Problem {i+1}: {result.metrics.mean_best_value:.4f} ± {result.metrics.std_value:.4f}")
+
+    # For leaderboard submission, ensure results meet fairness criteria:
+    # - Consistent random seed usage
+    # - Sufficient number of evaluation runs
+    # - Hardware-normalized timing measurements
+    # - Statistical significance validation
+`
+
+  return codeSnippet
+}
 
 module.exports = router

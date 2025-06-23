@@ -7,8 +7,15 @@ const repoFileRoutes = require("./repoFiles")
 const communityRoutes = require("./community")
 const featureRoutes = require("./features")
 const benchmarkRoutes = require("./benchmarks")
+const leaderboardRoutes = require("./leaderboard")
+const submissionRoutes = require("./submissions")
 const playgroundRoutes = require("./playground")
 const playgroundEnvironmentRoutes = require("./playgroundEnvironments")
+const autosolveRoutes = require("./autosolve")
+const datasetRoutes = require("./datasets")
+const workflowAutomationRoutes = require("./workflowAutomation")
+
+const notificationRoutes = require("./notifications")
 
 // Import auth middleware
 const { auth } = require("../middleware/auth")
@@ -18,13 +25,21 @@ const router = express.Router()
 // Mount routes with their respective prefixes
 router.use("/auth", authRoutes)
 router.use("/users", userRoutes)
+router.use("/user", userRoutes) // Alias for backward compatibility
 router.use("/repos", repoRoutes)
 router.use("/repo-files", repoFileRoutes)
 router.use("/community", communityRoutes)
 router.use("/features", featureRoutes)
 router.use("/benchmarks", benchmarkRoutes)
+router.use("/leaderboard", leaderboardRoutes)
+router.use("/submissions", submissionRoutes)
 router.use("/playground", playgroundRoutes)
 router.use("/playground", playgroundEnvironmentRoutes)
+router.use("/autosolve", autosolveRoutes)
+router.use("/datasets", datasetRoutes)
+router.use("/workflow-automation", workflowAutomationRoutes)
+
+router.use("/notifications", notificationRoutes)
 
 // Root level endpoints for backward compatibility
 const GiteaService = require("../services/giteaService")
@@ -41,6 +56,13 @@ router.get("/profile", async (req, res) => {
     token = req.headers.authorization?.split(" ")[1]
   }
 
+  // Check if we have session data for GitHub-authenticated users without Gitea token
+  if (!token && req.session?.user_data?.auth_method === 'github') {
+    // User is authenticated via GitHub but doesn't have a Gitea token
+    // Return the user data from session
+    return res.json(req.session.user_data.user)
+  }
+
   if (!token) {
     return res.status(401).json({ message: "Unrecognised request." })
   }
@@ -49,11 +71,47 @@ router.get("/profile", async (req, res) => {
     const giteaRes = await GiteaService.getUserProfile(token)
 
     if (!giteaRes.ok) {
+      // If Gitea token is invalid but user has GitHub auth, fall back to session data
+      if (req.session?.user_data?.auth_method === 'github') {
+        console.log("Gitea token invalid, falling back to GitHub session data")
+        return res.json(req.session.user_data.user)
+      }
+
       const errData = await giteaRes.json()
       return res.status(giteaRes.status).json({ message: errData.message || "Failed to fetch user" })
     }
 
-    const userData = await giteaRes.json()
+    const giteaUserData = await giteaRes.json()
+
+    // For GitHub-authenticated users, merge with Rastion database data
+    let userData = giteaUserData
+
+    try {
+      // Check if this user exists in our Rastion database with additional GitHub data
+      const { knex } = require("../config/database")
+      const rastionUser = await knex("users")
+        .where({ username: giteaUserData.login })
+        .first()
+
+      if (rastionUser && rastionUser.github_id) {
+        // This is a GitHub-authenticated user, merge the data
+        userData = {
+          ...giteaUserData,
+          // Override with Rastion database data where available
+          full_name: rastionUser.full_name || giteaUserData.full_name,
+          avatar_url: rastionUser.avatar_url || giteaUserData.avatar_url,
+          email: rastionUser.email || giteaUserData.email,
+          // Add GitHub-specific fields
+          github_id: rastionUser.github_id,
+          github_username: rastionUser.github_username,
+          auth_method: 'github'
+        }
+      }
+    } catch (dbError) {
+      console.error("Error fetching Rastion user data:", dbError)
+      // Continue with Gitea data only if database lookup fails
+    }
+
     res.json(userData)
   } catch (error) {
     console.error("Profile fetch error:", error)
@@ -92,6 +150,37 @@ router.get("/user-repos", async (req, res) => {
     }
 
     const reposData = await reposRes.json()
+
+    // Check for repository type in config.json for each repo
+    const headers = { Authorization: `token ${token}` }
+    await Promise.all(
+      reposData.map(async (repo) => {
+        try {
+          const configResponse = await fetch(
+            `${GITEA_URL}/api/v1/repos/${repo.owner.login}/${repo.name}/contents/config.json`,
+            { headers }
+          )
+
+          if (configResponse.ok) {
+            const configData = await configResponse.json()
+            if (configData.content) {
+              const decodedContent = Buffer.from(configData.content, "base64").toString("utf-8")
+              try {
+                const parsedConfig = JSON.parse(decodedContent)
+                if (parsedConfig.type === "problem" || parsedConfig.type === "optimizer") {
+                  repo.qubot_type = parsedConfig.type
+                }
+              } catch (parseError) {
+                console.error(`Error parsing config.json for ${repo.full_name}:`, parseError)
+              }
+            }
+          }
+        } catch (error) {
+          console.error(`Error fetching config.json for ${repo.full_name}:`, error)
+        }
+      })
+    )
+
     return res.json(reposData)
   } catch (error) {
     console.error("Error fetching user repos:", error)
@@ -626,7 +715,7 @@ router.post("/waitlist", async (req, res) => {
 router.get("/admin/waitlist", auth, async (req, res) => {
   try {
     // Simple admin check - you can enhance this later
-    const adminUsers = ['ileo'] // Add your admin usernames here
+    const adminUsers = ['Rastion'] // Add your admin usernames here
     console.log('Admin check - user login:', req.user.login, 'admin users:', adminUsers)
     if (!adminUsers.includes(req.user.login)) {
       return res.status(403).json({
@@ -660,7 +749,7 @@ router.get("/admin/waitlist", auth, async (req, res) => {
 router.get("/admin/waitlist/stats", auth, async (req, res) => {
   try {
     // Simple admin check - you can enhance this later
-    const adminUsers = ['ileo'] // Add your admin usernames here
+    const adminUsers = ['Rastion'] // Add your admin usernames here
     if (!adminUsers.includes(req.user.login)) {
       return res.status(403).json({
         success: false,
@@ -687,7 +776,7 @@ router.get("/admin/waitlist/stats", auth, async (req, res) => {
 router.put("/admin/waitlist/:id", auth, async (req, res) => {
   try {
     // Simple admin check - you can enhance this later
-    const adminUsers = ['ileo'] // Add your admin usernames here
+    const adminUsers = ['Rastion'] // Add your admin usernames here
     if (!adminUsers.includes(req.user.login)) {
       return res.status(403).json({
         success: false,
@@ -724,7 +813,7 @@ router.put("/admin/waitlist/:id", auth, async (req, res) => {
 router.get("/admin/waitlist/export", auth, async (req, res) => {
   try {
     // Simple admin check - you can enhance this later
-    const adminUsers = ['ileo'] // Add your admin usernames here
+    const adminUsers = ['Rastion'] // Add your admin usernames here
     if (!adminUsers.includes(req.user.login)) {
       return res.status(403).json({
         success: false,
@@ -961,7 +1050,13 @@ router.get("/", (req, res) => {
       community: "/api/community",
       features: "/api/features",
       benchmarks: "/api/benchmarks",
-      playground: "/api/playground"
+      leaderboard: "/api/leaderboard",
+      playground: "/api/playground",
+      autosolve: "/api/autosolve",
+      datasets: "/api/datasets",
+      papers: "/api/papers",
+      notifications: "/api/notifications",
+      submissions: "/api/submissions"
     }
   })
 })

@@ -94,6 +94,8 @@ services:
       KNEX_DB: ${KNEX_DB}
       GITEA_URL: 'http://15.15.15.100:3000'
       SECRET_TOKEN: ${SECRET_TOKEN}
+      PLAYGROUND_NAMESPACE: ${PLAYGROUND_NAMESPACE:-playground}
+      PLAYGROUND_IMAGE: ${PLAYGROUND_IMAGE:-registry.digitalocean.com/rastion/qubots-playground:latest}
     volumes:
       - ./backend-server:/app
       - /app/node_modules   # Avoid overwriting node_modules

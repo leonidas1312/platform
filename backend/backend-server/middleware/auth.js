@@ -59,6 +59,15 @@ const auth = (req, res, next) => {
     return res.status(401).json({ message: "Authentication required" })
   }
 
+  // If we have session data, use it directly
+  if (req.session?.user_data?.user) {
+    req.user = {
+      ...req.session.user_data.user,
+      token: token,
+    }
+    return next()
+  }
+
   // Store the token in the request object for use in route handlers
   req.user = { token }
 

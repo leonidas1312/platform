@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Separator } from "@/components/ui/separator"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+
 import { Checkbox } from "@/components/ui/checkbox"
 import {
   Select,
@@ -27,28 +27,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+
 import {
   Search,
   Globe,
   Lock,
   Calendar,
-  User,
   Package,
   Loader2,
   Users,
@@ -56,8 +42,9 @@ import {
   X,
   Target,
   ExternalLink,
-  Trash2,
-  ChevronDown
+  Copy,
+  Trophy,
+  AlertCircle
 } from "lucide-react"
 import { toast } from "@/components/ui/use-toast"
 import { UserAvatar } from "@/components/ui/user-avatar"
@@ -128,15 +115,12 @@ const BenchmarkPage = () => {
   const [sortBy, setSortBy] = useState(searchParams.get('sort') || 'created_at')
   const [sortOrder] = useState(searchParams.get('order') || 'desc')
   const [currentPage] = useState(parseInt(searchParams.get('page') || '1'))
-  const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'community')
+
   const [showCreateDialog, setShowCreateDialog] = useState(false)
   const [selectedBenchmark, setSelectedBenchmark] = useState<Benchmark | null>(null)
   const [showBenchmarkModal, setShowBenchmarkModal] = useState(false)
 
-  // Delete functionality state
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
-  const [benchmarkToDelete, setBenchmarkToDelete] = useState<Benchmark | null>(null)
-  const [deleting, setDeleting] = useState(false)
+
 
   // User repositories for benchmark creation
   const [userRepositories, setUserRepositories] = useState<Repository[]>([])
@@ -148,6 +132,13 @@ const BenchmarkPage = () => {
     selectedRepositories: [] as string[],
     isPublic: false,
   })
+
+  // Export functionality state
+  const [showExportCodeDialog, setShowExportCodeDialog] = useState(false)
+  const [exportedCode, setExportedCode] = useState("")
+  const [isExportingCode, setIsExportingCode] = useState(false)
+  const [showExportLeaderboardDialog, setShowExportLeaderboardDialog] = useState(false)
+  const [isExportingLeaderboard, setIsExportingLeaderboard] = useState(false)
 
   // Check authentication status and fetch user repositories
   useEffect(() => {
@@ -179,7 +170,7 @@ const BenchmarkPage = () => {
   // Fetch benchmarks when filters change
   useEffect(() => {
     fetchBenchmarks()
-  }, [currentPage, sortBy, sortOrder, searchQuery, activeTab])
+  }, [currentPage, sortBy, sortOrder, searchQuery])
 
   // Update URL params when filters change
   useEffect(() => {
@@ -188,10 +179,9 @@ const BenchmarkPage = () => {
     if (sortBy !== 'created_at') params.set('sort', sortBy)
     if (sortOrder !== 'desc') params.set('order', sortOrder)
     if (currentPage !== 1) params.set('page', currentPage.toString())
-    if (activeTab !== 'community') params.set('tab', activeTab)
 
     setSearchParams(params)
-  }, [searchQuery, sortBy, sortOrder, currentPage, activeTab, setSearchParams])
+  }, [searchQuery, sortBy, sortOrder, currentPage, setSearchParams])
 
   const fetchBenchmarks = async () => {
     setLoading(true)
@@ -201,13 +191,11 @@ const BenchmarkPage = () => {
         limit: '12',
         sort: sortBy,
         order: sortOrder,
-        ...(searchQuery && { search: searchQuery }),
-        ...(activeTab === 'personal' && { personal: 'true' })
+        ...(searchQuery && { search: searchQuery })
+        // Always fetch community benchmarks (no personal filter)
       })
 
-      const response = await fetch(`${API}/api/benchmarks?${params}`, {
-        credentials: "include",
-      })
+      const response = await fetch(`${API}/api/benchmarks?${params}`)
 
       if (response.ok) {
         const data = await response.json()
@@ -290,43 +278,95 @@ const BenchmarkPage = () => {
     setShowBenchmarkModal(true)
   }
 
-  const handleDeleteBenchmark = (benchmark: Benchmark) => {
-    setBenchmarkToDelete(benchmark)
-    setDeleteDialogOpen(true)
-  }
 
-  const confirmDeleteBenchmark = async () => {
-    if (!benchmarkToDelete) return
 
-    setDeleting(true)
+  // Handle exporting benchmark code
+  const handleExportCode = async () => {
+    if (!selectedBenchmark) return
+
+    setIsExportingCode(true)
     try {
-      const response = await fetch(`${API}/api/benchmarks/${benchmarkToDelete.id}`, {
-        method: 'DELETE',
+      const response = await fetch(`${API}/api/benchmarks/${selectedBenchmark.id}/export-code`, {
         credentials: 'include'
       })
 
-      if (response.ok) {
-        toast({
-          title: "Benchmark Deleted",
-          description: `"${benchmarkToDelete.title}" has been deleted successfully.`,
-        })
-        // Refresh the benchmarks list
-        fetchBenchmarks()
-      } else {
-        const errorData = await response.json().catch(() => ({ message: 'Failed to delete benchmark' }))
-        throw new Error(errorData.message || 'Failed to delete benchmark')
+      if (!response.ok) {
+        throw new Error("Failed to export benchmark code")
       }
-    } catch (error: any) {
-      console.error('Error deleting benchmark:', error)
+
+      const data = await response.json()
+      setExportedCode(data.code_snippet)
+      setShowExportCodeDialog(true)
+    } catch (error) {
+      console.error("Error exporting benchmark code:", error)
       toast({
-        title: "Failed to Delete Benchmark",
-        description: error.message || "An error occurred while deleting the benchmark.",
-        variant: "destructive"
+        title: "Error",
+        description: "Failed to export benchmark code",
+        variant: "destructive",
       })
     } finally {
-      setDeleting(false)
-      setDeleteDialogOpen(false)
-      setBenchmarkToDelete(null)
+      setIsExportingCode(false)
+    }
+  }
+
+  // Handle copying code to clipboard
+  const handleCopyCode = async () => {
+    try {
+      await navigator.clipboard.writeText(exportedCode)
+      toast({
+        title: "Code copied",
+        description: "Benchmark code has been copied to clipboard",
+      })
+    } catch (error) {
+      console.error("Error copying code:", error)
+      toast({
+        title: "Error",
+        description: "Failed to copy code to clipboard",
+        variant: "destructive",
+      })
+    }
+  }
+
+  // Handle exporting benchmark as leaderboard
+  const handleExportAsLeaderboard = async () => {
+    if (!selectedBenchmark) return
+
+    setIsExportingLeaderboard(true)
+    try {
+      const response = await fetch(`${API}/api/benchmarks/${selectedBenchmark.id}/export-leaderboard`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          benchmark_id: selectedBenchmark.id,
+          title: selectedBenchmark.title,
+          description: selectedBenchmark.description
+        })
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.message || "Failed to export benchmark as leaderboard")
+      }
+
+      const data = await response.json()
+      setShowExportLeaderboardDialog(true)
+
+      toast({
+        title: "Leaderboard created",
+        description: `Benchmark exported as leaderboard: ${data.leaderboard_name}`,
+      })
+    } catch (error) {
+      console.error("Error exporting as leaderboard:", error)
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to export benchmark as leaderboard",
+        variant: "destructive",
+      })
+    } finally {
+      setIsExportingLeaderboard(false)
     }
   }
 
@@ -368,34 +408,6 @@ const BenchmarkPage = () => {
               </div>
 
               <div className="flex items-center gap-2">
-                {activeTab === 'personal' && benchmarks.length > 0 && (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="destructive" disabled={loading}>
-                        <Trash2 className="h-4 w-4 mr-2" />
-                        Delete Benchmark
-                        <ChevronDown className="h-4 w-4 ml-2" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-64">
-                      {benchmarks.map((benchmark) => (
-                        <DropdownMenuItem
-                          key={benchmark.id}
-                          onClick={() => handleDeleteBenchmark(benchmark)}
-                          className="text-destructive focus:text-destructive"
-                        >
-                          <Trash2 className="h-4 w-4 mr-2" />
-                          <div className="flex flex-col">
-                            <span className="font-medium">{benchmark.title}</span>
-                            <span className="text-xs text-muted-foreground">
-                              {benchmark.is_public ? 'Public' : 'Private'}
-                            </span>
-                          </div>
-                        </DropdownMenuItem>
-                      ))}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                )}
                 <Button
                   onClick={() => setShowCreateDialog(true)}
                   className="h-11 px-6"
@@ -407,226 +419,109 @@ const BenchmarkPage = () => {
             </div>
           </div>
 
-          {/* Tabs */}
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full max-w-md grid-cols-2 mb-8">
-              <TabsTrigger value="community" className="flex items-center gap-2">
-                <Globe className="h-4 w-4" />
-                Community
-              </TabsTrigger>
-              <TabsTrigger value="personal" className="flex items-center gap-2">
-                <User className="h-4 w-4" />
-                Personal
-              </TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="community" className="mt-0">
-              {loading ? (
-                <div className="flex items-center justify-center py-12">
-                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                  <span className="ml-3 text-lg text-muted-foreground">Loading benchmarks...</span>
-                </div>
-              ) : benchmarks.length === 0 ? (
-                <div className="text-center py-12">
-                  <Target className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-                  <h3 className="text-xl font-semibold mb-2">No benchmarks found</h3>
-                  <p className="text-muted-foreground mb-6">
-                    {searchQuery ? "Try adjusting your search terms" : "Be the first to create a benchmark"}
-                  </p>
-                  <Button onClick={() => setShowCreateDialog(true)}>
-                    <Plus className="w-4 h-4 mr-2" />
-                    Create First Benchmark
-                  </Button>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {benchmarks.map((benchmark, index) => (
-                    <motion.div
-                      key={benchmark.id}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.3, delay: index * 0.1 }}
+          {/* Community Benchmarks Content */}
+          <div className="mt-0">
+            {loading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <span className="ml-3 text-lg text-muted-foreground">Loading benchmarks...</span>
+              </div>
+            ) : benchmarks.length === 0 ? (
+              <div className="text-center py-12">
+                <Target className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+                <h3 className="text-xl font-semibold mb-2">No benchmarks found</h3>
+                <p className="text-muted-foreground mb-6">
+                  {searchQuery ? "Try adjusting your search terms" : "Be the first to create a benchmark"}
+                </p>
+                <Button onClick={() => setShowCreateDialog(true)}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Create First Benchmark
+                </Button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {benchmarks.map((benchmark, index) => (
+                  <motion.div
+                    key={benchmark.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3, delay: index * 0.1 }}
+                  >
+                    <Card
+                      className="overflow-hidden hover:shadow-lg transition-all duration-200 cursor-pointer border-border hover:border-primary/20 bg-card group"
+                      onClick={() => handleBenchmarkClick(benchmark)}
                     >
-                      <Card
-                        className="overflow-hidden hover:shadow-lg transition-all duration-200 cursor-pointer border-border hover:border-primary/20 bg-card group"
-                        onClick={() => handleBenchmarkClick(benchmark)}
-                      >
-                        {/* Abstract Background */}
-                        <div className={`h-32 ${backgroundPatterns[index % backgroundPatterns.length]} relative`}>
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
-                          <div className="absolute top-4 right-4 flex items-center gap-2">
-                            {benchmark.is_public ? (
-                              <Badge variant="secondary" className="bg-green-500/20 border-green-500/30 text-green-700 dark:text-green-300">
-                                <Globe className="h-3 w-3 mr-1" />
-                                Public
+                      {/* Abstract Background */}
+                      <div className={`h-32 ${backgroundPatterns[index % backgroundPatterns.length]} relative`}>
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
+                        <div className="absolute top-4 right-4 flex items-center gap-2">
+                          {benchmark.is_public ? (
+                            <Badge variant="secondary" className="bg-green-500/20 border-green-500/30 text-green-700 dark:text-green-300">
+                              <Globe className="h-3 w-3 mr-1" />
+                              Public
+                            </Badge>
+                          ) : (
+                            <Badge variant="secondary" className="bg-gray-500/20 border-gray-500/30 text-gray-700 dark:text-gray-300">
+                              <Lock className="h-3 w-3 mr-1" />
+                              Private
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-lg font-semibold line-clamp-2 text-foreground group-hover:text-primary transition-colors">
+                          {benchmark.title}
+                        </CardTitle>
+
+                      </CardHeader>
+
+                      <CardContent className="space-y-4">
+                        {/* Repository Count */}
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <Package className="h-4 w-4" />
+                          <span>{benchmark.problem_repositories.length} problem repositories</span>
+                        </div>
+
+                        {/* Tags */}
+                        {benchmark.tags.length > 0 && (
+                          <div className="flex flex-wrap gap-1">
+                            {benchmark.tags.slice(0, 3).map((tag, tagIndex) => (
+                              <Badge key={tagIndex} variant="outline" className="text-xs">
+                                {tag}
                               </Badge>
-                            ) : (
-                              <Badge variant="secondary" className="bg-gray-500/20 border-gray-500/30 text-gray-700 dark:text-gray-300">
-                                <Lock className="h-3 w-3 mr-1" />
-                                Private
+                            ))}
+                            {benchmark.tags.length > 3 && (
+                              <Badge variant="outline" className="text-xs">
+                                +{benchmark.tags.length - 3}
                               </Badge>
                             )}
                           </div>
+                        )}
+
+                        {/* Participants Count */}
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <Users className="h-3 w-3" />
+                          <span>{formatNumber(benchmark.participants_count)} participants</span>
                         </div>
 
-                        <CardHeader className="pb-3">
-                          <CardTitle className="text-lg font-semibold line-clamp-2 text-foreground group-hover:text-primary transition-colors">
-                            {benchmark.title}
-                          </CardTitle>
-                          
-                        </CardHeader>
-
-                        <CardContent className="space-y-4">
-                          {/* Repository Count */}
-                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                            <Package className="h-4 w-4" />
-                            <span>{benchmark.problem_repositories.length} problem repositories</span>
-                          </div>
-
-                          {/* Tags */}
-                          {benchmark.tags.length > 0 && (
-                            <div className="flex flex-wrap gap-1">
-                              {benchmark.tags.slice(0, 3).map((tag, tagIndex) => (
-                                <Badge key={tagIndex} variant="outline" className="text-xs">
-                                  {tag}
-                                </Badge>
-                              ))}
-                              {benchmark.tags.length > 3 && (
-                                <Badge variant="outline" className="text-xs">
-                                  +{benchmark.tags.length - 3}
-                                </Badge>
-                              )}
-                            </div>
-                          )}
-
-                          {/* Participants Count */}
-                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                            <Users className="h-3 w-3" />
-                            <span>{formatNumber(benchmark.participants_count)} participants</span>
-                          </div>
-
-                          {/* Creator and Date */}
-                          <div className="flex items-center gap-2 text-sm text-muted-foreground pt-2 border-t border-border">
-                            <UserAvatar username={benchmark.created_by} size="sm" showTooltip />
-                            <span>{benchmark.created_by}</span>
-                            <span>•</span>
-                            <Calendar className="h-3 w-3" />
-                            <span>{formatDate(benchmark.created_at)}</span>
-                          </div>
-
-
-                        </CardContent>
-                      </Card>
-                    </motion.div>
-                  ))}
-                </div>
-              )}
-            </TabsContent>
-
-            <TabsContent value="personal" className="mt-0">
-              {/* Same structure as community tab but filtered for user's benchmarks */}
-              {loading ? (
-                <div className="flex items-center justify-center py-12">
-                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                  <span className="ml-3 text-lg text-muted-foreground">Loading your benchmarks...</span>
-                </div>
-              ) : benchmarks.length === 0 ? (
-                <div className="text-center py-12">
-                  <Target className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-                  <h3 className="text-xl font-semibold mb-2">No personal benchmarks</h3>
-                  <p className="text-muted-foreground mb-6">
-                    Create your first benchmark to get started
-                  </p>
-                  <Button onClick={() => setShowCreateDialog(true)}>
-                    <Plus className="w-4 h-4 mr-2" />
-                    Create Benchmark
-                  </Button>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {benchmarks.map((benchmark, index) => (
-                    <motion.div
-                      key={benchmark.id}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.3, delay: index * 0.1 }}
-                    >
-                      <Card
-                        className="overflow-hidden hover:shadow-lg transition-all duration-200 cursor-pointer border-border hover:border-primary/20 bg-card group"
-                        onClick={() => handleBenchmarkClick(benchmark)}
-                      >
-                        {/* Abstract Background */}
-                        <div className={`h-32 ${backgroundPatterns[index % backgroundPatterns.length]} relative`}>
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
-                          <div className="absolute top-4 right-4 flex items-center gap-2">
-                            {benchmark.is_public ? (
-                              <Badge variant="secondary" className="bg-green-500/20 border-green-500/30 text-green-700 dark:text-green-300">
-                                <Globe className="h-3 w-3 mr-1" />
-                                Public
-                              </Badge>
-                            ) : (
-                              <Badge variant="secondary" className="bg-gray-500/20 border-gray-500/30 text-gray-700 dark:text-gray-300">
-                                <Lock className="h-3 w-3 mr-1" />
-                                Private
-                              </Badge>
-                            )}
-                          </div>
+                        {/* Creator and Date */}
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground pt-2 border-t border-border">
+                          <UserAvatar username={benchmark.created_by} size="sm" showTooltip />
+                          <span>{benchmark.created_by}</span>
+                          <span>•</span>
+                          <Calendar className="h-3 w-3" />
+                          <span>{formatDate(benchmark.created_at)}</span>
                         </div>
 
-                        <CardHeader className="pb-3">
-                          <CardTitle className="text-lg font-semibold line-clamp-2 text-foreground group-hover:text-primary transition-colors">
-                            {benchmark.title}
-                          </CardTitle>
-                          
-                        </CardHeader>
 
-                        <CardContent className="space-y-4">
-                          {/* Repository Count */}
-                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                            <Package className="h-4 w-4" />
-                            <span>{benchmark.problem_repositories.length} problem repositories</span>
-                          </div>
-
-                          {/* Tags */}
-                          {benchmark.tags.length > 0 && (
-                            <div className="flex flex-wrap gap-1">
-                              {benchmark.tags.slice(0, 3).map((tag, tagIndex) => (
-                                <Badge key={tagIndex} variant="outline" className="text-xs">
-                                  {tag}
-                                </Badge>
-                              ))}
-                              {benchmark.tags.length > 3 && (
-                                <Badge variant="outline" className="text-xs">
-                                  +{benchmark.tags.length - 3}
-                                </Badge>
-                              )}
-                            </div>
-                          )}
-
-                          {/* Participants Count */}
-                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                            <Users className="h-3 w-3" />
-                            <span>{formatNumber(benchmark.participants_count)} participants</span>
-                          </div>
-
-                          {/* Creator and Date */}
-                          <div className="flex items-center gap-2 text-sm text-muted-foreground pt-2 border-t border-border">
-                            <UserAvatar username={benchmark.created_by} size="sm" showTooltip />
-                            <span>{benchmark.created_by}</span>
-                            <span>•</span>
-                            <Calendar className="h-3 w-3" />
-                            <span>{formatDate(benchmark.created_at)}</span>
-                          </div>
-
-
-                        </CardContent>
-                      </Card>
-                    </motion.div>
-                  ))}
-                </div>
-              )}
-            </TabsContent>
-          </Tabs>
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -720,7 +615,35 @@ const BenchmarkPage = () => {
                 </div>
               </div>
 
-              <DialogFooter>
+              <DialogFooter className="flex-col sm:flex-row gap-2">
+                <div className="flex gap-2 flex-1">
+                  <Button
+                    variant="outline"
+                    onClick={handleExportCode}
+                    disabled={isExportingCode}
+                    className="flex-1 sm:flex-none"
+                  >
+                    {isExportingCode ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Copy className="mr-2 h-4 w-4" />
+                    )}
+                    Copy Code
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={handleExportAsLeaderboard}
+                    disabled={isExportingLeaderboard}
+                    className="flex-1 sm:flex-none"
+                  >
+                    {isExportingLeaderboard ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Trophy className="mr-2 h-4 w-4" />
+                    )}
+                    Export as Leaderboard
+                  </Button>
+                </div>
                 <Button
                   type="button"
                   variant="outline"
@@ -880,37 +803,93 @@ const BenchmarkPage = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation Dialog */}
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete Benchmark</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete "{benchmarkToDelete?.title}"? This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={confirmDeleteBenchmark}
-              disabled={deleting}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {deleting ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Deleting...
-                </>
-              ) : (
-                <>
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Delete
-                </>
-              )}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+
+
+      {/* Export Code Dialog */}
+      <Dialog open={showExportCodeDialog} onOpenChange={setShowExportCodeDialog}>
+        <DialogContent className="sm:max-w-[800px]">
+          <DialogHeader>
+            <DialogTitle>Benchmark Code Export</DialogTitle>
+            <DialogDescription>
+              Copy this code to recreate the benchmark locally using the qubots library.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="bg-muted/50 rounded-lg p-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-medium">Generated Code</span>
+                <Button variant="outline" size="sm" onClick={handleCopyCode}>
+                  <Copy className="mr-2 h-3 w-3" />
+                  Copy to Clipboard
+                </Button>
+              </div>
+              <pre className="text-sm overflow-x-auto max-h-96 bg-background p-3 rounded border">
+                <code>{exportedCode}</code>
+              </pre>
+            </div>
+
+            <Alert>
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Usage Instructions</AlertTitle>
+              <AlertDescription>
+                1. Install qubots: <code className="bg-muted px-1 rounded">pip install qubots</code><br/>
+                2. Copy the code above to a Python file<br/>
+                3. Replace the optimizer placeholder with your actual optimizer repository<br/>
+                4. Run the script to reproduce this benchmark locally
+              </AlertDescription>
+            </Alert>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowExportCodeDialog(false)}>
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Export Leaderboard Dialog */}
+      <Dialog open={showExportLeaderboardDialog} onOpenChange={setShowExportLeaderboardDialog}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>Benchmark Exported as Leaderboard</DialogTitle>
+            <DialogDescription>
+              Your benchmark has been successfully converted to a standardized leaderboard.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <Alert className="bg-green-50 border-green-200">
+              <Trophy className="h-4 w-4 text-green-600" />
+              <AlertTitle className="text-green-800">Export Successful</AlertTitle>
+              <AlertDescription className="text-green-700">
+                The benchmark "{selectedBenchmark?.title}" has been exported as a standardized leaderboard.
+                It will now appear in the leaderboards section where users can submit their optimization results.
+              </AlertDescription>
+            </Alert>
+
+            <div className="bg-muted/50 rounded-lg p-4">
+              <h4 className="font-medium mb-2">What happens next?</h4>
+              <ul className="text-sm text-muted-foreground space-y-1">
+                <li>• The leaderboard is now available in the Leaderboards section</li>
+                <li>• Users can submit optimization results for standardized comparison</li>
+                <li>• Performance metrics will be automatically calculated and ranked</li>
+                <li>• Fair comparison mechanisms ensure consistent evaluation</li>
+              </ul>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowExportLeaderboardDialog(false)}>
+              Close
+            </Button>
+            <Button onClick={() => window.location.href = "/leaderboard"}>
+              View Leaderboards
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Layout>
   )
 }

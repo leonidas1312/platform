@@ -2,22 +2,43 @@
 
 import { useEffect, useRef, useState } from "react"
 import { motion, useScroll, useTransform } from "framer-motion"
-import { ChevronRight, ArrowDown, Sparkles, Share2, GitMerge, Zap, Users, Code, Rocket, UserPlus } from "lucide-react"
+import Typewriter from 'typewriter-effect'
+import {
+  ChevronRight,
+  ArrowDown,
+  Sparkles,
+  Share2,
+  GitMerge,
+  Zap,
+  Users,
+  Code,
+  Rocket,
+  UserPlus,
+  Play,
+  Trophy,
+  BarChart3,
+  GitBranch,
+  Layers,
+  Target,
+  Brain,
+  Workflow
+} from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { useTheme } from "@/components/ThemeContext"
-import CodeFlowHero from "./CodeFlowHero"
 import { WaitlistForm } from "./WaitlistForm"
-import feature1Img from "/assets_task_01jtb9cr1cecgbfz3vt4q07zkx_1746283238_img_1.webp"
-import feature2Img from "/assets_task_01jtcab54pfpetkq58meeznvpt_1746317784_img_1.webp"
-import feature3Img from "/assets_task_01jtcm87kmexavejfwgnm0q3pn_1746328163_img_0.webp"
+import { ContactModal } from "./ContactModal"
 
 const Hero = () => {
   const containerRef = useRef<HTMLDivElement>(null)
   const heroRef = useRef<HTMLDivElement>(null)
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 })
   const [isWaitlistOpen, setIsWaitlistOpen] = useState(false)
+  const [isContactOpen, setIsContactOpen] = useState(false)
   const { actualTheme } = useTheme()
+
+  const animatedWords = ['fun', 'accessible', 'collaborative', 'reproducible', 'modular']
 
   const { scrollYProgress } = useScroll({
     target: heroRef,
@@ -47,6 +68,8 @@ const Hero = () => {
     }
   }, [])
 
+
+
   const containerVariants = {
     hidden: { opacity: 0 },
     visible: {
@@ -70,9 +93,48 @@ const Hero = () => {
     },
   }
 
+  const features = [
+    {
+      icon: GitBranch,
+      title: "Optimization repositories",
+      description: "Share and discover optimization algorithms with the qubots framework",
+      href: "/qubots"
+    },
+    {
+      icon: Play,
+      title: "Interactive playground",
+      description: "Test and experiment with optimization algorithms",
+      href: "/qubots-playground"
+    },
+    {
+      icon: Workflow,
+      title: "Community experiments",
+      description: "Explore optimization experiments shared by the community",
+      href: "/optimization-workflows"
+    },
+    {
+      icon: BarChart3,
+      title: "Benchmarks",
+      description: "Compare algorithm performance across standardized test cases",
+      href: "/benchmark"
+    },
+    {
+      icon: Trophy,
+      title: "Public leaderboards",
+      description: "Compete and showcase your optimization solutions",
+      href: "/leaderboard"
+    },
+    {
+      icon: Code,
+      title: "Documentation",
+      description: "Comprehensive guides and API documentation for the qubots framework",
+      href: "https://docs.rastion.com"
+    }
+  ]
+
   return (
     <div ref={heroRef} className="relative overflow-hidden bg-background">
-      {/* Animated background elements - using hero colors */}
+      {/* Animated background elements */}
       <div className="absolute inset-0 overflow-hidden">
         <motion.div
           className="absolute top-1/4 -left-32 w-96 h-96 rounded-full filter blur-3xl"
@@ -109,14 +171,14 @@ const Hero = () => {
         />
       </div>
 
-      {/* Main hero content */}
+      {/* Hero Section */}
       <motion.div
         ref={containerRef}
-        className="relative h-screen flex flex-col justify-center items-center px-6 lg:px-8"
+        className="relative min-h-screen flex flex-col justify-center items-center px-6 lg:px-8 py-20"
         style={{ y, opacity }}
       >
         <motion.div
-          className="max-w-7xl mx-auto text-center relative z-10"
+          className="max-w-6xl mx-auto text-center relative z-10"
           variants={containerVariants}
           initial="hidden"
           animate="visible"
@@ -125,25 +187,52 @@ const Hero = () => {
           <motion.div variants={itemVariants} className="mb-8">
             <Badge
               variant="secondary"
-              className="px-4 py-2 text-sm font-medium bg-secondary/20 border border-border/30 shadow-soft hover:shadow-medium transition-all duration-300 hover-lift text-foreground backdrop-blur-sm"
+              className="px-6 py-3 text-sm font-medium bg-secondary/20 border border-border/30 shadow-soft hover:shadow-medium transition-all duration-300 hover-lift text-foreground backdrop-blur-sm rounded-full"
             >
-
-              Making optimization accessible to everyone
+              The developer's playground for optimization
             </Badge>
           </motion.div>
 
           {/* Main heading */}
           <motion.h1
             variants={itemVariants}
-            className="text-4xl md:text-6xl lg:text-7xl xl:text-8xl font-bold tracking-tight mb-8 leading-[1.1] text-foreground"
+            className="text-4xl md:text-6xl lg:text-7xl font-bold tracking-tight mb-4 leading-[1.1] text-foreground"
             style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}
           >
-            The{" "}
+            Making{" "}
             <span className="hero-gradient-text">
-              open source
+              optimization
             </span>
             <br />
-            platform for optimization
+            <span className="relative inline-block">
+              <div
+                className="terminal-typewriter"
+                style={{
+                  color: actualTheme === 'dark' ? '#ffffff' : '#000000',
+                  fontFamily: 'JetBrains Mono, Fira Code, Monaco, Consolas, monospace',
+                  fontWeight: 600,
+                  fontSize: 'inherit',
+                  lineHeight: 'inherit'
+                }}
+              >
+                <Typewriter
+                  options={{
+                    strings: animatedWords,
+                    autoStart: true,
+                    loop: true,
+                    delay: 100,
+                    deleteSpeed: 50,
+                    cursor: '|',
+                    wrapperClassName: 'typewriter-wrapper',
+                    cursorClassName: 'typewriter-cursor'
+                  }}
+                />
+              </div>
+              {/* Invisible placeholder to maintain layout */}
+              <span className="opacity-0 select-none" aria-hidden="true">
+                collaborative
+              </span>
+            </span>
           </motion.h1>
 
           {/* Subtitle */}
@@ -152,7 +241,8 @@ const Hero = () => {
             className="text-lg md:text-xl lg:text-2xl text-muted-foreground mb-12 max-w-4xl mx-auto leading-relaxed font-medium"
             style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}
           >
-            Access cutting-edge algorithms, share your solutions, and accelerate innovation.
+            Join developers and researchers creating modular optimization solutions. Upload your algorithms,
+            test them in the playground, and join public leaderboards.
           </motion.p>
 
           {/* CTA buttons */}
@@ -162,7 +252,7 @@ const Hero = () => {
           >
             <Button
               size="lg"
-              className="h-16 px-10 text-lg font-semibold rounded-full shadow-strong hover:shadow-medium transition-all duration-300 hover-lift w-full sm:w-auto border-0"
+              className="h-14 px-8 text-lg font-semibold rounded-xl shadow-strong hover:shadow-medium transition-all duration-300 hover-lift w-full sm:w-auto border-0"
               style={{
                 background: actualTheme === 'dark' ? 'white' : 'black',
                 color: actualTheme === 'dark' ? 'black' : 'white',
@@ -170,31 +260,139 @@ const Hero = () => {
               }}
               onClick={() => window.location.href = "/qubots"}
             >
-
-              Explore Optimization Tools
+              Explore qubots
             </Button>
             <Button
               variant="outline"
               size="lg"
-              className="h-16 px-10 text-lg font-semibold rounded-full border-2 border-border/50 hover:bg-secondary/20 transition-all duration-300 hover-lift w-full sm:w-auto text-foreground hover:text-foreground bg-transparent backdrop-blur-sm"
+              className="h-14 px-8 text-lg font-semibold rounded-xl border-2 border-border/50 hover:bg-secondary/20 transition-all duration-300 hover-lift w-full sm:w-auto text-foreground hover:text-foreground bg-transparent backdrop-blur-sm"
               style={{
                 fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
               }}
-              onClick={() => setIsWaitlistOpen(true)}
+              onClick={() => window.location.href = "/optimization-workflows"}
             >
-              Join the waitlist
-              <UserPlus className="w-5 h-5 ml-3" />
+              Browse optimization experiments
             </Button>
           </motion.div>
-
-
         </motion.div>
+      </motion.div>
+
+      {/* Features Section */}
+      <motion.div
+        className="relative z-10 py-20 px-6 lg:px-8"
+        initial={{ opacity: 0, y: 50 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true }}
+        transition={{ duration: 0.8, delay: 0.2 }}
+      >
+        <div className="max-w-6xl mx-auto">
+          {/* Section Header */}
+          <div className="text-center mb-16">
+            <Badge
+              variant="outline"
+              className="mb-4 px-4 py-2 text-sm bg-secondary/10 text-foreground border-border/30 rounded-full"
+            >
+              Platform features
+            </Badge>
+            <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-6 text-foreground">
+              Everything you need for{" "}
+              <span className="hero-gradient-text">optimization</span>
+            </h2>
+            <p className="text-lg text-muted-foreground max-w-3xl mx-auto">
+              From algorithm development to community collaboration, our platform provides
+              all the tools you need to build and share optimization solutions.
+            </p>
+          </div>
+
+          {/* Features Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {features.map((feature, index) => (
+              <motion.div
+                key={feature.title}
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.6, delay: index * 0.1 }}
+              >
+                <Card
+                  className="h-full bg-card/50 backdrop-blur-sm border-border/50 hover:bg-card/80 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 cursor-pointer group"
+                  onClick={() => window.location.href = feature.href}
+                >
+                  <CardHeader className="pb-4">
+                    <div className="flex items-center gap-3 mb-2">
+                      <CardTitle className="text-xl font-semibold">{feature.title}</CardTitle>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="pt-0">
+                    <CardDescription className="text-muted-foreground leading-relaxed">
+                      {feature.description}
+                    </CardDescription>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </motion.div>
+
+      {/* Vision Section */}
+      <motion.div
+        className="relative z-10 py-20 px-6 lg:px-8 bg-secondary/5"
+        initial={{ opacity: 0 }}
+        whileInView={{ opacity: 1 }}
+        viewport={{ once: true }}
+        transition={{ duration: 0.8 }}
+      >
+        <div className="max-w-4xl mx-auto text-center">
+          <Badge
+            variant="outline"
+            className="mb-6 px-4 py-2 text-sm bg-secondary/10 text-foreground border-border/30 rounded-full"
+          >
+            Our vision
+          </Badge>
+          <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-8 text-foreground">
+            The future of{" "}
+            <span className="hero-gradient-text">optimization</span>
+          </h2>
+          <p className="text-lg md:text-xl text-muted-foreground leading-relaxed mb-8">
+            We envision a world where optimization is accessible to everyone - from seasoned researchers
+            to domain experts without deep technical knowledge. Through the qubots framework, we're building
+            modular, reusable optimization components that work like LEGO blocks, enabling rapid prototyping
+            and deployment of optimization solutions.
+          </p>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+            <Button
+              variant="outline"
+              size="lg"
+              className="h-12 px-6 text-base font-medium rounded-xl border-2 border-border/50 hover:bg-secondary/20 transition-all duration-300 hover-lift"
+              onClick={() => window.open("https://discord.gg/E2rnssmh9Y", "_blank")}
+            >
+              <Users className="w-5 h-5 mr-2" />
+              Join Discord
+            </Button>
+            <Button
+              variant="ghost"
+              size="lg"
+              className="h-12 px-6 text-base font-medium rounded-xl hover:bg-secondary/20 transition-all duration-300"
+              onClick={() => setIsContactOpen(true)}
+            >
+              <UserPlus className="w-5 h-5 mr-2" />
+              Contact us
+            </Button>
+          </div>
+        </div>
       </motion.div>
 
       {/* Waitlist Form Modal */}
       <WaitlistForm
         isOpen={isWaitlistOpen}
         onClose={() => setIsWaitlistOpen(false)}
+      />
+
+      {/* Contact Modal */}
+      <ContactModal
+        isOpen={isContactOpen}
+        onClose={() => setIsContactOpen(false)}
       />
     </div>
   )

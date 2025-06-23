@@ -17,6 +17,9 @@ import {
 import { useToast } from "@/components/ui/use-toast"
 import { cn } from "@/lib/utils"
 import { handleColabOpen } from "@/utils/colabUtils"
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
+import { useTheme } from "@/components/ThemeContext"
+import ReactMarkdown from "react-markdown"
 
 interface NotebookCell {
   cell_type: 'code' | 'markdown' | 'raw'
@@ -46,6 +49,7 @@ export default function NotebookViewer({
   className
 }: NotebookViewerProps) {
   const { toast } = useToast()
+  const { actualTheme } = useTheme()
   const [notebook, setNotebook] = useState<NotebookData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -117,7 +121,27 @@ export default function NotebookViewer({
         <div key={index} className="mb-4">
           <div className="bg-background border border-border/40 rounded-lg p-4">
             <div className="prose prose-sm max-w-none dark:prose-invert overflow-hidden">
-              <pre className="whitespace-pre-wrap break-words text-sm">{source}</pre>
+              <ReactMarkdown
+                components={{
+                  pre: ({ children, ...props }) => (
+                    <pre {...props} className="overflow-x-auto whitespace-pre-wrap break-words">
+                      {children}
+                    </pre>
+                  ),
+                  code: ({ children, ...props }) => (
+                    <code {...props} className="break-words">
+                      {children}
+                    </code>
+                  ),
+                  p: ({ children, ...props }) => (
+                    <p {...props} className="break-words">
+                      {children}
+                    </p>
+                  )
+                }}
+              >
+                {source}
+              </ReactMarkdown>
             </div>
           </div>
         </div>
@@ -142,10 +166,42 @@ export default function NotebookViewer({
                 )}
               </div>
             </div>
-            <div className="p-4">
-              <pre className="text-sm font-mono overflow-x-auto whitespace-pre-wrap break-words">
-                <code>{source}</code>
-              </pre>
+            <div className="overflow-auto">
+              {(() => {
+                try {
+                  return (
+                    <SyntaxHighlighter
+                      language="python"
+                      showLineNumbers={false}
+                      customStyle={{
+                        margin: 0,
+                        padding: '1rem',
+                        background: actualTheme === 'dark' ? '#1e1e1e' : '#f8f8f8',
+                        color: actualTheme === 'dark' ? '#d4d4d4' : '#24292e',
+                        fontSize: '0.875rem',
+                        lineHeight: '1.5',
+                        border: 'none'
+                      }}
+                      codeTagProps={{
+                        style: {
+                          fontFamily: 'JetBrains Mono, Fira Code, Monaco, Consolas, monospace',
+                          background: 'transparent'
+                        }
+                      }}
+                    >
+                      {source || ''}
+                    </SyntaxHighlighter>
+                  )
+                } catch (error) {
+                  console.error('SyntaxHighlighter error in notebook:', error)
+                  // Fallback to simple pre/code display
+                  return (
+                    <pre className="text-sm font-mono overflow-x-auto whitespace-pre-wrap break-words p-4">
+                      <code>{source || ''}</code>
+                    </pre>
+                  )
+                }
+              })()}
             </div>
 
             {/* Code outputs */}

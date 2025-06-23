@@ -15,9 +15,19 @@ import SettingsPage from "./pages/SettingsPage";
 import ExperimentalPreviewPage from "./pages/ExperimentalPreview";
 import BenchmarkPage from "./pages/Benchmark";
 import QubotPlayground from "./pages/QubotPlayground";
+import AutoSolvePage from "./pages/AutoSolvePage";
+import WorkflowAutomationPage from "./pages/WorkflowAutomationPage";
 import OptimizationWorkflows from "./pages/OptimizationWorkflows";
 import WorkflowDetail from "./pages/WorkflowDetail";
 import WaitlistAdmin from "./pages/WaitlistAdmin";
+import PricingPage from "./pages/PricingPage";
+import Leaderboard from "./pages/Leaderboard";
+
+import CommunityPostsPage from "./pages/CommunityPostsPage";
+import BlogsPage from "./pages/BlogsPage";
+import SubmissionDetails from "./pages/SubmissionDetails";
+import NotificationsPage from "./pages/NotificationsPage";
+import DatasetsPage from "./pages/DatasetsPage";
 import ProtectedRoute from "./components/ProtectedRoute";
 import AdminProtectedRoute from "./components/AdminProtectedRoute";
 
@@ -41,6 +51,24 @@ const App = () => (
                   <BenchmarkPage />
                 </ProtectedRoute>
               } />
+              <Route path="/leaderboard" element={<Leaderboard />} />
+              <Route path="/community/posts" element={<CommunityPostsPage />} />
+              <Route path="/community/blogs" element={<BlogsPage />} />
+              <Route path="/autosolve" element={
+                <ProtectedRoute>
+                  <AutoSolvePage />
+                </ProtectedRoute>
+              } />
+              <Route path="/workflow-automation" element={
+                <ProtectedRoute>
+                  <WorkflowAutomationPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/datasets" element={
+                <ProtectedRoute>
+                  <DatasetsPage />
+                </ProtectedRoute>
+              } />
               <Route path="/qubots-playground" element={
                 <ProtectedRoute>
                   <QubotPlayground />
@@ -61,7 +89,25 @@ const App = () => (
                   <WaitlistAdmin />
                 </AdminProtectedRoute>
               } />
-              
+              <Route path="/admin/pricing" element={
+                <AdminProtectedRoute>
+                  <PricingPage />
+                </AdminProtectedRoute>
+              } />
+
+              {/* Submission details */}
+              <Route path="/submissions/:submissionId" element={
+                <ProtectedRoute>
+                  <SubmissionDetails />
+                </ProtectedRoute>
+              } />
+
+              {/* Notifications page */}
+              <Route path="/notifications" element={
+                <ProtectedRoute>
+                  <NotificationsPage />
+                </ProtectedRoute>
+              } />
 
               {/* Profile page with username in URL */}
               <Route path="/u/:username" element={<Profile />} />

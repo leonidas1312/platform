@@ -33,15 +33,24 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/components/ui/use-toast"
 
-// Add these imports at the top with the other imports
-import { PrismLight as SyntaxHighlighter } from "react-syntax-highlighter"
-import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism"
-import python from "react-syntax-highlighter/dist/esm/languages/prism/python"
-import json from "react-syntax-highlighter/dist/esm/languages/prism/json"
-
-// Register languages
-SyntaxHighlighter.registerLanguage("python", python)
-SyntaxHighlighter.registerLanguage("json", json)
+// Simple code display component
+const SimpleCodeDisplay = ({ code, language }: { code: string; language: string }) => {
+  const lines = code.split("\n")
+  return (
+    <div className="font-mono text-sm bg-[#282c34] text-white">
+      {lines.map((line, index) => (
+        <div key={index} className="flex">
+          <div className="flex-shrink-0 w-8 text-right pr-2 py-0.5 text-gray-500 select-none text-xs">
+            {index + 1}
+          </div>
+          <div className="flex-1 pl-2 py-0.5 whitespace-pre-wrap break-all overflow-hidden">
+            {line || " "}
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
 
 const API = import.meta.env.VITE_API_BASE
 
@@ -813,28 +822,7 @@ export default function QubotEditDialog({
                       <span className="font-medium text-sm">{entrypointFile}</span>
                     </div>
                     <div className="overflow-auto max-h-[400px]">
-                      <SyntaxHighlighter
-                        language="python"
-                        style={oneDark}
-                        customStyle={{
-                          margin: 0,
-                          padding: "1rem",
-                          fontSize: "0.75rem",
-                          fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
-                          borderRadius: 0,
-                          background: "transparent",
-                        }}
-                        showLineNumbers={true}
-                        lineNumberStyle={{
-                          minWidth: "2rem",
-                          paddingRight: "0.5rem",
-                          textAlign: "right",
-                          color: "#636e7b",
-                          userSelect: "none",
-                        }}
-                      >
-                        {fileContent}
-                      </SyntaxHighlighter>
+                      <SimpleCodeDisplay code={fileContent} language="python" />
                     </div>
                   </div>
                 ) : (
@@ -845,18 +833,8 @@ export default function QubotEditDialog({
                       <div className="h-3 w-3 rounded-full bg-green-500"></div>
                       <div className="ml-2 text-xs text-muted-foreground">config.json</div>
                     </div>
-                    <SyntaxHighlighter
-                      language="json"
-                      style={oneDark}
-                      customStyle={{
-                        margin: 0,
-                        padding: 0,
-                        fontSize: "0.75rem",
-                        fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
-                        background: "transparent",
-                      }}
-                    >
-                      {`{
+                    <SimpleCodeDisplay
+                      code={`{
   "type": "${qubotType}",
   "entry_point": "${entrypointFile ? entrypointFile.replace(/\.[^/.]+$/, "") : "main"}",
   "class_name": "${entrypointClass || "QubotClass"}",
@@ -865,7 +843,8 @@ ${qubotParameters.map((param) => `    "${param.name}": ${param.value}`).join(",\
   },
   "keywords": [${qubotKeywords.map((k) => `"${k}"`).join(", ")}]
 }`}
-                    </SyntaxHighlighter>
+                      language="json"
+                    />
                   </div>
                 )}
               </div>
