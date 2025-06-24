@@ -1,8 +1,9 @@
 /**
- * Lightweight Qubots Execution Service
+ * Qubots Execution Service
  *
- * Provides qubots optimization execution using Kubernetes jobs instead of persistent environments.
- * This is more efficient for one-off executions and doesn't require managing long-running containers.
+ * Provides qubots optimization execution using Kubernetes jobs with the new AutoProblem and AutoOptimizer API.
+ * Uses the simplified qubots workflow: AutoProblem.from_repo() + AutoOptimizer.from_repo() + optimizer.optimize(problem).
+ * This approach matches local development patterns and eliminates the need for playground_integration.
  */
 
 const k8s = require('@kubernetes/client-node')
@@ -46,10 +47,10 @@ class QubotExecutionService {
   }
 
   /**
-   * Execute qubots optimization using a Kubernetes job
+   * Execute qubots optimization using AutoProblem and AutoOptimizer in a Kubernetes job
    * @param {Object} params - Execution parameters
    * @param {WebSocket} ws - Optional WebSocket for real-time logging
-   * @returns {Promise<Object>} Execution result
+   * @returns {Promise<Object>} Execution result with success, best_value, best_solution, etc.
    */
   async executeOptimization(params, ws = null) {
     const {
@@ -59,6 +60,7 @@ class QubotExecutionService {
       optimizerUsername = 'default',
       problemParams = {},
       optimizerParams = {},
+      hasDataset = false,
       timeout = 30000
     } = params
 
@@ -79,13 +81,14 @@ class QubotExecutionService {
     try {
       // Create Kubernetes job for execution
       this.sendLog(ws, 'info', 'Creating execution job...', 'system')
-      const job = await this.createExecutionJob(jobName, {
+      await this.createExecutionJob(jobName, {
         problemName,
         optimizerName,
         problemUsername,
         optimizerUsername,
         problemParams,
         optimizerParams,
+        hasDataset,
         timeout
       })
 
@@ -155,7 +158,8 @@ class QubotExecutionService {
                 { name: 'OPTIMIZER_REPO', value: params.optimizerName },
                 { name: 'PROBLEM_USERNAME', value: params.problemUsername },
                 { name: 'OPTIMIZER_USERNAME', value: params.optimizerUsername },
-                { name: 'GITEA_URL', value: process.env.GITEA_URL || 'http://gitea:3000' },
+                { name: 'GITEA_URL', value: process.env.GITEA_URL || 'https://hub.rastion.com' },
+                { name: 'PLATFORM_API_BASE', value: process.env.PLATFORM_API_BASE || 'http://backend:4000/api' },
                 { name: 'PYTHONUNBUFFERED', value: '1' },  // Force unbuffered output
                 { name: 'PYTHONIOENCODING', value: 'utf-8' },  // Ensure proper encoding
                 { name: 'PYTHONFLUSHOUTPUT', value: '1' }  // Additional flush control
@@ -184,7 +188,7 @@ class QubotExecutionService {
   }
 
   /**
-   * Generate Python execution script for the job
+   * Generate Python execution script for the job using new qubots API
    * @private
    */
   generateExecutionScript(params) {
@@ -196,99 +200,26 @@ import subprocess
 import os
 from pathlib import Path
 
-def clone_and_install_requirements(repo_name, username):
-    """Clone repository and install requirements.txt if it exists."""
-    try:
-        # Get the cache directory where repositories are stored
-        cache_dir = os.path.expanduser("~/.cache/rastion_hub")
-        repo_path = Path(cache_dir) / repo_name  # Only repo name, not username-repo_name
-
-        # Clone repository if it doesn't exist
-        if not repo_path.exists():
-            print(f"📥 Cloning repository {username}/{repo_name}...")
-            # Use environment variable for Gitea URL, fallback to hub.rastion.com
-            base_url = os.environ.get('GITEA_URL', 'https://hub.rastion.com')
-            repo_url = f"{base_url}/{username}/{repo_name}.git"
-
-            result = subprocess.run([
-                "git", "clone", "--branch", "main", repo_url, str(repo_path)
-            ], capture_output=True, text=True, timeout=120)
-
-            if result.returncode != 0:
-                print(f"⚠️  Warning: Failed to clone {username}/{repo_name}")
-                if result.stderr:
-                    print(f"   Error: {result.stderr}")
-                return
-            else:
-                print(f"✅ Successfully cloned {username}/{repo_name}")
-        else:
-            print(f"ℹ️  Repository {username}/{repo_name} already exists")
-
-        # Look for requirements.txt
-        requirements_file = repo_path / "requirements.txt"
-        if requirements_file.exists():
-            print(f"📦 Installing requirements from {username}/{repo_name}...")
-            result = subprocess.run([
-                sys.executable, "-m", "pip", "install", "--user", "-r", str(requirements_file)
-            ], capture_output=True, text=True, timeout=300)
-
-            if result.returncode == 0:
-                print(f"✅ Successfully installed requirements from {username}/{repo_name}")
-                if result.stdout:
-                    # Print installation output for debugging
-                    for line in result.stdout.split('\\n'):
-                        if line.strip() and not line.startswith('Requirement already satisfied'):
-                            print(f"   {line}")
-
-                # Force refresh of Python path to ensure newly installed packages are available
-                import site
-                import importlib
-                site.main()  # Refresh site-packages
-                importlib.invalidate_caches()  # Clear import caches
-            else:
-                print(f"⚠️  Warning: Failed to install requirements from {username}/{repo_name}")
-                if result.stderr:
-                    print(f"   Error: {result.stderr}")
-        else:
-            print(f"ℹ️  No requirements.txt found in {username}/{repo_name}")
-    except Exception as e:
-        print(f"⚠️  Warning: Error processing {username}/{repo_name}: {e}")
-
 try:
-    print("🚀 Starting qubots optimization execution...")
+    print("� Starting qubots optimization execution...")
+    print("� Using new AutoProblem and AutoOptimizer API...")
 
-    # Pre-clone repositories and install requirements
-    print("📋 Preparing repositories and installing dependencies...")
-    clone_and_install_requirements("${params.problemName}", "${params.problemUsername}")
-    clone_and_install_requirements("${params.optimizerName}", "${params.optimizerUsername}")
+    # Import the new qubots API
+    from qubots import AutoProblem, AutoOptimizer
 
-    print("🔄 Loading qubots models and executing optimization...")
-
-    # Ensure user site-packages is in Python path
-    import site
-    import sys
-    user_site = site.getusersitepackages()
-    if user_site not in sys.path:
-        sys.path.insert(0, user_site)
-        print(f"📍 Added user site-packages to path: {user_site}")
-
-    # Test if pyomo is now available
-    try:
-        import pyomo.environ
-        print("✅ Pyomo import test successful")
-    except ImportError as e:
-        print(f"❌ Pyomo import test failed: {e}")
-        print(f"🔍 Python path: {sys.path[:3]}...")  # Show first 3 entries
-
-    # Import after requirements installation
-    from qubots.playground_integration import execute_playground_optimization
+    # Check if dataset is provided
+    has_dataset = ${params.hasDataset || false}
+    problem_params = ${this.convertToPythonDict(params.problemParams)}
+    optimizer_params = ${this.convertToPythonDict(params.optimizerParams)}
 
     # Handle standardized problems
     problem_name = "${params.problemName}"
+    problem_username = "${params.problemUsername}"
+
     if problem_name.startswith("standardized-problem-"):
         # Extract problem ID and load standardized problem
         problem_id = problem_name.replace("standardized-problem-", "")
-        print(f"Loading standardized problem {problem_id}")
+        print(f"📊 Step 1: Loading standardized problem {problem_id}")
 
         # Use the standardized benchmarks from qubots
         from qubots.standardized_benchmarks import StandardizedBenchmarkRegistry
@@ -303,37 +234,115 @@ try:
                 spec = benchmark_specs[problem_id_int - 1]  # 1-based indexing
                 print(f"Using standardized benchmark: {spec.name}")
 
-                # Create the standardized problem instance
-                standardized_problem = StandardizedBenchmarkRegistry.create_problem(spec)
-                problem_name = f"standardized_{spec.problem_type}_{problem_id}"
-                problem_username = "standardized"
-
-                # Store the problem instance for use in optimization
-                globals()[f'standardized_problem_{problem_id}'] = standardized_problem
+                # Create the standardized problem instance directly
+                problem = StandardizedBenchmarkRegistry.create_problem(spec)
+                print(f"✅ Step 1 Complete: Standardized problem loaded: {spec.name}")
             else:
                 raise ValueError(f"Standardized problem ID {problem_id} not found")
 
         except (ValueError, IndexError) as e:
-            print(f"Error loading standardized problem {problem_id}: {e}")
+            print(f"❌ Error loading standardized problem {problem_id}: {e}")
             raise ValueError(f"Invalid standardized problem ID: {problem_id}")
     else:
-        problem_username = "${params.problemUsername}"
+        # Step 1: Load dataset (if provided)
+        if has_dataset and 'dataset_id' in problem_params:
+            print(f"📁 Step 1a: Loading dataset with ID: {problem_params['dataset_id']}")
 
-    result = execute_playground_optimization(
-        problem_name=problem_name,
-        optimizer_name="${params.optimizerName}",
-        problem_username=problem_username,
-        optimizer_username="${params.optimizerUsername}",
-        problem_params=${this.convertToPythonDict(params.problemParams)},
-        optimizer_params=${this.convertToPythonDict(params.optimizerParams)}
+            # Get platform API base URL from environment for dataset access
+            platform_api_base = os.environ.get('PLATFORM_API_BASE', 'http://backend:4000/api')
+            if 'platform_api_base' not in problem_params:
+                problem_params['platform_api_base'] = platform_api_base
+
+            print(f"🔗 Dataset source configured: {problem_params.get('dataset_source', 'platform')}")
+            print(f"✅ Step 1a Complete: Dataset configuration ready")
+        else:
+            print("📝 Step 1a: No dataset provided - using problem defaults")
+
+        # Step 1b: Load problem using AutoProblem
+        repo_id = f"{problem_username}/{problem_name}"
+        print(f"📊 Step 1b: Loading problem from repository: {repo_id}")
+        print(f"🔧 Problem parameters: {problem_params}")
+
+        problem = AutoProblem.from_repo(
+            repo_id=repo_id,
+            override_params=problem_params
+        )
+        print(f"✅ Step 1b Complete: Problem loaded: {repo_id}")
+
+        # Verify dataset loading if applicable
+        if has_dataset and hasattr(problem, 'has_dataset') and problem.has_dataset():
+            try:
+                dataset_content = problem.get_dataset_content()
+                if dataset_content:
+                    content_preview = dataset_content[:200] + "..." if len(dataset_content) > 200 else dataset_content
+                    print(f"📁 Dataset loaded successfully. Preview: {content_preview}")
+                else:
+                    print("⚠️ Dataset configuration present but no content loaded")
+            except Exception as e:
+                print(f"⚠️ Dataset loading warning: {e}")
+
+    # Step 2: Load optimizer using AutoOptimizer
+    optimizer_repo_id = f"${params.optimizerUsername}/${params.optimizerName}"
+    print(f"🔧 Step 2: Loading optimizer from repository: {optimizer_repo_id}")
+    print(f"⚙️ Optimizer parameters: {optimizer_params}")
+
+    optimizer = AutoOptimizer.from_repo(
+        repo_id=optimizer_repo_id,
+        override_params=optimizer_params
     )
+    print(f"✅ Step 2 Complete: Optimizer loaded: {optimizer_repo_id}")
+
+    # Step 3: Execute optimization
+    print("⚡ Step 3: Starting optimization execution...")
+    print(f"🎯 Problem: {problem}")
+    print(f"🔧 Optimizer: {optimizer}")
+
+    result = optimizer.optimize(problem)
+    print("🎉 Step 3 Complete: Optimization finished!")
+
+    # Step 4: Process and display results
+    print("📊 Step 4: Processing optimization results...")
+
+    if hasattr(result, 'best_value') and result.best_value is not None:
+        print(f"🎯 Best Value: {result.best_value}")
+
+    if hasattr(result, 'runtime_seconds') and result.runtime_seconds is not None:
+        print(f"⏱️ Runtime: {result.runtime_seconds:.3f} seconds")
+
+    if hasattr(result, 'best_solution') and result.best_solution is not None:
+        solution_str = str(result.best_solution)
+        if len(solution_str) > 100:
+            solution_str = solution_str[:100] + "..."
+        print(f"🔧 Solution: {solution_str}")
+
+    print("✅ Step 4 Complete: Results processed successfully!")
+
+    # Convert result to dictionary format for JSON serialization
+    if hasattr(result, '__dict__'):
+        # If result is an object, convert to dict
+        result_dict = {
+            "success": True,
+            "best_value": getattr(result, 'best_value', None),
+            "best_solution": getattr(result, 'best_solution', None),
+            "runtime_seconds": getattr(result, 'runtime_seconds', None),
+            "metadata": getattr(result, 'metadata', {}),
+            "convergence_history": getattr(result, 'convergence_history', []),
+            "algorithm_info": getattr(result, 'algorithm_info', {}),
+            "problem_info": getattr(result, 'problem_info', {})
+        }
+    else:
+        # If result is already a dict
+        result_dict = result.copy() if isinstance(result, dict) else {"success": True, "result": result}
+        if "success" not in result_dict:
+            result_dict["success"] = True
 
     # Write result to stdout for collection
     print("QUBOTS_RESULT_START")
-    print(json.dumps(result))
+    print(json.dumps(result_dict, default=str))  # default=str handles non-serializable objects
     print("QUBOTS_RESULT_END")
 
 except Exception as e:
+    print(f"❌ Optimization failed: {e}")
     error_result = {
         "success": False,
         "error_message": str(e),

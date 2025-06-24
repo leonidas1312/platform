@@ -5,10 +5,10 @@ import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
-import { 
-  X, 
-  Play, 
-  Square, 
+import {
+  X,
+  Play,
+  Square,
   RotateCcw,
   CheckCircle,
   AlertTriangle,
@@ -16,9 +16,25 @@ import {
   Info,
   Terminal,
   Clock,
-  Zap
+  Zap,
+  ChevronDown,
+  ChevronRight
 } from 'lucide-react'
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger
+} from '@/components/ui/collapsible'
 import { ExecutionState, ExecutionLog, ExecutionStatus } from '@/types/workflow-automation'
+
+interface ExecutionStep {
+  id: string
+  name: string
+  status: 'pending' | 'running' | 'completed' | 'error'
+  startTime?: Date
+  endTime?: Date
+  logs: ExecutionLog[]
+}
 
 interface ExecutionLogsSidebarProps {
   isOpen: boolean
@@ -43,6 +59,85 @@ const getLogIcon = (level: string) => {
     default:
       return <Info className="h-4 w-4 text-blue-500" />
   }
+}
+
+const getStepIcon = (status: ExecutionStep['status']) => {
+  switch (status) {
+    case 'pending':
+      return <Clock className="h-4 w-4 text-gray-400" />
+    case 'running':
+      return <Play className="h-4 w-4 text-blue-500 animate-pulse" />
+    case 'completed':
+      return <CheckCircle className="h-4 w-4 text-green-500" />
+    case 'error':
+      return <XCircle className="h-4 w-4 text-red-500" />
+    default:
+      return <Clock className="h-4 w-4 text-gray-400" />
+  }
+}
+
+const organizeLogsIntoSteps = (logs: ExecutionLog[]): ExecutionStep[] => {
+  const steps: ExecutionStep[] = []
+  let currentStep: ExecutionStep | null = null
+
+  logs.forEach((log) => {
+    // Check if this log indicates a new step
+    const stepIndicators = [
+      'Starting',
+      'Initializing',
+      'Loading',
+      'Executing',
+      'Processing',
+      'Validating',
+      'Completing',
+      'Finished'
+    ]
+
+    const isNewStep = stepIndicators.some(indicator =>
+      log.message.includes(indicator) && log.level === 'info'
+    )
+
+    if (isNewStep || !currentStep) {
+      // Create new step
+      const stepName = extractStepName(log.message)
+      const stepStatus = log.level === 'error' ? 'error' : 'running'
+
+      currentStep = {
+        id: `step-${steps.length + 1}`,
+        name: stepName,
+        status: stepStatus,
+        startTime: log.timestamp,
+        logs: [log]
+      }
+      steps.push(currentStep)
+    } else {
+      // Add log to current step
+      currentStep.logs.push(log)
+
+      // Update step status based on log level
+      if (log.level === 'error') {
+        currentStep.status = 'error'
+      } else if (log.message.includes('completed') || log.message.includes('finished')) {
+        currentStep.status = 'completed'
+        currentStep.endTime = log.timestamp
+      }
+    }
+  })
+
+  return steps
+}
+
+const extractStepName = (message: string): string => {
+  // Extract meaningful step names from log messages
+  if (message.includes('Starting')) return 'Initialization'
+  if (message.includes('Loading')) return 'Loading Resources'
+  if (message.includes('Executing')) return 'Execution'
+  if (message.includes('Processing')) return 'Processing Results'
+  if (message.includes('Validating')) return 'Validation'
+  if (message.includes('Completing')) return 'Completion'
+
+  // Fallback: use first few words of the message
+  return message.split(' ').slice(0, 3).join(' ')
 }
 
 const getStatusColor = (status: ExecutionStatus) => {
@@ -90,6 +185,18 @@ const ExecutionLogsSidebar: React.FC<ExecutionLogsSidebarProps> = ({
 }) => {
   const scrollAreaRef = useRef<HTMLDivElement>(null)
   const [autoScroll, setAutoScroll] = useState(true)
+  const [expandedSteps, setExpandedSteps] = useState<Record<string, boolean>>({})
+
+  // Organize logs into steps
+  const steps = organizeLogsIntoSteps(executionState.logs)
+
+  // Auto-expand the currently running step
+  useEffect(() => {
+    const runningStep = steps.find(step => step.status === 'running')
+    if (runningStep && !expandedSteps[runningStep.id]) {
+      setExpandedSteps(prev => ({ ...prev, [runningStep.id]: true }))
+    }
+  }, [steps])
 
   // Auto-scroll to bottom when new logs arrive
   useEffect(() => {
@@ -100,6 +207,10 @@ const ExecutionLogsSidebar: React.FC<ExecutionLogsSidebarProps> = ({
       }
     }
   }, [executionState.logs, autoScroll])
+
+  const toggleStepExpansion = (stepId: string) => {
+    setExpandedSteps(prev => ({ ...prev, [stepId]: !prev[stepId] }))
+  }
 
   if (!isOpen) {
     return null
@@ -199,7 +310,7 @@ const ExecutionLogsSidebar: React.FC<ExecutionLogsSidebarProps> = ({
                 Auto-scroll
               </Button>
               <Badge variant="outline" className="text-xs">
-                {executionState.logs.length}
+                {steps.length} steps
               </Badge>
             </div>
           </div>
@@ -207,26 +318,71 @@ const ExecutionLogsSidebar: React.FC<ExecutionLogsSidebarProps> = ({
         
         <ScrollArea ref={scrollAreaRef} className="flex-1">
           <div className="p-3 space-y-2">
-            {executionState.logs.length === 0 ? (
+            {steps.length === 0 ? (
               <div className="text-center py-8">
                 <Terminal className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-                <p className="text-sm text-muted-foreground">No logs yet</p>
-                <p className="text-xs text-muted-foreground">Logs will appear here during execution</p>
+                <p className="text-sm text-muted-foreground">No execution steps yet</p>
+                <p className="text-xs text-muted-foreground">Steps will appear here during execution</p>
               </div>
             ) : (
-              executionState.logs.map((log) => (
-                <div key={log.id} className="flex gap-2 text-xs">
-                  <span className="text-muted-foreground font-mono">
-                    {formatTimestamp(log.timestamp)}
-                  </span>
-                  {getLogIcon(log.level)}
-                  <div className="flex-1">
-                    <span className="font-medium">{log.message}</span>
-                    {log.source && (
-                      <span className="text-muted-foreground ml-2">({log.source})</span>
-                    )}
-                  </div>
-                </div>
+              steps.map((step) => (
+                <Collapsible
+                  key={step.id}
+                  open={expandedSteps[step.id] !== false}
+                  onOpenChange={() => toggleStepExpansion(step.id)}
+                >
+                  <CollapsibleTrigger asChild>
+                    <div className="flex items-center gap-2 p-2 rounded-md hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer border border-gray-200 dark:border-gray-700">
+                      {expandedSteps[step.id] !== false ? (
+                        <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                      ) : (
+                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                      )}
+                      {getStepIcon(step.status)}
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between">
+                          <span className="font-medium text-sm">{step.name}</span>
+                          <div className="flex items-center gap-2">
+                            {step.startTime && (
+                              <span className="text-xs text-muted-foreground">
+                                {formatTimestamp(step.startTime)}
+                              </span>
+                            )}
+                            <Badge
+                              variant={step.status === 'error' ? 'destructive' :
+                                     step.status === 'completed' ? 'default' :
+                                     step.status === 'running' ? 'secondary' : 'outline'}
+                              className="text-xs"
+                            >
+                              {step.logs.length}
+                            </Badge>
+                          </div>
+                        </div>
+                        {step.endTime && step.startTime && (
+                          <div className="text-xs text-muted-foreground">
+                            Duration: {Math.round((step.endTime.getTime() - step.startTime.getTime()) / 1000)}s
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="space-y-1 mt-2 ml-6">
+                    {step.logs.map((log) => (
+                      <div key={log.id} className="flex gap-2 text-xs py-1">
+                        <span className="text-muted-foreground font-mono">
+                          {formatTimestamp(log.timestamp)}
+                        </span>
+                        {getLogIcon(log.level)}
+                        <div className="flex-1">
+                          <span className="font-medium">{log.message}</span>
+                          {log.source && (
+                            <span className="text-muted-foreground ml-2">({log.source})</span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </CollapsibleContent>
+                </Collapsible>
               ))
             )}
           </div>

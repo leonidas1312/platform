@@ -286,6 +286,10 @@ class WorkflowAutomationApi {
       body: JSON.stringify({ templateId, name }),
     })
   }
+
+  async getRepositoryConfig(username: string, repository: string): Promise<{ success: boolean; config: any }> {
+    return this.request<{ success: boolean; config: any }>(`/config/${username}/${repository}`)
+  }
 }
 
 // Export singleton instance

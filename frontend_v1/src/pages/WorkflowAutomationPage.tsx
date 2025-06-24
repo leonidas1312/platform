@@ -47,7 +47,8 @@ import {
   CheckCircle,
   AlertTriangle,
   X,
-  Terminal
+  Terminal,
+  Copy
 } from "lucide-react"
 import { toast } from "@/components/ui/use-toast"
 import {
@@ -251,7 +252,7 @@ const WorkflowAutomationPage = () => {
   const { save, load, isLoading: isSaving } = useWorkflowPersistence()
 
   const [sidebarTab, setSidebarTab] = useState<'datasets' | 'problems' | 'optimizers'>('datasets')
-  const [showWorkflowSidebar, setShowWorkflowSidebar] = useState(false)
+  const [showWorkflowSidebar, setShowWorkflowSidebar] = useState(true)
   const canvasRef = useRef<HTMLDivElement>(null)
 
   // Drag and drop handlers (moved to WorkflowCanvas component)
@@ -341,6 +342,137 @@ const WorkflowAutomationPage = () => {
     })
   }, [setExecutionState])
 
+  // Generate workflow execution code for local use
+  const generateWorkflowCode = useCallback(() => {
+    if (workflow.nodes.length === 0) {
+      return "# No workflow nodes to generate code for"
+    }
+
+    const datasets = workflow.nodes.filter(node => node.type === 'dataset')
+    const problems = workflow.nodes.filter(node => node.type === 'problem')
+    const optimizers = workflow.nodes.filter(node => node.type === 'optimizer')
+
+    let code = `#!/usr/bin/env python3
+"""
+Generated Workflow Execution Code
+Auto-generated from Rastion Workflow Automation
+"""
+
+from qubots import AutoProblem, AutoOptimizer
+
+def main():
+    """Execute the workflow locally using qubots library"""
+
+    print("🚀 Starting workflow execution...")
+
+`
+
+    // Add dataset information as comments
+    if (datasets.length > 0) {
+      code += `    # Datasets used in this workflow:\n`
+      datasets.forEach((dataset, index) => {
+        code += `    # Dataset ${index + 1}: ${dataset.data.name} (ID: ${dataset.data.datasetId})\n`
+      })
+      code += `\n`
+    }
+
+    // Add problem and optimizer execution
+    if (problems.length > 0 && optimizers.length > 0) {
+      code += `    # Execute optimization\n`
+      problems.forEach((problem, pIndex) => {
+        optimizers.forEach((optimizer, oIndex) => {
+          const problemParams = problem.data.parameters || {}
+          const optimizerParams = optimizer.data.parameters || {}
+
+          // Add dataset connection if available
+          const connectedDataset = datasets.find(d =>
+            workflow.connections.some(conn =>
+              conn.source === d.id && conn.target === problem.id
+            )
+          )
+
+          code += `    # Problem: ${problem.data.name} with Optimizer: ${optimizer.data.name}\n`
+          code += `    print("Loading problem from repository...")\n`
+          code += `    problem = AutoProblem.from_repo(\n`
+          code += `        "${problem.data.username}/${problem.data.name}"`
+
+          if (Object.keys(problemParams).length > 0 || connectedDataset) {
+            code += `,\n        override_params={\n`
+
+            // Add dataset connection parameters
+            if (connectedDataset) {
+              code += `            "rastion_dataset_id": "${connectedDataset.data.datasetId}",\n`
+              code += `            "dataset_source": "platform",\n`
+            }
+
+            // Add other problem parameters
+            Object.entries(problemParams).forEach(([key, value]) => {
+              code += `            "${key}": ${JSON.stringify(value)},\n`
+            })
+
+            code += `        }`
+          }
+
+          code += `\n    )\n`
+          code += `    print("Problem loaded successfully")\n\n`
+
+          code += `    print("Loading optimizer from repository...")\n`
+          code += `    optimizer = AutoOptimizer.from_repo(\n`
+          code += `        "${optimizer.data.username}/${optimizer.data.name}"`
+
+          if (Object.keys(optimizerParams).length > 0) {
+            code += `,\n        override_params={\n`
+            Object.entries(optimizerParams).forEach(([key, value]) => {
+              code += `            "${key}": ${JSON.stringify(value)},\n`
+            })
+            code += `        }`
+          }
+
+          code += `\n    )\n`
+          code += `    print("Optimizer loaded successfully")\n\n`
+
+          code += `    print("Starting optimization...")\n`
+          code += `    result_${pIndex + 1}_${oIndex + 1} = optimizer.optimize(problem)\n`
+          code += `    \n`
+          code += `    print("✅ Optimization completed!")\n`
+          code += `    print(f"📈 Best value: {result_${pIndex + 1}_${oIndex + 1}.best_value}")\n`
+          code += `    print(f"⏱️ Runtime: {result_${pIndex + 1}_${oIndex + 1}.runtime_seconds:.3f} seconds")\n`
+          code += `    if hasattr(result_${pIndex + 1}_${oIndex + 1}, 'iterations'):\n`
+          code += `        print(f"🔄 Iterations: {result_${pIndex + 1}_${oIndex + 1}.iterations}")\n`
+          code += `    \n`
+        })
+      })
+    }
+
+    code += `    print("🎉 Workflow execution completed!")
+
+if __name__ == "__main__":
+    main()
+`
+
+    return code
+  }, [workflow.nodes])
+
+  // Handle copy workflow code
+  const handleCopyWorkflowCode = useCallback(async () => {
+    const code = generateWorkflowCode()
+
+    try {
+      await navigator.clipboard.writeText(code)
+      toast({
+        title: "Code copied!",
+        description: "Workflow execution code has been copied to clipboard."
+      })
+    } catch (error) {
+      console.error('Failed to copy code:', error)
+      toast({
+        title: "Copy failed",
+        description: "Failed to copy code to clipboard.",
+        variant: "destructive"
+      })
+    }
+  }, [generateWorkflowCode, toast])
+
 
 
   const handleParameterChange = useCallback((nodeId: string, parameters: Record<string, any>) => {
@@ -393,9 +525,9 @@ const WorkflowAutomationPage = () => {
 
     // If no position provided, calculate position in a grid layout
     if (!nodePosition) {
-      const nodesPerRow = 3
-      const nodeWidth = 250
-      const nodeHeight = 150
+      const nodesPerRow = 4
+      const nodeWidth = 200
+      const nodeHeight = 120
       const startX = 100
       const startY = 100
 
@@ -414,11 +546,19 @@ const WorkflowAutomationPage = () => {
       position: nodePosition,
       data: {
         name: item.name,
-        username: 'username' in item ? item.username : 'user',
+        username: 'username' in item ? item.username : (item as any).user_id || 'unknown',
         description: item.description || '',
         parameters: {},
         repository: 'repository' in item ? item.repository : undefined,
-        tags: 'tags' in item ? item.tags : undefined
+        tags: 'tags' in item ? item.tags : undefined,
+        // For datasets, preserve additional dataset-specific data
+        ...(type === 'dataset' && {
+          datasetId: item.id,
+          original_filename: (item as any).original_filename,
+          format_type: (item as any).format_type,
+          file_size: (item as any).file_size,
+          metadata: (item as any).metadata
+        })
       }
     }
 
@@ -502,6 +642,17 @@ const WorkflowAutomationPage = () => {
                 <Button variant="outline" size="sm" onClick={handleLoadWorkflow}>
                   <FolderOpen className="h-4 w-4 mr-2" />
                   Load
+                </Button>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleCopyWorkflowCode}
+                  disabled={workflow.nodes.length === 0}
+                  title="Copy workflow execution code for local use"
+                >
+                  <Copy className="h-4 w-4 mr-2" />
+                  Copy Code
                 </Button>
 
                 <Button

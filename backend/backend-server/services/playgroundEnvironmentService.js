@@ -303,7 +303,7 @@ class PlaygroundEnvironmentService {
             { name: 'OPTIMIZER_REPO', value: optimizerRepo },
             { name: 'PROBLEM_USERNAME', value: problemUsername },
             { name: 'OPTIMIZER_USERNAME', value: optimizerUsername },
-            { name: 'GITEA_URL', value: process.env.GITEA_URL || 'http://gitea:3000' }
+            { name: 'GITEA_URL', value: process.env.GITEA_URL || 'https://hub.rastion.com' }
           ],
           resources: {
             limits: {

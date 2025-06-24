@@ -242,7 +242,8 @@ class PlaygroundWebSocketHandler {
         executionData.nodes,
         executionData.connections,
         executionData.parameters,
-        ws
+        ws,
+        executionData.token  // Pass the authentication token
       )
 
       // Send final result

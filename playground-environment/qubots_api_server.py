@@ -26,7 +26,8 @@ app = Flask(__name__)
 CORS(app)
 
 # Configuration
-GITEA_URL = os.environ.get('GITEA_URL', 'http://gitea:3000')
+# Use hub.rastion.com by default
+GITEA_URL = os.environ.get('GITEA_URL', 'https://hub.rastion.com')
 WORKSPACE_DIR = '/workspace'
 REPOS_DIR = os.path.join(WORKSPACE_DIR, 'repos')
 

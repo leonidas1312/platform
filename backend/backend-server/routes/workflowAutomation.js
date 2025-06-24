@@ -273,7 +273,7 @@ router.get("/user-content", auth, async (req, res) => {
     // Fetch datasets from database
     const datasets = await knex('datasets').select([
       'id', 'name', 'description', 'format_type', 'metadata',
-      'file_size', 'original_filename', 'is_public', 'created_at'
+      'file_size', 'original_filename', 'is_public', 'created_at', 'user_id'
     ]).where('user_id', user_id).orderBy('created_at', 'desc').limit(20)
 
     // Get user info from Gitea
@@ -288,13 +288,19 @@ router.get("/user-content", auth, async (req, res) => {
 
     const user = await userRes.json()
 
+    // Add username to datasets
+    const datasetsWithUsername = datasets.map(dataset => ({
+      ...dataset,
+      username: user.login
+    }))
+
     // Get user's repositories
     const reposRes = await GiteaService.getUserRepositories(token, user.login)
-    
+
     if (!reposRes.ok) {
-      return res.status(reposRes.status).json({ 
-        success: false, 
-        message: "Failed to fetch repositories" 
+      return res.status(reposRes.status).json({
+        success: false,
+        message: "Failed to fetch repositories"
       })
     }
 
@@ -353,11 +359,11 @@ router.get("/user-content", auth, async (req, res) => {
 
     res.json({
       success: true,
-      datasets,
+      datasets: datasetsWithUsername,
       problems,
       optimizers,
       totals: {
-        datasets: datasets.length,
+        datasets: datasetsWithUsername.length,
         problems: problems.length,
         optimizers: optimizers.length
       }
@@ -657,6 +663,56 @@ router.post("/validate", auth, async (req, res) => {
 
   } catch (error) {
     console.error("Error validating workflow:", error)
+    res.status(500).json({
+      success: false,
+      message: "Internal server error"
+    })
+  }
+})
+
+/**
+ * GET /api/workflow-automation/config/:username/:repository
+ * Get config.json data for a specific repository
+ */
+router.get("/config/:username/:repository", auth, async (req, res) => {
+  try {
+    const token = req.session?.user_data?.token
+    const { username, repository } = req.params
+
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: "Authentication required"
+      })
+    }
+
+    const GiteaService = require("../services/giteaService")
+
+    // Fetch config.json from the repository
+    const configResponse = await GiteaService.getFileContent(
+      token,
+      username,
+      repository,
+      'config.json'
+    )
+
+    if (!configResponse.ok) {
+      return res.status(404).json({
+        success: false,
+        message: "Config file not found"
+      })
+    }
+
+    const configData = await configResponse.json()
+    const config = JSON.parse(Buffer.from(configData.content, 'base64').toString())
+
+    res.json({
+      success: true,
+      config
+    })
+
+  } catch (error) {
+    console.error("Error fetching config:", error)
     res.status(500).json({
       success: false,
       message: "Internal server error"

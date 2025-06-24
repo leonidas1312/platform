@@ -140,7 +140,8 @@ class QubotStreamingExecutionService {
                 { name: 'PROBLEM_USERNAME', value: params.problemUsername },
                 { name: 'OPTIMIZER_USERNAME', value: params.optimizerUsername },
                 { name: 'EXECUTION_ID', value: executionId },
-                { name: 'GITEA_URL', value: process.env.GITEA_URL || 'http://gitea:3000' },
+                { name: 'GITEA_URL', value: process.env.GITEA_URL || 'https://hub.rastion.com' },
+                { name: 'PLATFORM_API_BASE', value: process.env.PLATFORM_API_BASE || 'http://backend:4000/api' },
                 { name: 'STREAMING_ENABLED', value: 'true' },
                 { name: 'PYTHONUNBUFFERED', value: '1' },  // Force unbuffered output
                 { name: 'PYTHONIOENCODING', value: 'utf-8' },  // Ensure proper encoding
@@ -266,9 +267,9 @@ def enhanced_log_callback(level, message, source='optimizer'):
 try:
     stream_log('info', 'Initializing qubots execution environment...', 'system')
 
-    # Import qubots with streaming support
-    import qubots
-    from qubots.playground_integration import execute_playground_optimization
+    # Import qubots with proper AutoProblem and AutoOptimizer
+    from qubots import AutoProblem, AutoOptimizer
+    import qubots.rastion as rastion
 
     # Test the log streaming immediately
     stream_log('debug', 'Log streaming test - this should appear in terminal', 'system')
@@ -276,41 +277,89 @@ try:
 
     stream_log('info', 'Starting optimization with real-time logging...', 'system')
 
-    # Execute optimization with enhanced streaming
-    result = execute_playground_optimization(
-        problem_name='${params.problemName}',
-        optimizer_name='${params.optimizerName}',
-        problem_username='${params.problemUsername}',
-        optimizer_username='${params.optimizerUsername}',
-        problem_params=${this.convertToPythonDict(params.problemParams)},
-        optimizer_params=${this.convertToPythonDict(params.optimizerParams)},
-        log_callback=enhanced_log_callback
+    # Get platform API base URL from environment
+    platform_api_base = os.environ.get('PLATFORM_API_BASE', 'http://backend:4000/api')
+    stream_log('info', f'Using platform API base: {platform_api_base}', 'system')
+
+    # Prepare problem parameters with dataset connection if available
+    problem_params = ${this.convertToPythonDict(params.problemParams)}
+    if 'platform_api_base' not in problem_params:
+        problem_params['platform_api_base'] = platform_api_base
+
+    # Handle dataset connection for problems
+    if 'dataset_id' in problem_params:
+        stream_log('info', f'Connecting to dataset: {problem_params["dataset_id"]}', 'dataset')
+        problem_params['dataset_source'] = 'platform'
+        problem_params['rastion_dataset_id'] = problem_params['dataset_id']
+
+    # Load problem from repository using AutoProblem
+    stream_log('info', f'Loading problem from repository: ${params.problemUsername}/${params.problemName}', 'problem')
+    problem = AutoProblem.from_repo(
+        '${params.problemUsername}/${params.problemName}',
+        override_params=problem_params
     )
+    stream_log('info', 'Problem loaded successfully', 'problem')
+
+    # Load optimizer from repository using AutoOptimizer
+    stream_log('info', f'Loading optimizer from repository: ${params.optimizerUsername}/${params.optimizerName}', 'optimizer')
+    optimizer = AutoOptimizer.from_repo(
+        '${params.optimizerUsername}/${params.optimizerName}',
+        override_params=${this.convertToPythonDict(params.optimizerParams)}
+    )
+    stream_log('info', 'Optimizer loaded successfully', 'optimizer')
+
+    # Execute optimization with streaming logs
+    stream_log('info', 'Starting optimization execution...', 'optimization')
+
+    # Add progress tracking if the optimizer supports it
+    try:
+        result = optimizer.optimize(problem)
+        stream_log('info', 'Optimization process completed', 'optimization')
+    except Exception as opt_error:
+        stream_log('error', f'Optimization failed: {str(opt_error)}', 'optimization')
+        raise opt_error
 
     stream_log('info', 'Optimization execution completed', 'system')
 
-    # Log key results for immediate feedback
-    if result and isinstance(result, dict):
-        if result.get('success'):
-            stream_log('info', '✅ Optimization completed successfully!', 'results')
-            if 'best_value' in result:
-                stream_log('info', f'🎯 Best value achieved: {result["best_value"]}', 'results')
-            if 'iterations' in result:
-                stream_log('info', f'🔄 Total iterations: {result["iterations"]}', 'results')
-            if 'execution_time' in result:
-                stream_log('info', f'⏱️ Execution time: {result["execution_time"]:.3f}s', 'results')
-        else:
-            stream_log('error', '❌ Optimization failed', 'results')
-            if 'error_message' in result:
-                stream_log('error', f'Error: {result["error_message"]}', 'results')
+    # Process and log optimization results
+    if result:
+        stream_log('info', '✅ Optimization completed successfully!', 'results')
+
+        # Log key results for immediate feedback
+        if hasattr(result, 'best_value') and result.best_value is not None:
+            stream_log('info', f'🎯 Best value achieved: {result.best_value}', 'results')
+        if hasattr(result, 'best_solution') and result.best_solution is not None:
+            stream_log('info', f'📋 Solution found: {str(result.best_solution)[:100]}...', 'results')
+        if hasattr(result, 'runtime_seconds') and result.runtime_seconds is not None:
+            stream_log('info', f'⏱️ Runtime: {result.runtime_seconds:.3f} seconds', 'results')
+        if hasattr(result, 'iterations') and result.iterations is not None:
+            stream_log('info', f'🔄 Total iterations: {result.iterations}', 'results')
+
+        # Convert result to dictionary for JSON serialization
+        result_dict = {
+            'success': True,
+            'best_value': getattr(result, 'best_value', None),
+            'best_solution': getattr(result, 'best_solution', None),
+            'runtime_seconds': getattr(result, 'runtime_seconds', None),
+            'iterations': getattr(result, 'iterations', None),
+            'metadata': getattr(result, 'metadata', {}),
+            'timestamp': datetime.now().isoformat()
+        }
+    else:
+        stream_log('error', '❌ Optimization returned no result', 'results')
+        result_dict = {
+            'success': False,
+            'error_message': 'No result returned from optimization',
+            'timestamp': datetime.now().isoformat()
+        }
 
     # Also print the complete result as JSON for parsing
-    print("OPTIMIZATION_RESULT_JSON:", json.dumps(result, default=str), flush=True)
+    print("OPTIMIZATION_RESULT_JSON:", json.dumps(result_dict, default=str), flush=True)
 
     # Write final result
     result_file = f'/tmp/qubots_result_{execution_id}.json'
     with open(result_file, 'w') as f:
-        json.dump(result, f, indent=2, default=str)
+        json.dump(result_dict, f, indent=2, default=str)
 
     stream_log('info', f'Results written to {result_file}', 'system')
 
@@ -651,12 +700,30 @@ except Exception as e:
         }
       }
 
+      // Check for AutoProblem and AutoOptimizer loading messages
+      if (cleanLine.includes('Loading problem from repository') ||
+          cleanLine.includes('Problem loaded successfully') ||
+          cleanLine.includes('Loading optimizer from repository') ||
+          cleanLine.includes('Optimizer loaded successfully')) {
+        this.sendLog(ws, 'info', cleanLine, 'qubots')
+        return
+      }
+
       // Check for optimization progress indicators (common patterns)
       if (cleanLine.includes('Generation') || cleanLine.includes('Iteration') ||
           cleanLine.includes('Progress') || cleanLine.includes('Best') ||
           cleanLine.includes('fitness') || cleanLine.includes('objective') ||
-          cleanLine.includes('value:') || cleanLine.includes('improvement')) {
+          cleanLine.includes('value:') || cleanLine.includes('improvement') ||
+          cleanLine.includes('Starting optimization') || cleanLine.includes('Optimization completed')) {
         this.sendLog(ws, 'info', cleanLine, 'optimizer')
+        return
+      }
+
+      // Check for dataset connection messages
+      if (cleanLine.includes('Connecting to dataset') ||
+          cleanLine.includes('Dataset loaded') ||
+          cleanLine.includes('dataset_id')) {
+        this.sendLog(ws, 'info', cleanLine, 'dataset')
         return
       }
 
@@ -672,6 +739,13 @@ except Exception as e:
       if (cleanLine.toLowerCase().includes('error') || cleanLine.toLowerCase().includes('exception') ||
           cleanLine.toLowerCase().includes('failed') || cleanLine.toLowerCase().includes('traceback')) {
         this.sendLog(ws, 'error', cleanLine, 'pod')
+        return
+      }
+
+      // Check for result indicators (qubots library specific)
+      if (cleanLine.includes('Best value:') || cleanLine.includes('Runtime:') ||
+          cleanLine.includes('Iterations:') || cleanLine.includes('Solution found')) {
+        this.sendLog(ws, 'info', cleanLine, 'results')
         return
       }
 

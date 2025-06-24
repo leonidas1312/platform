@@ -20,6 +20,12 @@ export interface NodeData {
   repository?: string
   version?: string
   tags?: string[]
+  // Dataset-specific properties
+  datasetId?: string
+  original_filename?: string
+  format_type?: string
+  file_size?: number
+  metadata?: any
 }
 
 // Workflow node interface
@@ -274,7 +280,7 @@ export interface CanvasState {
 // Parameter panel interfaces
 export interface ParameterDefinition {
   name: string
-  type: 'string' | 'number' | 'boolean' | 'select' | 'multiselect' | 'file'
+  type: 'string' | 'number' | 'boolean' | 'select' | 'multiselect' | 'file' | 'textarea'
   label: string
   description?: string
   defaultValue?: any

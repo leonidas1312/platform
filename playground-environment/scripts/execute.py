@@ -16,12 +16,82 @@ sys.path.insert(0, '/workspace/problems')
 sys.path.insert(0, '/workspace/optimizers')
 
 try:
-    from qubots import execute_playground_optimization
+    from qubots import AutoProblem, AutoOptimizer
     QUBOTS_AVAILABLE = True
     print("✅ Qubots loaded successfully")
 except ImportError as e:
     QUBOTS_AVAILABLE = False
     print(f"❌ Qubots not available: {e}")
+
+def execute_mvp_optimization(problem_name, optimizer_name, problem_username='', optimizer_username='',
+                           problem_params=None, optimizer_params=None):
+    """
+    Simple MVP implementation that loads repositories and executes optimization.
+    Based on the test_dataset_aware_tsp.py pattern.
+
+    Steps:
+    1. Load problem using AutoProblem.from_repo
+    2. Load optimizer using AutoOptimizer.from_repo
+    3. Execute optimization
+    4. Return results in expected format
+    """
+    start_time = time.time()
+
+    try:
+        # Step 1: Load problem repository
+        print(f"📦 Loading problem: {problem_username}/{problem_name}")
+        repo_path = f"{problem_username}/{problem_name}" if problem_username else problem_name
+
+        problem = AutoProblem.from_repo(repo_path, override_params=problem_params or {})
+        print(f"✅ Problem loaded successfully")
+
+        # Step 2: Load optimizer repository
+        print(f"🔧 Loading optimizer: {optimizer_username}/{optimizer_name}")
+        optimizer_repo_path = f"{optimizer_username}/{optimizer_name}" if optimizer_username else optimizer_name
+
+        optimizer = AutoOptimizer.from_repo(optimizer_repo_path, override_params=optimizer_params or {})
+        print(f"✅ Optimizer loaded successfully")
+
+        # Step 3: Execute optimization
+        print(f"🚀 Running optimization...")
+        optimization_result = optimizer.optimize(problem)
+        print(f"✅ Optimization completed")
+
+        # Step 4: Return results in expected format
+        execution_time = time.time() - start_time
+
+        result = {
+            "success": True,
+            "problem_name": problem_name,
+            "optimizer_name": optimizer_name,
+            "best_value": getattr(optimization_result, 'best_value', None),
+            "best_solution": getattr(optimization_result, 'best_solution', None),
+            "execution_time": execution_time,
+            "runtime_seconds": getattr(optimization_result, 'runtime_seconds', execution_time),
+            "iterations": getattr(optimization_result, 'iterations', None),
+            "termination_reason": getattr(optimization_result, 'termination_reason', 'completed'),
+            "timestamp": time.time(),
+            "valid_solution": problem.is_valid_solution(optimization_result.best_solution) if hasattr(optimization_result, 'best_solution') else None
+        }
+
+        # Add problem info if available
+        if hasattr(problem, 'get_problem_info'):
+            result["problem_info"] = problem.get_problem_info()
+
+        return result
+
+    except Exception as e:
+        execution_time = time.time() - start_time
+        print(f"❌ Optimization failed: {e}")
+
+        return {
+            "success": False,
+            "error_message": str(e),
+            "problem_name": problem_name,
+            "optimizer_name": optimizer_name,
+            "execution_time": execution_time,
+            "timestamp": time.time()
+        }
 
 class OptimizationHandler(BaseHTTPRequestHandler):
     def do_POST(self):
@@ -36,8 +106,8 @@ class OptimizationHandler(BaseHTTPRequestHandler):
                 print(f"🚀 Executing optimization: {request_data.get('optimizer_name')} on {request_data.get('problem_name')}")
                 
                 if QUBOTS_AVAILABLE:
-                    # Execute using qubots with built-in dashboard
-                    result = execute_playground_optimization(
+                    # Execute using qubots MVP implementation
+                    result = execute_mvp_optimization(
                         problem_name=request_data.get('problem_name'),
                         optimizer_name=request_data.get('optimizer_name'),
                         problem_username=request_data.get('problem_username', ''),
@@ -124,7 +194,7 @@ def setup_repositories():
     optimizer_repo = os.environ.get('OPTIMIZER_REPO')
     problem_username = os.environ.get('PROBLEM_USERNAME')
     optimizer_username = os.environ.get('OPTIMIZER_USERNAME')
-    gitea_url = os.environ.get('GITEA_URL', 'http://gitea:3000')
+    gitea_url = os.environ.get('GITEA_URL', 'https://hub.rastion.com')
     
     if problem_repo and problem_username:
         problem_url = f"{gitea_url}/{problem_username}/{problem_repo}.git"
