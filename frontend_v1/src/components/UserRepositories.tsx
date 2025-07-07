@@ -196,11 +196,11 @@ const UserRepositories: React.FC<UserRepositoriesProps> = ({ username, isOwnProf
   return (
     <div className="w-full max-w-7xl mx-auto px-6 py-12">
       <div className="mb-8">
-        <h2 className="text-3xl font-bold mb-2">Optimization tools</h2>
+        <h2 className="text-3xl font-bold mb-2">Optimization repositories</h2>
         <p className="text-muted-foreground">
           {isOwnProfile 
-            ? "Manage your optimization tools" 
-            : `${username}'s public optimization tools`
+            ? "Manage your optimization repositories" 
+            : `${username}'s public optimization repositories`
           }
         </p>
       </div>

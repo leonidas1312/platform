@@ -49,6 +49,10 @@ RUN pip3 install --no-cache-dir \
 # Copy execution scripts
 COPY scripts/execute.py /workspace/execute.py
 COPY qubots_api_server.py /workspace/qubots_api_server.py
+COPY direct_execute.py /workspace/direct_execute.py
+
+# Make scripts executable
+RUN chmod +x /workspace/execute.py /workspace/qubots_api_server.py /workspace/direct_execute.py
 
 # Create user for security
 RUN useradd -m -s /bin/bash playground && \
@@ -57,8 +61,8 @@ RUN useradd -m -s /bin/bash playground && \
 # Switch to playground user
 USER playground
 
-# Expose API port
+# Expose API port (for HTTP server mode)
 EXPOSE 8000
 
-# Default command - start the API server
+# Default command - start the API server (can be overridden for direct execution)
 CMD ["python3", "qubots_api_server.py"]

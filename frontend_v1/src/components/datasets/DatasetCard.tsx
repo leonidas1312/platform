@@ -21,6 +21,11 @@ interface Dataset {
   is_public: boolean
   user_id: string
   created_at: string
+  user?: {
+    username: string
+    avatar_url: string | null
+    full_name: string | null
+  }
 }
 
 interface DatasetCardProps {
@@ -62,12 +67,43 @@ const DatasetCard: React.FC<DatasetCardProps> = ({
       const response = await fetch(`/api/datasets/${dataset.id}/download`, {
         credentials: 'include'
       })
-      
+
       if (!response.ok) {
-        throw new Error('Download failed')
+        // Try to get error message from response
+        let errorMessage = 'Download failed'
+        try {
+          const errorData = await response.json()
+          errorMessage = errorData.error || errorMessage
+        } catch {
+          // If response is not JSON, use status text
+          errorMessage = response.statusText || errorMessage
+        }
+
+        // Handle specific error cases
+        if (response.status === 401) {
+          errorMessage = 'Authentication required. Please log in again.'
+        } else if (response.status === 403) {
+          errorMessage = 'Access denied. You do not have permission to download this dataset.'
+        } else if (response.status === 404) {
+          errorMessage = 'Dataset not found or file has been removed from the server.'
+        }
+
+        throw new Error(errorMessage)
       }
-      
+
       const blob = await response.blob()
+
+      // Check if the response is actually a file (not an error JSON)
+      if (blob.type === 'application/json') {
+        const text = await blob.text()
+        try {
+          const errorData = JSON.parse(text)
+          throw new Error(errorData.error || 'Download failed')
+        } catch {
+          // If it's not valid JSON, continue with download
+        }
+      }
+
       const url = window.URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
@@ -76,7 +112,7 @@ const DatasetCard: React.FC<DatasetCardProps> = ({
       a.click()
       window.URL.revokeObjectURL(url)
       document.body.removeChild(a)
-      
+
       toast({
         title: "Success",
         description: "Dataset downloaded successfully!"
@@ -85,7 +121,7 @@ const DatasetCard: React.FC<DatasetCardProps> = ({
       console.error('Download error:', error)
       toast({
         title: "Error",
-        description: "Failed to download dataset. Please try again.",
+        description: error.message || "Failed to download dataset. Please try again.",
         variant: "destructive"
       })
     }
@@ -143,9 +179,24 @@ const DatasetCard: React.FC<DatasetCardProps> = ({
                     {dataset.format_type.toUpperCase()}
                   </Badge>
                 </div>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
-                  {formatFileSize(dataset.file_size)}
-                </p>
+                <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400 mb-2">
+                  <span>{formatFileSize(dataset.file_size)}</span>
+                  {dataset.user && (
+                    <div className="flex items-center gap-2">
+                      <span>•</span>
+                      {dataset.user.avatar_url && (
+                        <img
+                          src={dataset.user.avatar_url}
+                          alt={dataset.user.username}
+                          className="w-4 h-4 rounded-full"
+                        />
+                      )}
+                      <span className="text-xs">
+                        @{dataset.user.username}
+                      </span>
+                    </div>
+                  )}
+                </div>
                 <p className="text-sm text-gray-500 line-clamp-1">{dataset.description}</p>
               </div>
             </div>
@@ -257,6 +308,21 @@ const DatasetCard: React.FC<DatasetCardProps> = ({
               <span className="text-gray-500">Uploaded:</span>
               <span>{formatDate(dataset.created_at)}</span>
             </div>
+            {dataset.user && (
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-gray-500">By:</span>
+                <div className="flex items-center gap-2">
+                  {dataset.user.avatar_url && (
+                    <img
+                      src={dataset.user.avatar_url}
+                      alt={dataset.user.username}
+                      className="w-4 h-4 rounded-full"
+                    />
+                  )}
+                  <span>@{dataset.user.username}</span>
+                </div>
+              </div>
+            )}
           </div>
           
           <div className="flex flex-col gap-2">

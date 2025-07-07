@@ -122,7 +122,7 @@ const OptimizationWorkflows = () => {
 
   const handleRunWorkflow = (workflow: OptimizationWorkflow, e: React.MouseEvent) => {
     e.stopPropagation() // Prevent card click
-    // Navigate to playground with workflow parameters
+    // Navigate to workflow automation with workflow parameters
     const params = new URLSearchParams({
       workflow_id: workflow.id.toString(),
       problem_name: workflow.problem_name,
@@ -133,7 +133,7 @@ const OptimizationWorkflows = () => {
       optimizer_params: JSON.stringify(workflow.optimizer_params)
     })
 
-    navigate(`/qubots-playground?${params}`)
+    navigate(`/workflow-automation?${params}`)
   }
 
   const handleSearch = (e: React.FormEvent) => {
@@ -681,7 +681,7 @@ function WorkflowCard({ workflow, onClick, onRun, onCopyUrl, onRepositoryClick, 
             </Button>
             <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={onRun}>
               <Play className="h-3 w-3 mr-1" />
-              Open in playground
+              Open as a workflow
             </Button>
           </div>
         </div>

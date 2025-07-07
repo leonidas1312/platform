@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback } from "react"
+import { useNavigate } from "react-router-dom"
 import { motion } from "framer-motion"
 import Layout from "@/components/Layout"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -28,37 +29,38 @@ import {
   User,
   Calendar,
   Eye,
-  Heart
+  Heart,
+  Settings,
+  Database
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { autosolveApi, FileAnalysis, Recommendation } from "@/services/autosolveApi"
+import DatasetUploadModal from "@/components/datasets/DatasetUploadModal"
 
-// Add experiment interface
-interface ExperimentRecommendation {
-  id: string
-  type: 'experiment'
-  experimentId: number
-  title: string
+// Add experiment interface - using PublicExperiment structure
+interface PublicExperiment {
+  id: number
+  name: string
   description: string
-  creator: string
-  problemName: string
-  problemUsername: string
-  optimizerName: string
-  optimizerUsername: string
-  problemParams: any
-  optimizerParams: any
-  tags: string[]
-  confidence: number
-  compatibility: number
-  matchFactors: string[]
-  performance: {
-    avgRuntime: number | null
-    successRate: number
-    bestValue: number | null
+  problem_name: string
+  problem_username: string
+  optimizer_name: string
+  optimizer_username: string
+  problem_params: Record<string, any>
+  optimizer_params: Record<string, any>
+  dataset_id: string | null
+  dataset_parameter: string | null // Which parameter should receive the dataset content
+  dataset_info?: {
+    name: string
+    filename: string
+    format_type: string
   }
-  createdAt: string
-  viewsCount: number
-  likesCount: number
+  tags: string[]
+  user_id: string
+  username: string
+  full_name: string | null
+  avatar_url: string | null
+  created_at: string
 }
 
 export default function AutoSolvePage() {
@@ -68,7 +70,7 @@ export default function AutoSolvePage() {
   const [analysisProgress, setAnalysisProgress] = useState(0)
   const [fileAnalysis, setFileAnalysis] = useState<FileAnalysis | null>(null)
   const [recommendations, setRecommendations] = useState<Recommendation[]>([])
-  const [experiments, setExperiments] = useState<ExperimentRecommendation[]>([])
+  const [experiments, setExperiments] = useState<PublicExperiment[]>([])
   const [isLoadingRecommendations, setIsLoadingRecommendations] = useState(false)
   const [isLoadingExperiments, setIsLoadingExperiments] = useState(false)
   const [recommendationMode, setRecommendationMode] = useState<'repositories' | 'experiments'>('repositories')
@@ -171,8 +173,23 @@ export default function AutoSolvePage() {
     setIsLoadingExperiments(true)
 
     try {
-      const experiments = await autosolveApi.getExperimentRecommendations(analysis)
-      setExperiments(experiments)
+      // Fetch public experiments instead of recommendations
+      const response = await fetch('/api/public-experiments', {
+        credentials: 'include'
+      })
+      const data = await response.json()
+
+      if (data.success) {
+        // Process experiments to ensure tags are arrays
+        const processedExperiments = data.experiments.map((exp: any) => ({
+          ...exp,
+          tags: Array.isArray(exp.tags) ? exp.tags :
+                typeof exp.tags === 'string' ? JSON.parse(exp.tags || '[]') : []
+        }))
+        setExperiments(processedExperiments)
+      } else {
+        throw new Error(data.message || 'Failed to fetch experiments')
+      }
     } catch (error) {
       console.error('Failed to load experiments:', error)
       toast({
@@ -424,7 +441,7 @@ export default function AutoSolvePage() {
                                 animate={{ opacity: 1, x: 0 }}
                                 transition={{ duration: 0.3, delay: index * 0.1 }}
                               >
-                                <ExperimentCard experiment={exp} uploadedFile={uploadedFile} />
+                                <ExperimentCard experiment={exp} />
                               </motion.div>
                             ))}
                           </div>
@@ -465,10 +482,6 @@ function RecommendationCard({ recommendation }: { recommendation: Recommendation
             {getTypeIcon(recommendation.type)}
             <span className="ml-1 capitalize">{recommendation.type}</span>
           </Badge>
-          <div className="flex items-center gap-1">
-            <Star className="h-4 w-4 text-yellow-500 fill-current" />
-            <span className="text-sm font-medium">{(recommendation.confidence * 100).toFixed(0)}%</span>
-          </div>
         </div>
         <div className="flex gap-2">
           <Button
@@ -477,10 +490,6 @@ function RecommendationCard({ recommendation }: { recommendation: Recommendation
             onClick={() => window.open(`/${recommendation.username}/${recommendation.repository}`, '_blank')}
           >
             View Repository
-          </Button>
-          <Button size="sm">
-            <Play className="h-4 w-4 mr-1" />
-            Run in Playground
           </Button>
         </div>
       </div>
@@ -511,47 +520,47 @@ function RecommendationCard({ recommendation }: { recommendation: Recommendation
           </div>
         )}
 
-        {recommendation.performance && (
-          <div className="flex items-center gap-4 mt-3 pt-3 border-t">
-            <div className="flex items-center gap-1 text-sm">
-              <Clock className="h-3 w-3" />
-              <span>{recommendation.performance.avgRuntime}s avg</span>
-            </div>
-            <div className="flex items-center gap-1 text-sm">
-              <TrendingUp className="h-3 w-3" />
-              <span>{recommendation.performance.successRate}% success</span>
-            </div>
-            {recommendation.performance.bestValue && (
-              <div className="flex items-center gap-1 text-sm">
-                <Target className="h-3 w-3" />
-                <span>Best: {recommendation.performance.bestValue}</span>
-              </div>
-            )}
-          </div>
-        )}
+
       </div>
     </div>
   )
 }
 
 // Experiment Card Component
-function ExperimentCard({ experiment, uploadedFile }: { experiment: ExperimentRecommendation, uploadedFile: File | null }) {
+function ExperimentCard({ experiment }: { experiment: PublicExperiment }) {
   const { toast } = useToast()
+  const navigate = useNavigate()
+  const [showDatasetUpload, setShowDatasetUpload] = useState(false)
 
-  const handleRunExperiment = async () => {
-    try {
-      const result = await autosolveApi.executeExperiment(experiment.experimentId, uploadedFile || undefined)
-      toast({
-        title: "Experiment started!",
-        description: `${experiment.title} is now running in the playground.`,
-      })
-    } catch (error) {
-      toast({
-        title: "Failed to start experiment",
-        description: error instanceof Error ? error.message : "There was an error starting the experiment.",
-        variant: "destructive",
-      })
+  const handleOpenWithMyData = () => {
+    setShowDatasetUpload(true)
+  }
+
+  const handleDatasetUploaded = (dataset: any) => {
+    // Navigate to workflow automation page with experiment loaded but using user's dataset
+    const params = new URLSearchParams({
+      workflow_id: `experiment-${experiment.id}`,
+      problem_name: experiment.problem_name,
+      problem_username: experiment.problem_username,
+      optimizer_name: experiment.optimizer_name,
+      optimizer_username: experiment.optimizer_username,
+      problem_params: JSON.stringify(experiment.problem_params),
+      optimizer_params: JSON.stringify(experiment.optimizer_params),
+      dataset_id: dataset.id // Use the user's uploaded dataset
+    })
+
+    // Add dataset parameter if present to preserve the original parameter mapping
+    if (experiment.dataset_parameter) {
+      params.set('dataset_parameter', experiment.dataset_parameter)
     }
+
+    navigate(`/workflow-automation?${params.toString()}`)
+    setShowDatasetUpload(false)
+
+    toast({
+      title: "Success!",
+      description: "Experiment loaded with your dataset in workflow automation.",
+    })
   }
 
   const formatDate = (dateString: string) => {
@@ -563,96 +572,78 @@ function ExperimentCard({ experiment, uploadedFile }: { experiment: ExperimentRe
   }
 
   return (
-    <div className="border rounded-lg p-4 hover:shadow-md transition-shadow">
-      <div className="flex items-start justify-between mb-3">
-        <div className="flex items-center gap-3">
-          <Badge className="bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300">
-            <Beaker className="h-4 w-4" />
-            <span className="ml-1">Experiment</span>
-          </Badge>
-          <div className="flex items-center gap-1">
-            <Star className="h-4 w-4 text-yellow-500 fill-current" />
-            <span className="text-sm font-medium">{(experiment.confidence * 100).toFixed(0)}%</span>
+    <>
+      <div className="border rounded-lg p-4 hover:shadow-md transition-shadow">
+        <div className="flex items-start justify-between mb-3">
+          <div className="flex items-center gap-3">
+            <Badge className="bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300">
+              <Beaker className="h-4 w-4" />
+              <span className="ml-1">Experiment</span>
+            </Badge>
           </div>
-        </div>
-        <div className="flex gap-2">
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => window.open(`/optimization-workflows/${experiment.experimentId}`, '_blank')}
-          >
-            View Details
-          </Button>
-          <Button size="sm" onClick={handleRunExperiment}>
-            <Play className="h-4 w-4 mr-1" />
-            Run Experiment
-          </Button>
-        </div>
-      </div>
-
-      <div className="space-y-2">
-        <h3 className="font-semibold text-lg">{experiment.title}</h3>
-        <p className="text-sm text-muted-foreground">{experiment.description}</p>
-
-        <div className="grid md:grid-cols-2 gap-4 mt-3">
-          <div>
-            <p className="text-sm text-muted-foreground">
-              <span className="font-medium">Problem:</span> {experiment.problemUsername}/{experiment.problemName}
-            </p>
-            <p className="text-sm text-muted-foreground">
-              <span className="font-medium">Optimizer:</span> {experiment.optimizerUsername}/{experiment.optimizerName}
-            </p>
-          </div>
-          <div>
-            <p className="text-sm text-muted-foreground">
-              <span className="font-medium">Creator:</span> {experiment.creator}
-            </p>
-            <p className="text-sm text-muted-foreground">
-              <span className="font-medium">Created:</span> {formatDate(experiment.createdAt)}
-            </p>
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleOpenWithMyData}
+            >
+              <Upload className="h-4 w-4 mr-1" />
+              Open with my data
+            </Button>
           </div>
         </div>
 
-        <div className="flex flex-wrap gap-1 mt-2">
-          {experiment.tags.map((tag, index) => (
-            <Badge key={index} variant="outline" className="text-xs">{tag}</Badge>
-          ))}
-        </div>
+        <div className="space-y-2">
+          <h3 className="font-semibold text-lg">{experiment.name}</h3>
+          <p className="text-sm text-muted-foreground">{experiment.description}</p>
 
-        {experiment.matchFactors && experiment.matchFactors.length > 0 && (
-          <div className="mt-2">
-            <p className="text-xs text-muted-foreground mb-1">Why this matches:</p>
-            <div className="flex flex-wrap gap-1">
-              {experiment.matchFactors.map((factor, index) => (
-                <Badge key={index} variant="secondary" className="text-xs bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300">
-                  {factor}
-                </Badge>
-              ))}
+          <div className="grid md:grid-cols-2 gap-4 mt-3">
+            <div>
+              <p className="text-sm text-muted-foreground">
+                <span className="font-medium">Problem:</span> {experiment.problem_username}/{experiment.problem_name}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                <span className="font-medium">Optimizer:</span> {experiment.optimizer_username}/{experiment.optimizer_name}
+              </p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">
+                <span className="font-medium">Creator:</span> {experiment.full_name || experiment.username}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                <span className="font-medium">Created:</span> {formatDate(experiment.created_at)}
+              </p>
             </div>
           </div>
-        )}
 
-        <div className="flex items-center gap-4 mt-3 pt-3 border-t">
-          {experiment.performance.avgRuntime && (
-            <div className="flex items-center gap-1 text-sm">
-              <Clock className="h-3 w-3" />
-              <span>{experiment.performance.avgRuntime.toFixed(1)}s avg</span>
+          {experiment.dataset_id && (
+            <div className="flex items-center gap-2 mt-2">
+              <Database className="h-4 w-4 text-blue-600" />
+              <span className="text-sm text-muted-foreground">
+                Dataset: {experiment.dataset_info ?
+                  `${experiment.dataset_info.name}.${experiment.dataset_info.format_type}` :
+                  experiment.dataset_id
+                }
+              </span>
             </div>
           )}
-          <div className="flex items-center gap-1 text-sm">
-            <TrendingUp className="h-3 w-3" />
-            <span>{experiment.performance.successRate}% success</span>
-          </div>
-          <div className="flex items-center gap-1 text-sm">
-            <Eye className="h-3 w-3" />
-            <span>{experiment.viewsCount} views</span>
-          </div>
-          <div className="flex items-center gap-1 text-sm">
-            <Heart className="h-3 w-3" />
-            <span>{experiment.likesCount} likes</span>
+
+          <div className="flex flex-wrap gap-1 mt-2">
+            {experiment.tags.map((tag, index) => (
+              <Badge key={index} variant="outline" className="text-xs">{tag}</Badge>
+            ))}
           </div>
         </div>
       </div>
-    </div>
+
+      {/* Dataset Upload Modal */}
+      {showDatasetUpload && (
+        <DatasetUploadModal
+          open={showDatasetUpload}
+          onClose={() => setShowDatasetUpload(false)}
+          onDatasetUploaded={handleDatasetUploaded}
+        />
+      )}
+    </>
   )
 }

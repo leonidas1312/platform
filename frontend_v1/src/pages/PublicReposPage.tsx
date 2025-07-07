@@ -138,7 +138,6 @@ const languageColors: Record<string, string> = {
 // Keyword categories for filtering
 interface KeywordCategory {
   name: string
-  icon: React.ReactNode
   keywords: string[]
   color: string
 }
@@ -153,7 +152,7 @@ export default function PublicReposPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [activeView, setActiveView] = useState<"grid" | "list">("grid")
   const [showFilters, setShowFilters] = useState(false)
-  const [activeCategory, setActiveCategory] = useState("libraries")
+  const [activeCategory, setActiveCategory] = useState("all")
   const [refreshTrigger, setRefreshTrigger] = useState(0) // Add a refresh trigger
 
   // For server-side filtering:
@@ -175,8 +174,7 @@ export default function PublicReposPage() {
   // Define keyword categories with standardized keywords
   const keywordCategories: KeywordCategory[] = [
     {
-      name: "Libraries",
-      icon: <Library className="h-4 w-4" />,
+      name: "All",
       color: "from-blue-500 to-blue-600",
       keywords: [
         "qubots",
@@ -205,7 +203,6 @@ export default function PublicReposPage() {
     },
     {
       name: "Optimizers",
-      icon: <Code className="h-4 w-4" />,
       color: "from-green-500 to-green-600",
       keywords: [
         "Linear Programming",
@@ -232,7 +229,6 @@ export default function PublicReposPage() {
     },
     {
       name: "Problems",
-      icon: <Lightbulb className="h-4 w-4" />,
       color: "from-yellow-500 to-yellow-600",
       keywords: [
         "Scheduling",
@@ -542,13 +538,13 @@ export default function PublicReposPage() {
               className="text-3xl md:text-4xl font-bold tracking-tight mb-6 text-foreground"
               style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}
             >
-              Explore Public Optimization Tools
+              Explore public optimization repositories
             </h1>
             <p
               className="text-lg text-muted-foreground mb-8 max-w-3xl"
               style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}
             >
-              Discover optimization tools shared by the community.
+              Discover optimization repositories shared by the community.
             </p>
             <div className="flex items-center justify-between gap-4 flex-wrap">
               <div className="relative w-full max-w-2xl">
@@ -556,7 +552,7 @@ export default function PublicReposPage() {
                   <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                   <Input
                     type="search"
-                    placeholder="Search optimization tools and users..."
+                    placeholder="Search optimization repositories and users..."
                     className="pl-12 h-14 text-base rounded-xl border-border/50 bg-card/50 backdrop-blur-sm focus:bg-card transition-colors"
                     style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}
                     value={searchQuery}
@@ -571,7 +567,7 @@ export default function PublicReposPage() {
                   style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}
                 >
 
-                  Total optimization tools: {totalRepoCount.toLocaleString()}
+                  Total optimization repositories: {totalRepoCount.toLocaleString()}
                 </Badge>
               )}
             </div>
@@ -597,9 +593,7 @@ export default function PublicReposPage() {
                             : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
                         }`}
                       >
-                        <div className={`p-1 rounded ${activeCategory === category.name.toLowerCase() ? 'bg-primary/20' : 'bg-muted/50'}`}>
-                          {category.icon}
-                        </div>
+                        
                         {category.name}
                       </button>
                     ))}
@@ -617,9 +611,7 @@ export default function PublicReposPage() {
                             : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
                         }`}
                       >
-                        <div className={`p-1 rounded ${activeCategory === category.name.toLowerCase() ? 'bg-primary/20' : 'bg-muted/50'}`}>
-                          {category.icon}
-                        </div>
+                        
                         {category.name}
                       </button>
                     ))}
@@ -722,7 +714,7 @@ export default function PublicReposPage() {
                     className="text-lg text-muted-foreground"
                     style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}
                   >
-                    Loading optimization tools...
+                    Loading optimization repositories...
                   </span>
                 </div>
               ) : repos.length === 0 ? (
@@ -734,13 +726,13 @@ export default function PublicReposPage() {
                     className="text-2xl font-semibold mb-3 text-foreground"
                     style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}
                   >
-                    No optimization tools found
+                    No optimization repositories found
                   </h3>
                   <p
                     className="text-muted-foreground mt-1 mb-6 max-w-md text-lg leading-relaxed"
                     style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}
                   >
-                    We couldn't find any optimization tools matching your criteria. Try adjusting your filters or search query.
+                    We couldn't find any optimization repositories matching your criteria. Try adjusting your filters or search query.
                   </p>
                   <Button
                     onClick={clearFilters}

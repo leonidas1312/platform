@@ -1,0 +1,48 @@
+{
+  "name": "workflow-execution-tests",
+  "version": "1.0.0",
+  "description": "Comprehensive test suite for the Rastion workflow execution system",
+  "main": "testRunner.js",
+  "scripts": {
+    "test": "node testRunner.js all",
+    "test:unit": "node testRunner.js unit",
+    "test:integration": "node testRunner.js integration",
+    "test:performance": "node testRunner.js performance",
+    "test:watch": "nodemon --exec 'npm test'",
+    "test:coverage": "nyc npm test",
+    "test:report": "npm test && open test-report.json"
+  },
+  "dependencies": {
+    "mocha": "^10.2.0",
+    "chai": "^4.3.7",
+    "sinon": "^15.2.0",
+    "nyc": "^15.1.0",
+    "nodemon": "^3.0.1"
+  },
+  "nyc": {
+    "include": [
+      "../services/**/*.js"
+    ],
+    "exclude": [
+      "**/*.test.js",
+      "**/*.spec.js",
+      "**/tests/**"
+    ],
+    "reporter": [
+      "text",
+      "html",
+      "json"
+    ],
+    "report-dir": "./coverage"
+  },
+  "keywords": [
+    "workflow",
+    "execution",
+    "testing",
+    "qubots",
+    "optimization",
+    "kubernetes"
+  ],
+  "author": "Rastion Platform",
+  "license": "MIT"
+}

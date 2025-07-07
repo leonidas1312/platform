@@ -8,7 +8,7 @@ import {
   ChevronDown,
   Menu,
   Shield,
-  Trophy,
+  Target,
   Users,
   MessageSquare,
   BookOpen,
@@ -16,6 +16,7 @@ import {
 } from "lucide-react"
 import { RastionLogo } from "@/components/ui/RastionLogo"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Badge } from "@/components/ui/badge"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -157,23 +158,7 @@ export function VerticalNavbar() {
 
                       
 
-                      <NavigationMenuLink asChild>
-                        <Link
-                          to="/qubots-playground"
-                          className={cn(
-                            "block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground",
-                            isActive("/qubots-playground") && "bg-accent text-accent-foreground"
-                          )}
-                        >
-                          <div className="flex items-center gap-2">
-                            <svg className="w-4 h-4" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg" fill="currentColor"><g id="SVGRepo_bgCarrier" strokeWidth="0"></g><g id="SVGRepo_tracerCarrier" strokeLinecap="round" strokeLinejoin="round"></g><g id="SVGRepo_iconCarrier"> <path fill="currentColor" d="M880 112H144c-17.7 0-32 14.3-32 32v736c0 17.7 14.3 32 32 32h736c17.7 0 32-14.3 32-32V144c0-17.7-14.3-32-32-32zm-40 728H184V184h656v656z"></path> <path fill="currentColor" d="M321.1 679.1l192-161c3.9-3.2 3.9-9.1 0-12.3l-192-160.9A7.95 7.95 0 0 0 308 351v62.7c0 2.4 1 4.6 2.9 6.1L420.7 512l-109.8 92.2a8.1 8.1 0 0 0-2.9 6.1V673c0 6.8 7.9 10.5 13.1 6.1zM516 673c0 4.4 3.4 8 7.5 8h185c4.1 0 7.5-3.6 7.5-8v-48c0-4.4-3.4-8-7.5-8h-185c-4.1 0-7.5 3.6-7.5 8v48z"></path> </g></svg>
-                            <div className="text-sm font-medium leading-none">Playground</div>
-                          </div>
-                          <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
-                            Experiment with optimizers and problems
-                          </p>
-                        </Link>
-                      </NavigationMenuLink>
+
 
                       <NavigationMenuLink asChild>
                         <Link
@@ -208,10 +193,11 @@ export function VerticalNavbar() {
                               <circle cx="16" cy="12" r="2" fill="currentColor"/>
                               <circle cx="8" cy="18" r="2" fill="currentColor"/>
                             </svg>
-                            <div className="text-sm font-medium leading-none">Workflow Automation <span className="text-xs bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 px-1.5 py-0.5 rounded-full ml-1">Beta</span></div>
+                            <div className="text-sm font-medium leading-none">Decision model builder</div>
+                            <Badge variant="secondary" className="text-xs px-1.5 py-0.5">BETA</Badge>
                           </div>
                           <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
-                            Build visual optimization workflows with drag-and-drop
+                            Build decision models with drag-and-drop
                           </p>
                         </Link>
                       </NavigationMenuLink>
@@ -230,7 +216,8 @@ export function VerticalNavbar() {
                               <path d="M19 15L19.5 17L21.5 17.5L19.5 18L19 20L18.5 18L16.5 17.5L18.5 17L19 15Z" fill="currentColor"/>
                               <path d="M5 6L5.5 8L7.5 8.5L5.5 9L5 11L4.5 9L2.5 8.5L4.5 8L5 6Z" fill="currentColor"/>
                             </svg>
-                            <div className="text-sm font-medium leading-none">AutoSolve <span className="text-xs bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300 px-1.5 py-0.5 rounded-full ml-1">Beta</span></div>
+                            <div className="text-sm font-medium leading-none">AutoSolve</div>
+                            <Badge variant="secondary" className="text-xs px-1.5 py-0.5">BETA</Badge>
                           </div>
                           <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
                             AI-powered optimization recommendations from your data files
@@ -263,64 +250,52 @@ export function VerticalNavbar() {
                       >
                         <div className="flex items-center gap-2">
                           <svg className="w-4 h-4" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg" fill="currentColor"><g id="SVGRepo_bgCarrier" strokeWidth="0"></g><g id="SVGRepo_tracerCarrier" strokeLinecap="round" strokeLinejoin="round"></g><g id="SVGRepo_iconCarrier"> <path fill="currentColor" d="M864 144H560c-8.8 0-16 7.2-16 16v304c0 8.8 7.2 16 16 16h304c8.8 0 16-7.2 16-16V160c0-8.8-7.2-16-16-16zm-52 268H612V212h200v200zM464 544H160c-8.8 0-16 7.2-16 16v304c0 8.8 7.2 16 16 16h304c8.8 0 16-7.2 16-16V560c0-8.8-7.2-16-16-16zm-52 268H212V612h200v200zm52-668H160c-8.8 0-16 7.2-16 16v304c0 8.8 7.2 16 16 16h304c8.8 0 16-7.2 16-16V160c0-8.8-7.2-16-16-16zm-52 268H212V212h200v200zm452 132H560c-8.8 0-16 7.2-16 16v304c0 8.8 7.2 16 16 16h304c8.8 0 16-7.2 16-16V560c0-8.8-7.2-16-16-16zm-52 268H612V612h200v200z"></path> </g></svg>
-                          <div className="text-sm font-medium leading-none">Tools</div>
+                          <div className="text-sm font-medium leading-none">Repositories</div>
                         </div>
                         <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
                           Browse public optimization repositories
                         </p>
                       </Link>
                     </NavigationMenuLink>
+                    
                     <NavigationMenuLink asChild>
                       <Link
-                        to="/optimization-workflows"
+                        to="/optimization-challenges"
                         className={cn(
                           "block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground",
-                          isActive("/optimization-workflows") && "bg-accent text-accent-foreground"
+                          isActive("/optimization-challenges") && "bg-accent text-accent-foreground"
                         )}
                       >
                         <div className="flex items-center gap-2">
-                          <svg className="w-4 h-4" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg" fill="currentColor"><g id="SVGRepo_bgCarrier" strokeWidth="0"></g><g id="SVGRepo_tracerCarrier" strokeLinecap="round" strokeLinejoin="round"></g><g id="SVGRepo_iconCarrier"> <path d="M916 210H376c-17.7 0-32 14.3-32 32v236H108c-17.7 0-32 14.3-32 32v272c0 17.7 14.3 32 32 32h540c17.7 0 32-14.3 32-32V546h236c17.7 0 32-14.3 32-32V242c0-17.7-14.3-32-32-32zM344 746H144V546h200v200zm268 0H412V546h200v200zm0-268H412V278h200v200zm268 0H680V278h200v200z"></path> </g></svg>
-                          <div className="text-sm font-medium leading-none">Experiments</div>
+                          <Target className="h-4 w-4" />
+                          <div className="text-sm font-medium leading-none">Optimization challenges</div>
+                          <Badge variant="secondary" className="text-xs px-1.5 py-0.5">BETA</Badge>
                         </div>
                         <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
-                          View public optimization experiments
+                          Discover optimization challenges
                         </p>
                       </Link>
                     </NavigationMenuLink>
                     <NavigationMenuLink asChild>
                       <Link
-                        to="/leaderboard"
+                        to="/public-experiments"
                         className={cn(
                           "block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground",
-                          isActive("/leaderboard") && "bg-accent text-accent-foreground"
+                          isActive("/public-experiments") && "bg-accent text-accent-foreground"
                         )}
                       >
                         <div className="flex items-center gap-2">
-                          <Trophy className="h-4 w-4" />
-                          <div className="text-sm font-medium leading-none">Leaderboard</div>
+                          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" fill="currentColor"/>
+                          </svg>
+                          <div className="text-sm font-medium leading-none">Decision models</div>
                         </div>
                         <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
-                          Join public leaderboards
+                          Browse community decision models
                         </p>
                       </Link>
                     </NavigationMenuLink>
-                    <NavigationMenuLink asChild>
-                      <Link
-                        to="/benchmark"
-                        className={cn(
-                          "block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground",
-                          isActive("/benchmark") && "bg-accent text-accent-foreground"
-                        )}
-                      >
-                        <div className="flex items-center gap-2">
-                          <svg className="w-4 h-4" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg" fill="currentColor"><g id="SVGRepo_bgCarrier" strokeWidth="0"></g><g id="SVGRepo_tracerCarrier" strokeLinecap="round" strokeLinejoin="round"></g><g id="SVGRepo_iconCarrier"> <path d="M832 112H724V72c0-4.4-3.6-8-8-8h-56c-4.4 0-8 3.6-8 8v40H500V72c0-4.4-3.6-8-8-8h-56c-4.4 0-8 3.6-8 8v40H320c-17.7 0-32 14.3-32 32v120h-96c-17.7 0-32 14.3-32 32v632c0 17.7 14.3 32 32 32h512c17.7 0 32-14.3 32-32v-96h96c17.7 0 32-14.3 32-32V144c0-17.7-14.3-32-32-32zM664 888H232V336h218v174c0 22.1 17.9 40 40 40h174v338zm0-402H514V336h.2L664 485.8v.2zm128 274h-56V456L544 264H360v-80h68v32c0 4.4 3.6 8 8 8h56c4.4 0 8-3.6 8-8v-32h152v32c0 4.4 3.6 8 8 8h56c4.4 0 8-3.6 8-8v-32h68v576z"></path> </g></svg>
-                          <div className="text-sm font-medium leading-none">Benchmarks</div>
-                        </div>
-                        <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
-                          View public benchmarks
-                        </p>
-                      </Link>
-                    </NavigationMenuLink>
+
                   </div>
                 </div>
               </NavigationMenuContent>
@@ -421,20 +396,11 @@ export function VerticalNavbar() {
                           <path d="M19 15L19.5 17L21.5 17.5L19.5 18L19 20L18.5 18L16.5 17.5L18.5 17L19 15Z" fill="currentColor"/>
                           <path d="M5 6L5.5 8L7.5 8.5L5.5 9L5 11L4.5 9L2.5 8.5L4.5 8L5 6Z" fill="currentColor"/>
                         </svg>
-                        <span>AutoSolve <span className="text-xs bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300 px-1.5 py-0.5 rounded-full ml-1">Beta</span></span>
+                        <span>AutoSolve</span>
+                        <Badge variant="secondary" className="text-xs px-1.5 py-0.5 ml-2">BETA</Badge>
                       </Link>
 
-                      <Link
-                        to="/qubots-playground"
-                        className={cn(
-                          "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors hover:bg-accent hover:text-accent-foreground ml-4",
-                          isActive("/qubots-playground") && "bg-accent text-accent-foreground"
-                        )}
-                        onClick={() => setMobileMenuOpen(false)}
-                      >
-                        <svg className="w-4 h-4" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg" fill="currentColor"><g id="SVGRepo_bgCarrier" strokeWidth="0"></g><g id="SVGRepo_tracerCarrier" strokeLinecap="round" strokeLinejoin="round"></g><g id="SVGRepo_iconCarrier"> <path fill="currentColor" d="M880 112H144c-17.7 0-32 14.3-32 32v736c0 17.7 14.3 32 32 32h736c17.7 0 32-14.3 32-32V144c0-17.7-14.3-32-32-32zm-40 728H184V184h656v656z"></path> <path fill="currentColor" d="M321.1 679.1l192-161c3.9-3.2 3.9-9.1 0-12.3l-192-160.9A7.95 7.95 0 0 0 308 351v62.7c0 2.4 1 4.6 2.9 6.1L420.7 512l-109.8 92.2a8.1 8.1 0 0 0-2.9 6.1V673c0 6.8 7.9 10.5 13.1 6.1zM516 673c0 4.4 3.4 8 7.5 8h185c4.1 0 7.5-3.6 7.5-8v-48c0-4.4-3.4-8-7.5-8h-185c-4.1 0-7.5 3.6-7.5 8v48z"></path> </g></svg>
-                        <span>Playground</span>
-                      </Link>
+
 
                       <Link
                         to="/datasets"
@@ -462,7 +428,8 @@ export function VerticalNavbar() {
                           <circle cx="16" cy="12" r="2" fill="currentColor"/>
                           <circle cx="8" cy="18" r="2" fill="currentColor"/>
                         </svg>
-                        <span>Workflow Automation <span className="text-xs bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 px-1.5 py-0.5 rounded-full ml-1">Beta</span></span>
+                        <span>Decision model builder</span>
+                        <Badge variant="secondary" className="text-xs px-1.5 py-0.5 ml-2">BETA</Badge>
                       </Link>
 
                     </>
@@ -491,30 +458,35 @@ export function VerticalNavbar() {
                     onClick={() => setMobileMenuOpen(false)}
                   >
                     <svg className="w-4 h-4" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg" fill="currentColor"><g id="SVGRepo_bgCarrier" strokeWidth="0"></g><g id="SVGRepo_tracerCarrier" strokeLinecap="round" strokeLinejoin="round"></g><g id="SVGRepo_iconCarrier"> <path d="M916 210H376c-17.7 0-32 14.3-32 32v236H108c-17.7 0-32 14.3-32 32v272c0 17.7 14.3 32 32 32h540c17.7 0 32-14.3 32-32V546h236c17.7 0 32-14.3 32-32V242c0-17.7-14.3-32-32-32zM344 746H144V546h200v200zm268 0H412V546h200v200zm0-268H412V278h200v200zm268 0H680V278h200v200z"></path> </g></svg>
-                    <span>Experiments</span>
+                    <span>Solutions</span>
                   </Link>
                   <Link
-                    to="/leaderboard"
+                    to="/optimization-challenges"
                     className={cn(
                       "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors hover:bg-accent hover:text-accent-foreground ml-4",
-                      isActive("/leaderboard") && "bg-accent text-accent-foreground"
+                      isActive("/optimization-challenges") && "bg-accent text-accent-foreground"
                     )}
                     onClick={() => setMobileMenuOpen(false)}
                   >
-                    <Trophy className="h-4 w-4" />
-                    <span>Leaderboard</span>
+                    <Target className="h-4 w-4" />
+                    <span>Optimization Challenges</span>
+                    <Badge variant="secondary" className="text-xs px-1.5 py-0.5 ml-2">BETA</Badge>
                   </Link>
+
                   <Link
-                    to="/benchmark"
+                    to="/public-experiments"
                     className={cn(
                       "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors hover:bg-accent hover:text-accent-foreground ml-4",
-                      isActive("/benchmark") && "bg-accent text-accent-foreground"
+                      isActive("/public-experiments") && "bg-accent text-accent-foreground"
                     )}
                     onClick={() => setMobileMenuOpen(false)}
                   >
-                    <svg className="w-4 h-4" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg" fill="currentColor"><g id="SVGRepo_bgCarrier" strokeWidth="0"></g><g id="SVGRepo_tracerCarrier" strokeLinecap="round" strokeLinejoin="round"></g><g id="SVGRepo_iconCarrier"> <path d="M832 112H724V72c0-4.4-3.6-8-8-8h-56c-4.4 0-8 3.6-8 8v40H500V72c0-4.4-3.6-8-8-8h-56c-4.4 0-8 3.6-8 8v40H320c-17.7 0-32 14.3-32 32v120h-96c-17.7 0-32 14.3-32 32v632c0 17.7 14.3 32 32 32h512c17.7 0 32-14.3 32-32v-96h96c17.7 0 32-14.3 32-32V144c0-17.7-14.3-32-32-32zM664 888H232V336h218v174c0 22.1 17.9 40 40 40h174v338zm0-402H514V336h.2L664 485.8v.2zm128 274h-56V456L544 264H360v-80h68v32c0 4.4 3.6 8 8 8h56c4.4 0 8-3.6 8-8v-32h152v32c0 4.4 3.6 8 8 8h56c4.4 0 8-3.6 8-8v-32h68v576z"></path> </g></svg>
-                    <span>Benchmarks</span>
+                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" fill="currentColor"/>
+                    </svg>
+                    <span>Public Decision Models</span>
                   </Link>
+
                   <Link
                     to="/community/posts"
                     className={cn(

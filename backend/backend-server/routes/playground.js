@@ -399,41 +399,8 @@ router.post("/qubots/validate", async (req, res) => {
   }
 })
 
-// Get parameter schema for a qubots model
-router.get("/qubots/schema/:model_name", async (req, res) => {
-  try {
-    const { model_name } = req.params
-    const { username } = req.query
-
-    if (!model_name) {
-      return res.status(400).json({
-        success: false,
-        message: "model_name is required"
-      })
-    }
-
-    const QubotService = require("../services/qubotService")
-    const qubotService = new QubotService()
-
-    // Get parameter schema using qubots library
-    const schema = await qubotService.getParameterSchema(model_name, username)
-
-    res.json({
-      success: true,
-      model_name,
-      username,
-      schema
-    })
-
-  } catch (error) {
-    console.error("Error getting parameter schema:", error)
-    res.status(500).json({
-      success: false,
-      message: "Failed to get parameter schema",
-      error: error.message
-    })
-  }
-})
+// Parameter schema endpoint removed - schema information is now handled
+// by the unified workflow execution service and repository metadata
 
 // Execute qubots optimization
 router.post("/qubots/execute", async (req, res) => {
@@ -458,23 +425,53 @@ router.post("/qubots/execute", async (req, res) => {
       })
     }
 
-    // Use lightweight qubots execution service instead of full environments
-    const QubotExecutionService = require("../services/qubotExecutionService")
-    const executionService = new QubotExecutionService()
+    // Use unified workflow execution service
+    const UnifiedWorkflowExecutionService = require("../services/unifiedWorkflowExecutionService")
+    const executionService = UnifiedWorkflowExecutionService.getInstance()
 
     try {
       console.log(`Executing qubots optimization: ${problem_name} + ${optimizer_name}`)
 
-      // Execute optimization using Kubernetes job
-      const result = await executionService.executeOptimization({
-        problemName: problem_name,
-        optimizerName: optimizer_name,
-        problemUsername: problem_username || 'default',
-        optimizerUsername: optimizer_username || 'default',
-        problemParams: problem_params,
-        optimizerParams: optimizer_params,
-        timeout: timeout
-      })
+      // Create workflow nodes for the execution
+      const nodes = [
+        {
+          id: 'problem-1',
+          type: 'problem',
+          data: {
+            name: problem_name,
+            username: problem_username || 'default',
+            parameters: problem_params
+          }
+        },
+        {
+          id: 'optimizer-1',
+          type: 'optimizer',
+          data: {
+            name: optimizer_name,
+            username: optimizer_username || 'default',
+            parameters: optimizer_params
+          }
+        }
+      ]
+
+      const connections = [
+        {
+          source: 'problem-1',
+          target: 'optimizer-1'
+        }
+      ]
+
+      const executionId = `playground_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+
+      // Execute optimization using unified workflow service
+      const result = await executionService.executeWorkflow(
+        executionId,
+        nodes,
+        connections,
+        { timeout },
+        null, // No WebSocket for simple execution
+        null  // No auth token needed for playground
+      )
 
       res.json({
         success: true,

@@ -55,19 +55,16 @@ const Footer = () => {
             <h3 className="font-semibold mb-4">Platform</h3>
             <ul className="space-y-2">
               <li>
-                <Link to="/qubots" className="text-sm text-foreground/70 hover:text-primary transition-colors">Qubots</Link>
+                <Link to="/qubots" className="text-sm text-foreground/70 hover:text-primary transition-colors">Repositories</Link>
               </li>
               <li>
-                <Link to="/qubots-playground" className="text-sm text-foreground/70 hover:text-primary transition-colors">Playground</Link>
+                <Link to="/autosolve" className="text-sm text-foreground/70 hover:text-primary transition-colors">AutoSolve</Link>
               </li>
               <li>
-                <Link to="/optimization-workflows" className="text-sm text-foreground/70 hover:text-primary transition-colors">Experiments</Link>
+                <Link to="/workflow-automation" className="text-sm text-foreground/70 hover:text-primary transition-colors">Decision Model Builder</Link>
               </li>
               <li>
-                <Link to="/leaderboard" className="text-sm text-foreground/70 hover:text-primary transition-colors">Leaderboard</Link>
-              </li>
-              <li>
-                <Link to="/benchmark" className="text-sm text-foreground/70 hover:text-primary transition-colors">Benchmarks</Link>
+                <Link to="/datasets" className="text-sm text-foreground/70 hover:text-primary transition-colors">Datasets</Link>
               </li>
               <li>
                 <a href="https://docs.rastion.com" target="_blank" rel="noopener noreferrer" className="text-sm text-foreground/70 hover:text-primary transition-colors">Documentation</a>
@@ -83,6 +80,12 @@ const Footer = () => {
           >
             <h3 className="font-semibold mb-4">Community</h3>
             <ul className="space-y-2">
+              <li>
+                <Link to="/optimization-challenges" className="text-sm text-foreground/70 hover:text-primary transition-colors">Optimization Challenges</Link>
+              </li>
+              <li>
+                <Link to="/public-experiments" className="text-sm text-foreground/70 hover:text-primary transition-colors">Decision Models</Link>
+              </li>
               <li>
                 <a href="https://discord.gg/E2rnssmh9Y" target="_blank" rel="noopener noreferrer" className="text-sm text-foreground/70 hover:text-primary transition-colors">Discord</a>
               </li>

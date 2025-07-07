@@ -698,29 +698,58 @@ router.post("/recommendations", auth, async (req, res) => {
 })
 
 // Get experiment recommendations based on analysis
+// Now fetches from public experiments instead of generating recommendations
 router.post("/recommendations/experiments", auth, async (req, res) => {
   try {
-    const { analysis } = req.body
+    // Fetch public experiments directly instead of generating recommendations
+    const experiments = await knex("public_experiments")
+      .select(
+        "public_experiments.*",
+        "users.username",
+        "users.full_name",
+        "users.avatar_url"
+      )
+      .leftJoin("users", "public_experiments.user_id", "users.username")
+      .where("public_experiments.is_public", true)
+      .orderBy("public_experiments.created_at", "desc")
+      .limit(10) // Limit to 10 most recent experiments
 
-    if (!analysis) {
-      return res.status(400).json({
-        success: false,
-        message: "Analysis data is required"
-      })
-    }
+    // Process experiments to ensure tags are arrays and add dataset info
+    const processedExperiments = await Promise.all(experiments.map(async (exp) => {
+      let dataset_info = null
+      if (exp.dataset_id) {
+        try {
+          const dataset = await knex("datasets")
+            .select("name", "original_filename as filename", "format_type")
+            .where("id", exp.dataset_id)
+            .first()
+          if (dataset) {
+            dataset_info = dataset
+          }
+        } catch (error) {
+          console.warn(`Failed to fetch dataset info for ${exp.dataset_id}:`, error)
+        }
+      }
 
-    const experiments = await ExperimentRecommendationService.getCompatibleExperiments(analysis)
+      return {
+        ...exp,
+        tags: typeof exp.tags === 'string' ? JSON.parse(exp.tags || '[]') : (exp.tags || []),
+        problem_params: typeof exp.problem_params === 'string' ? JSON.parse(exp.problem_params || '{}') : (exp.problem_params || {}),
+        optimizer_params: typeof exp.optimizer_params === 'string' ? JSON.parse(exp.optimizer_params || '{}') : (exp.optimizer_params || {}),
+        dataset_info
+      }
+    }))
 
     res.json({
       success: true,
-      experiments: experiments
+      experiments: processedExperiments
     })
 
   } catch (error) {
     console.error("Experiment recommendations error:", error)
     res.status(500).json({
       success: false,
-      message: "Failed to generate experiment recommendations"
+      message: "Failed to fetch experiment recommendations"
     })
   }
 })
@@ -748,19 +777,49 @@ router.post("/execute", auth, async (req, res) => {
       })
     }
 
-    // Use the qubots execution service
-    const QubotExecutionService = require("../services/qubotExecutionService")
-    const executionService = new QubotExecutionService()
+    // Use the unified workflow execution service
+    const UnifiedWorkflowExecutionService = require("../services/unifiedWorkflowExecutionService")
+    const executionService = UnifiedWorkflowExecutionService.getInstance()
 
-    const result = await executionService.executeOptimization({
-      problemName: problemName,
-      optimizerName: optimizerName,
-      problemUsername: problemUsername,
-      optimizerUsername: optimizerUsername,
-      problemParams: parameters?.problemParams || {},
-      optimizerParams: parameters?.optimizerParams || {},
-      timeout: 300000 // 5 minutes
-    })
+    // Create workflow nodes for the execution
+    const nodes = [
+      {
+        id: 'problem-1',
+        type: 'problem',
+        data: {
+          name: problemName,
+          username: problemUsername,
+          parameters: parameters?.problemParams || {}
+        }
+      },
+      {
+        id: 'optimizer-1',
+        type: 'optimizer',
+        data: {
+          name: optimizerName,
+          username: optimizerUsername,
+          parameters: parameters?.optimizerParams || {}
+        }
+      }
+    ]
+
+    const connections = [
+      {
+        source: 'problem-1',
+        target: 'optimizer-1'
+      }
+    ]
+
+    const executionId = `autosolve_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+
+    const result = await executionService.executeWorkflow(
+      executionId,
+      nodes,
+      connections,
+      { timeout: 300000 }, // 5 minutes
+      null, // No WebSocket for autosolve
+      null  // No auth token needed
+    )
 
     res.json({
       success: true,
@@ -806,19 +865,49 @@ router.post("/execute/experiment", auth, async (req, res) => {
       })
     }
 
-    // Use the qubots execution service with experiment parameters
-    const QubotExecutionService = require("../services/qubotExecutionService")
-    const executionService = new QubotExecutionService()
+    // Use the unified workflow execution service with experiment parameters
+    const UnifiedWorkflowExecutionService = require("../services/unifiedWorkflowExecutionService")
+    const executionService = UnifiedWorkflowExecutionService.getInstance()
 
-    const result = await executionService.executeOptimization({
-      problemName: experiment.problem_name,
-      optimizerName: experiment.optimizer_name,
-      problemUsername: experiment.problem_username,
-      optimizerUsername: experiment.optimizer_username,
-      problemParams: experiment.problem_params || {},
-      optimizerParams: experiment.optimizer_params || {},
-      timeout: 300000 // 5 minutes
-    })
+    // Create workflow nodes for the experiment execution
+    const nodes = [
+      {
+        id: 'problem-1',
+        type: 'problem',
+        data: {
+          name: experiment.problem_name,
+          username: experiment.problem_username,
+          parameters: experiment.problem_params || {}
+        }
+      },
+      {
+        id: 'optimizer-1',
+        type: 'optimizer',
+        data: {
+          name: experiment.optimizer_name,
+          username: experiment.optimizer_username,
+          parameters: experiment.optimizer_params || {}
+        }
+      }
+    ]
+
+    const connections = [
+      {
+        source: 'problem-1',
+        target: 'optimizer-1'
+      }
+    ]
+
+    const executionId = `autosolve_experiment_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+
+    const result = await executionService.executeWorkflow(
+      executionId,
+      nodes,
+      connections,
+      { timeout: 300000 }, // 5 minutes
+      null, // No WebSocket for autosolve
+      null  // No auth token needed
+    )
 
     // Update experiment with execution results if successful
     if (result.success) {

@@ -390,8 +390,8 @@ class PlaygroundEnvironmentService {
     const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args))
 
     try {
-      // For lightweight qubots execution, we'll use the playground container's HTTP API
-      // The container exposes an API on port 8000 for qubots execution
+      // Use the updated playground container's HTTP API
+      // The container now uses AutoProblem and AutoOptimizer internally
       const podIP = await this.getPodIP(envId, envName)
       const apiUrl = `http://${podIP}:8000/execute`
 
@@ -430,7 +430,7 @@ class PlaygroundEnvironmentService {
         optimizer_name: params.optimizerName,
         problem_username: params.problemUsername,
         optimizer_username: params.optimizerUsername,
-        execution_time: result.execution_time || 0,
+        execution_time: result.execution_time || result.runtime_seconds || 0,
         timestamp: new Date().toISOString(),
         best_solution: result.best_solution,
         best_value: result.best_value,
@@ -438,7 +438,8 @@ class PlaygroundEnvironmentService {
         history: result.history || [],
         metadata: result.metadata || {},
         error_message: result.error_message,
-        error_type: result.error_type
+        error_type: result.error_type,
+        termination_reason: result.termination_reason
       }
 
     } catch (error) {

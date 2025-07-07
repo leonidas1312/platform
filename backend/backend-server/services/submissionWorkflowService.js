@@ -8,7 +8,7 @@
 const { knex } = require("../config/database")
 const crypto = require("crypto")
 const SolverValidationService = require("./solverValidationService")
-const QubotExecutionService = require("./qubotExecutionService")
+const UnifiedWorkflowExecutionService = require("./unifiedWorkflowExecutionService")
 const LeaderboardService = require("./leaderboardService")
 const GiteaService = require("./giteaService")
 const NotificationService = require("./notificationService")
@@ -293,7 +293,7 @@ class SubmissionWorkflowService {
    * Execute benchmark for the solver
    */
   static async executeBenchmark(submissionId, submission, problem, solverConfig, customParameters) {
-    const executionService = new QubotExecutionService()
+    const executionService = UnifiedWorkflowExecutionService.getInstance()
     const results = []
     const numRuns = submission.num_runs || 5
 
@@ -306,22 +306,51 @@ class SubmissionWorkflowService {
       try {
         // Parse repository path
         const [username, repoName] = submission.solver_repository.split('/')
-        
-        // Execute optimization
-        const result = await executionService.executeOptimization({
-          problemName: `standardized-problem-${problem.id}`, // Special handling for standardized problems
-          optimizerName: repoName,
-          problemUsername: 'standardized',
-          optimizerUsername: username,
-          problemParams: problem.problem_config || {},
-          optimizerParams: {
-            ...solverConfig.default_params || {},
-            ...customParameters
-          },
-          timeout: (problem.time_limit_seconds || 300) * 1000
-        })
 
-        if (result && result.best_value !== undefined) {
+        // Create workflow nodes for the unified execution service
+        const nodes = [
+          {
+            id: 'problem-node',
+            type: 'problem',
+            data: {
+              repo_id: `standardized/standardized-problem-${problem.id}`,
+              parameters: problem.problem_config || {}
+            }
+          },
+          {
+            id: 'optimizer-node',
+            type: 'optimizer',
+            data: {
+              repo_id: `${username}/${repoName}`,
+              parameters: {
+                ...solverConfig.default_params || {},
+                ...customParameters
+              }
+            }
+          }
+        ]
+
+        const connections = [
+          {
+            source: 'problem-node',
+            target: 'optimizer-node'
+          }
+        ]
+
+        // Generate unique execution ID for this run
+        const executionId = `submission-${submissionId}-run-${run}`
+
+        // Execute using unified workflow service
+        const result = await executionService.executeWorkflow(
+          executionId,
+          nodes,
+          connections,
+          {},
+          null, // No WebSocket for leaderboard submissions
+          null  // No auth token needed for standardized problems
+        )
+
+        if (result && result.success && result.best_value !== undefined) {
           results.push({
             run_number: run,
             best_value: result.best_value,
@@ -334,7 +363,7 @@ class SubmissionWorkflowService {
           results.push({
             run_number: run,
             success: false,
-            error: 'No valid result returned'
+            error: result?.error_message || 'No valid result returned'
           })
         }
 

@@ -362,6 +362,13 @@ export default function Leaderboard() {
               <h1 className="text-3xl font-bold">Leaderboard</h1>
             </div>
             <div className="flex items-center gap-2">
+              <Button
+                onClick={() => window.location.href = '/leaderboard/browse'}
+                variant="outline"
+              >
+                <Target className="h-4 w-4 mr-2" />
+                Browse Challenges
+              </Button>
               {isAdmin && (
                 <Button
                   onClick={() => setShowAdminDialog(true)}

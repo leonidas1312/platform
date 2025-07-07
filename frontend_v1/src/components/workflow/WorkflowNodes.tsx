@@ -17,43 +17,44 @@ interface CustomNodeProps {
 // Dataset Node Component
 export const DatasetNode = memo(({ data, selected }: CustomNodeProps) => {
   return (
-    <Card className={`min-w-[160px] max-w-[180px] ${selected ? 'ring-2 ring-primary' : ''}`}>
-      <CardContent className="p-3">
-        <div className="flex items-center gap-2 mb-2">
-          <Database className="h-3 w-3 text-blue-600" />
-          <Badge variant="outline" className="text-xs px-1 py-0">
+    <Card className={`relative min-w-[220px] max-w-[260px] ${selected ? 'ring-2 ring-primary' : ''} shadow-md hover:shadow-lg transition-shadow`}>
+      <CardContent className="p-4">
+        <div className="flex items-center gap-3 mb-3">
+          <Database className="h-4 w-4 text-foreground" />
+          <Badge variant="outline" className="text-xs px-2 py-1">
             Dataset
           </Badge>
         </div>
 
-        <h4 className="font-medium text-xs mb-1 truncate">{data.name}</h4>
-        <p className="text-xs text-muted-foreground mb-1 truncate">@{data.username}</p>
+        <h4 className="font-medium text-sm mb-2 truncate">{data.name}</h4>
+        <p className="text-xs text-muted-foreground mb-2 truncate">@{data.username}</p>
 
         {data.description && (
-          <p className="text-xs text-muted-foreground line-clamp-2 mb-2">
+          <p className="text-xs text-muted-foreground line-clamp-2 mb-3">
             {data.description}
           </p>
         )}
 
         {data.tags && data.tags.length > 0 && (
           <div className="flex flex-wrap gap-1">
-            {data.tags.slice(0, 1).map((tag, index) => (
-              <Badge key={index} variant="secondary" className="text-xs px-1 py-0">
+            {data.tags.slice(0, 2).map((tag, index) => (
+              <Badge key={index} variant="secondary" className="text-xs px-2 py-1">
                 {tag}
               </Badge>
             ))}
-            {data.tags.length > 1 && (
-              <Badge variant="secondary" className="text-xs px-1 py-0">
-                +{data.tags.length - 1}
+            {data.tags.length > 2 && (
+              <Badge variant="secondary" className="text-xs px-2 py-1">
+                +{data.tags.length - 2}
               </Badge>
             )}
           </div>
         )}
 
+        {/* Output Handle */}
         <Handle
           type="source"
           position={Position.Right}
-          className="w-3 h-3 bg-blue-600 border-2 border-white"
+          className="w-3 h-3 border-2 border-background bg-muted-foreground hover:bg-foreground transition-colors"
         />
       </CardContent>
     </Card>
@@ -63,48 +64,51 @@ export const DatasetNode = memo(({ data, selected }: CustomNodeProps) => {
 // Problem Node Component
 export const ProblemNode = memo(({ data, selected }: CustomNodeProps) => {
   return (
-    <Card className={`min-w-[160px] max-w-[180px] ${selected ? 'ring-2 ring-primary' : ''}`}>
-      <CardContent className="p-3">
-        <div className="flex items-center gap-2 mb-2">
-          <Brain className="h-3 w-3 text-green-600" />
-          <Badge variant="outline" className="text-xs px-1 py-0">
+    <Card className={`relative min-w-[220px] max-w-[260px] ${selected ? 'ring-2 ring-primary' : ''} shadow-md hover:shadow-lg transition-shadow`}>
+      <CardContent className="p-4">
+        <div className="flex items-center gap-3 mb-3">
+          <Brain className="h-4 w-4 text-foreground" />
+          <Badge variant="outline" className="text-xs px-2 py-1">
             Problem
           </Badge>
         </div>
 
-        <h4 className="font-medium text-xs mb-1 truncate">{data.name}</h4>
-        <p className="text-xs text-muted-foreground mb-1 truncate">@{data.username}</p>
+        <h4 className="font-medium text-sm mb-2 truncate">{data.name}</h4>
+        <p className="text-xs text-muted-foreground mb-2 truncate">@{data.username}</p>
 
         {data.description && (
-          <p className="text-xs text-muted-foreground line-clamp-2 mb-2">
+          <p className="text-xs text-muted-foreground line-clamp-2 mb-3">
             {data.description}
           </p>
         )}
 
         {data.tags && data.tags.length > 0 && (
           <div className="flex flex-wrap gap-1">
-            {data.tags.slice(0, 1).map((tag, index) => (
-              <Badge key={index} variant="secondary" className="text-xs px-1 py-0">
+            {data.tags.slice(0, 2).map((tag, index) => (
+              <Badge key={index} variant="secondary" className="text-xs px-2 py-1">
                 {tag}
               </Badge>
             ))}
-            {data.tags.length > 1 && (
-              <Badge variant="secondary" className="text-xs px-1 py-0">
-                +{data.tags.length - 1}
+            {data.tags.length > 2 && (
+              <Badge variant="secondary" className="text-xs px-2 py-1">
+                +{data.tags.length - 2}
               </Badge>
             )}
           </div>
         )}
 
+        {/* Input Handle */}
         <Handle
           type="target"
           position={Position.Left}
-          className="w-3 h-3 bg-green-600 border-2 border-white"
+          className="w-3 h-3 border-2 border-background bg-muted-foreground hover:bg-foreground transition-colors"
         />
+
+        {/* Output Handle */}
         <Handle
           type="source"
           position={Position.Right}
-          className="w-3 h-3 bg-green-600 border-2 border-white"
+          className="w-3 h-3 border-2 border-background bg-muted-foreground hover:bg-foreground transition-colors"
         />
       </CardContent>
     </Card>
@@ -114,43 +118,44 @@ export const ProblemNode = memo(({ data, selected }: CustomNodeProps) => {
 // Optimizer Node Component
 export const OptimizerNode = memo(({ data, selected }: CustomNodeProps) => {
   return (
-    <Card className={`min-w-[160px] max-w-[180px] ${selected ? 'ring-2 ring-primary' : ''}`}>
-      <CardContent className="p-3">
-        <div className="flex items-center gap-2 mb-2">
-          <Zap className="h-3 w-3 text-orange-600" />
-          <Badge variant="outline" className="text-xs px-1 py-0">
+    <Card className={`relative min-w-[220px] max-w-[260px] ${selected ? 'ring-2 ring-primary' : ''} shadow-md hover:shadow-lg transition-shadow`}>
+      <CardContent className="p-4">
+        <div className="flex items-center gap-3 mb-3">
+          <Zap className="h-4 w-4 text-foreground" />
+          <Badge variant="outline" className="text-xs px-2 py-1">
             Optimizer
           </Badge>
         </div>
 
-        <h4 className="font-medium text-xs mb-1 truncate">{data.name}</h4>
-        <p className="text-xs text-muted-foreground mb-1 truncate">@{data.username}</p>
+        <h4 className="font-medium text-sm mb-2 truncate">{data.name}</h4>
+        <p className="text-xs text-muted-foreground mb-2 truncate">@{data.username}</p>
 
         {data.description && (
-          <p className="text-xs text-muted-foreground line-clamp-2 mb-2">
+          <p className="text-xs text-muted-foreground line-clamp-2 mb-3">
             {data.description}
           </p>
         )}
 
         {data.tags && data.tags.length > 0 && (
           <div className="flex flex-wrap gap-1">
-            {data.tags.slice(0, 1).map((tag, index) => (
-              <Badge key={index} variant="secondary" className="text-xs px-1 py-0">
+            {data.tags.slice(0, 2).map((tag, index) => (
+              <Badge key={index} variant="secondary" className="text-xs px-2 py-1">
                 {tag}
               </Badge>
             ))}
-            {data.tags.length > 1 && (
-              <Badge variant="secondary" className="text-xs px-1 py-0">
-                +{data.tags.length - 1}
+            {data.tags.length > 2 && (
+              <Badge variant="secondary" className="text-xs px-2 py-1">
+                +{data.tags.length - 2}
               </Badge>
             )}
           </div>
         )}
 
+        {/* Input Handle */}
         <Handle
           type="target"
           position={Position.Left}
-          className="w-3 h-3 bg-orange-600 border-2 border-white"
+          className="w-3 h-3 border-2 border-background bg-muted-foreground hover:bg-foreground transition-colors"
         />
       </CardContent>
     </Card>

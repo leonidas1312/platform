@@ -51,6 +51,7 @@ export interface WorkflowConnection {
   targetHandle?: string
   animated?: boolean
   style?: React.CSSProperties
+  datasetParameter?: string // For dataset-to-problem connections, stores which parameter receives the dataset
 }
 
 // Execution state
@@ -74,6 +75,7 @@ export interface ExecutionLog {
   message: string
   source?: string
   nodeId?: string
+  step?: string // Optional step identifier for organizing logs
 }
 
 export interface ExecutionMetrics {
@@ -127,6 +129,11 @@ export interface Dataset {
   is_public: boolean
   user_id: string
   created_at: string
+  user?: {
+    username: string
+    avatar_url: string | null
+    full_name: string | null
+  }
 }
 
 export interface Problem {
@@ -280,7 +287,7 @@ export interface CanvasState {
 // Parameter panel interfaces
 export interface ParameterDefinition {
   name: string
-  type: 'string' | 'number' | 'boolean' | 'select' | 'multiselect' | 'file' | 'textarea'
+  type: 'string' | 'number' | 'boolean' | 'select' | 'multiselect' | 'file' | 'textarea' | 'array'
   label: string
   description?: string
   defaultValue?: any
@@ -343,9 +350,10 @@ export interface WorkflowEvent {
 export interface UseWorkflowState {
   workflow: WorkflowState
   updateNodes: (nodes: WorkflowNode[]) => void
+  updateNodeParameters: (nodeId: string, parameters: Record<string, any>) => void
   updateConnections: (connections: WorkflowConnection[]) => void
   selectNode: (nodeId: string | null) => void
-  addNode: (node: Omit<WorkflowNode, 'id'>) => void
+  addNode: (node: Omit<WorkflowNode, 'id'> | WorkflowNode) => void
   removeNode: (nodeId: string) => void
   addConnection: (connection: Omit<WorkflowConnection, 'id'>) => void
   removeConnection: (connectionId: string) => void

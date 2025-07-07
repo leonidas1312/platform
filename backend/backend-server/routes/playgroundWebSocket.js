@@ -6,13 +6,11 @@
 
 const WebSocket = require('ws')
 const url = require('url')
-const QubotStreamingExecutionService = require('../services/qubotStreamingExecutionService')
-const WorkflowExecutionService = require('../services/workflowExecutionService')
+const UnifiedWorkflowExecutionService = require('../services/unifiedWorkflowExecutionService')
 
 class PlaygroundWebSocketHandler {
   constructor() {
-    this.streamingService = new QubotStreamingExecutionService()
-    this.workflowExecutionService = new WorkflowExecutionService()
+    this.unifiedExecutionService = UnifiedWorkflowExecutionService.getInstance()
     this.activeConnections = new Map()
     this.userConnections = new Map() // Map of userId -> Set of WebSocket connections
   }
@@ -109,8 +107,7 @@ class PlaygroundWebSocketHandler {
       console.log(`Streaming execution WebSocket disconnected: ${executionId}`)
       this.activeConnections.delete(executionId)
 
-      // Stop execution if still running
-      this.streamingService.stopExecution(executionId)
+      // Note: Unified service handles cleanup automatically
     })
 
     ws.on('error', (error) => {
@@ -128,8 +125,44 @@ class PlaygroundWebSocketHandler {
     }))
 
     try {
-      // Start the streaming execution using the streaming service
-      const result = await this.streamingService.executeOptimizationWithStreaming(params, ws)
+      // Create workflow nodes for the execution
+      const nodes = [
+        {
+          id: 'problem-1',
+          type: 'problem',
+          data: {
+            name: params.problemName,
+            username: params.problemUsername || 'default',
+            parameters: params.problemParams || {}
+          }
+        },
+        {
+          id: 'optimizer-1',
+          type: 'optimizer',
+          data: {
+            name: params.optimizerName,
+            username: params.optimizerUsername || 'default',
+            parameters: params.optimizerParams || {}
+          }
+        }
+      ]
+
+      const connections = [
+        {
+          source: 'problem-1',
+          target: 'optimizer-1'
+        }
+      ]
+
+      // Start the execution using the unified service
+      const result = await this.unifiedExecutionService.executeWorkflow(
+        executionId,
+        nodes,
+        connections,
+        { timeout: params.timeout },
+        ws,
+        null // No auth token needed for playground
+      )
 
       // Send final result
       ws.send(JSON.stringify({
@@ -226,6 +259,8 @@ class PlaygroundWebSocketHandler {
     })
 
     // Send initial connection confirmation
+    console.log(`🔧 Sending connection confirmation for execution: ${executionId}`)
+    console.log(`🔧 WebSocket readyState: ${ws.readyState}`)
     ws.send(JSON.stringify({
       type: 'connection_established',
       data: {
@@ -235,9 +270,42 @@ class PlaygroundWebSocketHandler {
       }
     }))
 
+    // Send immediate test logs to verify WebSocket is working
+    console.log(`🔧 Sending test logs to verify WebSocket connection`)
+    ws.send(JSON.stringify({
+      type: 'log',
+      data: {
+        timestamp: new Date().toISOString(),
+        level: 'info',
+        message: '🔧 WebSocket connection test - this message should appear in frontend',
+        source: 'system'
+      }
+    }))
+
+    ws.send(JSON.stringify({
+      type: 'log',
+      data: {
+        timestamp: new Date().toISOString(),
+        level: 'info',
+        message: '📊 Step 1: WebSocket test for dataset step',
+        source: 'system',
+        step: 'dataset'
+      }
+    }))
+
     try {
-      // Start the workflow execution using the workflow service
-      const result = await this.workflowExecutionService.executeWorkflow(
+      console.log(`🔧 Starting workflow execution for: ${executionId}`)
+      console.log(`🔧 Nodes: ${executionData.nodes.length}, Connections: ${executionData.connections.length}`)
+      console.log(`🔧 WebSocket readyState before execution: ${ws.readyState}`)
+
+      // Add a small delay to ensure frontend WebSocket handlers are ready
+      console.log(`🔧 Waiting 1 second for frontend to be ready...`)
+      await new Promise(resolve => setTimeout(resolve, 1000))
+
+      console.log(`🔧 Starting execution after delay...`)
+
+      // Start the workflow execution using the unified service
+      const result = await this.unifiedExecutionService.executeWorkflow(
         executionId,
         executionData.nodes,
         executionData.connections,
@@ -300,7 +368,7 @@ class PlaygroundWebSocketHandler {
 
       case 'stop_execution':
         console.log(`🛑 Stopping workflow execution: ${executionId}`)
-        this.workflowExecutionService.stopExecution(executionId)
+        // Note: Unified service handles execution lifecycle automatically
         break
 
       default:

@@ -21,7 +21,8 @@ import {
   Layers,
   Target,
   Brain,
-  Workflow
+  Workflow,
+  Database
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -101,28 +102,31 @@ const Hero = () => {
       href: "/qubots"
     },
     {
-      icon: Play,
-      title: "Interactive playground",
-      description: "Test and experiment with optimization algorithms",
-      href: "/qubots-playground"
+      icon: Zap,
+      title: "AutoSolve",
+      description: "AI-powered optimization recommendations from your data files",
+      href: "/autosolve",
+      badge: "BETA"
     },
     {
       icon: Workflow,
-      title: "Community experiments",
-      description: "Explore optimization experiments shared by the community",
-      href: "/optimization-workflows"
+      title: "Decision model builder",
+      description: "Build decision models with drag-and-drop visual interface",
+      href: "/workflow-automation",
+      badge: "BETA"
     },
     {
-      icon: BarChart3,
-      title: "Benchmarks",
-      description: "Compare algorithm performance across standardized test cases",
-      href: "/benchmark"
+      icon: Target,
+      title: "Optimization challenges",
+      description: "Discover and participate in community optimization challenges",
+      href: "/optimization-challenges",
+      badge: "BETA"
     },
     {
-      icon: Trophy,
-      title: "Public leaderboards",
-      description: "Compete and showcase your optimization solutions",
-      href: "/leaderboard"
+      icon: Database,
+      title: "Public decision models",
+      description: "Browse and explore decision models shared by the community",
+      href: "/public-experiments"
     },
     {
       icon: Code,
@@ -260,7 +264,7 @@ const Hero = () => {
               }}
               onClick={() => window.location.href = "/qubots"}
             >
-              Explore qubots
+              Explore optimization repositories
             </Button>
             <Button
               variant="outline"
@@ -269,9 +273,9 @@ const Hero = () => {
               style={{
                 fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
               }}
-              onClick={() => window.location.href = "/optimization-workflows"}
+              onClick={() => window.location.href = "/public-experiments"}
             >
-              Browse optimization experiments
+              Browse decision models
             </Button>
           </motion.div>
         </motion.div>
@@ -320,7 +324,13 @@ const Hero = () => {
                 >
                   <CardHeader className="pb-4">
                     <div className="flex items-center gap-3 mb-2">
+                      
                       <CardTitle className="text-xl font-semibold">{feature.title}</CardTitle>
+                      {feature.badge && (
+                        <Badge variant="secondary" className="text-xs px-1.5 py-0.5">
+                          {feature.badge}
+                        </Badge>
+                      )}
                     </div>
                   </CardHeader>
                   <CardContent className="pt-0">

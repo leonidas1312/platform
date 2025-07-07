@@ -216,31 +216,16 @@ const SettingsPage = () => {
                         value="account"
                         className="justify-start px-4 py-2 data-[state=active]:bg-muted rounded-none"
                       >
-                        <User className="h-4 w-4 mr-2" />
                         Account Settings
                       </TabsTrigger>
                       <TabsTrigger
                         value="developer"
                         className="justify-start px-4 py-2 data-[state=active]:bg-muted rounded-none"
                       >
-                        <Code className="h-4 w-4 mr-2" />
                         Developer
                       </TabsTrigger>
 
-                      <TabsTrigger
-                        value="workflows"
-                        className="justify-start px-4 py-2 data-[state=active]:bg-muted rounded-none"
-                      >
-                        <Package className="h-4 w-4 mr-2" />
-                        Personal Workflows
-                      </TabsTrigger>
-                      <TabsTrigger
-                        value="benchmarks"
-                        className="justify-start px-4 py-2 data-[state=active]:bg-muted rounded-none"
-                      >
-                        <Target className="h-4 w-4 mr-2" />
-                        Personal Benchmarks
-                      </TabsTrigger>
+                      
                     </TabsList>
                   </Tabs>
                 </CardContent>
@@ -261,9 +246,7 @@ const SettingsPage = () => {
                       <form onSubmit={handleChangePassword} className="space-y-6">
                         <div className="space-y-4">
                           <div className="flex items-center gap-2">
-                            <div className="p-2 rounded-lg bg-primary/10">
-                              <Shield className="h-5 w-5 text-primary" />
-                            </div>
+                            
                             <h3 className="text-lg font-medium">Change Password</h3>
                           </div>
                           <p className="text-sm text-muted-foreground">

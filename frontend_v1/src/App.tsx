@@ -13,21 +13,22 @@ import RepoPage from "./pages/RepoPage";
 import { ThemeProvider } from "./components/ThemeContext";
 import SettingsPage from "./pages/SettingsPage";
 import ExperimentalPreviewPage from "./pages/ExperimentalPreview";
-import BenchmarkPage from "./pages/Benchmark";
-import QubotPlayground from "./pages/QubotPlayground";
+
+
 import AutoSolvePage from "./pages/AutoSolvePage";
 import WorkflowAutomationPage from "./pages/WorkflowAutomationPage";
 import OptimizationWorkflows from "./pages/OptimizationWorkflows";
 import WorkflowDetail from "./pages/WorkflowDetail";
 import WaitlistAdmin from "./pages/WaitlistAdmin";
 import PricingPage from "./pages/PricingPage";
-import Leaderboard from "./pages/Leaderboard";
+import OptimizationChallenges from "./pages/OptimizationChallenges";
 
 import CommunityPostsPage from "./pages/CommunityPostsPage";
 import BlogsPage from "./pages/BlogsPage";
 import SubmissionDetails from "./pages/SubmissionDetails";
 import NotificationsPage from "./pages/NotificationsPage";
 import DatasetsPage from "./pages/DatasetsPage";
+import PublicExperimentsPage from "./pages/PublicExperimentsPage";
 import ProtectedRoute from "./components/ProtectedRoute";
 import AdminProtectedRoute from "./components/AdminProtectedRoute";
 
@@ -46,12 +47,8 @@ const App = () => (
               <Route path="/auth" element={<AuthPage />} />
               <Route path="/qubots" element={<PublicReposPage />} />
               <Route path="/experimental-preview" element={<ExperimentalPreviewPage />} />
-              <Route path="/benchmark" element={
-                <ProtectedRoute>
-                  <BenchmarkPage />
-                </ProtectedRoute>
-              } />
-              <Route path="/leaderboard" element={<Leaderboard />} />
+
+              <Route path="/optimization-challenges" element={<OptimizationChallenges />} />
               <Route path="/community/posts" element={<CommunityPostsPage />} />
               <Route path="/community/blogs" element={<BlogsPage />} />
               <Route path="/autosolve" element={
@@ -69,11 +66,8 @@ const App = () => (
                   <DatasetsPage />
                 </ProtectedRoute>
               } />
-              <Route path="/qubots-playground" element={
-                <ProtectedRoute>
-                  <QubotPlayground />
-                </ProtectedRoute>
-              } />
+              <Route path="/public-experiments" element={<PublicExperimentsPage />} />
+
               <Route path="/optimization-workflows" element={
                 <ProtectedRoute>
                   <OptimizationWorkflows />

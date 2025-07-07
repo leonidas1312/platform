@@ -266,7 +266,11 @@ class LeaderboardService {
       referenceValue,
       timeLimitSeconds,
       memoryLimitMb,
-      createdBy
+      createdBy,
+      datasetInfo,
+      workflowMetadata,
+      challengeType = 'benchmark',
+      tags = []
     } = problemData
 
     const [problem] = await knex("standardized_problems")
@@ -279,13 +283,111 @@ class LeaderboardService {
         evaluation_config: JSON.stringify(evaluationConfig),
         reference_solution: referenceSolution,
         reference_value: referenceValue,
-        time_limit_seconds: timeLimitSeconds,
-        memory_limit_mb: memoryLimitMb,
-        created_by: createdBy
+        time_limit_seconds: timeLimitSeconds || 300,
+        memory_limit_mb: memoryLimitMb || 1024,
+        created_by: createdBy,
+        dataset_info: datasetInfo ? JSON.stringify(datasetInfo) : null,
+        workflow_metadata: workflowMetadata ? JSON.stringify(workflowMetadata) : null,
+        challenge_type: challengeType,
+        created_from_workflow: !!workflowMetadata
       })
       .returning("*")
 
+    // Add tags if provided
+    if (tags.length > 0) {
+      const tagInserts = tags.map(tag => ({
+        problem_id: problem.id,
+        tag: tag.toLowerCase().trim()
+      }))
+      await knex("challenge_tags").insert(tagInserts)
+    }
+
     return problem
+  }
+
+  /**
+   * Get standardized problems with enhanced metadata for challenges
+   */
+  static async getStandardizedProblemsWithMetadata(options = {}) {
+    const {
+      problemType,
+      difficultyLevel,
+      challengeType,
+      createdFromWorkflow,
+      isActive = true,
+      includeStats = true,
+      includeTags = true,
+      limit = 50,
+      offset = 0
+    } = options
+
+    let query = knex("standardized_problems as sp")
+      .select([
+        "sp.*",
+        knex.raw("COALESCE(sp.dataset_info::text, '{}')::jsonb as dataset_info"),
+        knex.raw("COALESCE(sp.workflow_metadata::text, '{}')::jsonb as workflow_metadata")
+      ])
+
+    if (problemType) {
+      query = query.where("sp.problem_type", problemType)
+    }
+
+    if (difficultyLevel) {
+      query = query.where("sp.difficulty_level", difficultyLevel)
+    }
+
+    if (challengeType) {
+      query = query.where("sp.challenge_type", challengeType)
+    }
+
+    if (createdFromWorkflow !== undefined) {
+      query = query.where("sp.created_from_workflow", createdFromWorkflow)
+    }
+
+    if (isActive !== undefined) {
+      query = query.where("sp.is_active", isActive)
+    }
+
+    // Add submission statistics if requested
+    if (includeStats) {
+      query = query
+        .leftJoin("leaderboard_submissions as ls", "sp.id", "ls.problem_id")
+        .select([
+          knex.raw("COUNT(DISTINCT ls.id) as submission_count"),
+          knex.raw("MIN(ls.best_value) as best_value"),
+          knex.raw("MAX(ls.submitted_at) as last_submission_at")
+        ])
+        .groupBy("sp.id")
+    }
+
+    query = query
+      .orderBy("sp.created_at", "desc")
+      .limit(limit)
+      .offset(offset)
+
+    const problems = await query
+
+    // Add tags if requested
+    if (includeTags && problems.length > 0) {
+      const problemIds = problems.map(p => p.id)
+      const tags = await knex("challenge_tags")
+        .whereIn("problem_id", problemIds)
+        .select("problem_id", "tag")
+
+      const tagsByProblem = tags.reduce((acc, tag) => {
+        if (!acc[tag.problem_id]) {
+          acc[tag.problem_id] = []
+        }
+        acc[tag.problem_id].push(tag.tag)
+        return acc
+      }, {})
+
+      problems.forEach(problem => {
+        problem.tags = tagsByProblem[problem.id] || []
+      })
+    }
+
+    return problems
   }
 
   /**

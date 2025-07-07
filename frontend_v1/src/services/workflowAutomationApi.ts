@@ -73,6 +73,45 @@ class WorkflowAutomationApi {
     return this.request<OptimizersResponse>(`/user-optimizers${query}`)
   }
 
+  async getDatasetPreview(datasetId: string): Promise<{
+    success: boolean
+    preview: string
+    total_lines: number
+    format_type: string
+  }> {
+    return this.request<{
+      success: boolean
+      preview: string
+      total_lines: number
+      format_type: string
+    }>(`/datasets/${datasetId}/preview`)
+  }
+
+  async getCommunityModels(models: string[]): Promise<{
+    success: boolean
+    problems: Problem[]
+    optimizers: Optimizer[]
+    total: number
+  }> {
+    const modelsParam = models.join(',')
+    return this.request<{
+      success: boolean
+      problems: Problem[]
+      optimizers: Optimizer[]
+      total: number
+    }>(`/community-models?models=${encodeURIComponent(modelsParam)}`)
+  }
+
+  async getDatasetById(datasetId: string): Promise<{
+    success: boolean
+    dataset: Dataset | null
+  }> {
+    return this.request<{
+      success: boolean
+      dataset: Dataset | null
+    }>(`/dataset/${datasetId}`)
+  }
+
   async getUserContent(): Promise<{
     success: boolean
     datasets: Dataset[]
@@ -119,18 +158,35 @@ class WorkflowAutomationApi {
   // WebSocket connection for real-time execution logs
   connectToWorkflowExecution(executionId: string): WebSocket {
     const wsUrl = API_BASE_URL.replace('http', 'ws') + `/workflow-automation/stream/${executionId}`
+    console.log(`🔌 Attempting to connect to WebSocket: ${wsUrl}`)
+
     const ws = new WebSocket(wsUrl)
 
     ws.onopen = () => {
-      console.log(`🔌 Connected to workflow execution stream: ${executionId}`)
+      console.log(`🔌 ✅ Connected to workflow execution stream: ${executionId}`)
+      console.log(`🔌 WebSocket readyState: ${ws.readyState}`)
     }
 
     ws.onerror = (error) => {
-      console.error('WebSocket error:', error)
+      console.error('🔌 ❌ WebSocket error:', error)
+      console.error('🔌 WebSocket URL:', wsUrl)
+      console.error('🔌 WebSocket readyState:', ws.readyState)
     }
 
     ws.onclose = (event) => {
-      console.log(`🔌 Disconnected from workflow execution stream: ${executionId}`, event.reason)
+      console.log(`🔌 🔒 Disconnected from workflow execution stream: ${executionId}`)
+      console.log(`🔌 Close code: ${event.code}, reason: ${event.reason}`)
+      console.log(`🔌 Was clean: ${event.wasClean}`)
+    }
+
+    ws.onmessage = (event) => {
+      console.log(`🔌 📨 Raw WebSocket message received:`, event.data)
+      try {
+        const data = JSON.parse(event.data)
+        console.log(`🔌 📨 Parsed WebSocket message:`, data)
+      } catch (error) {
+        console.error(`🔌 ❌ Failed to parse WebSocket message:`, error)
+      }
     }
 
     return ws
@@ -287,8 +343,8 @@ class WorkflowAutomationApi {
     })
   }
 
-  async getRepositoryConfig(username: string, repository: string): Promise<{ success: boolean; config: any }> {
-    return this.request<{ success: boolean; config: any }>(`/config/${username}/${repository}`)
+  async getRepositoryConfig(username: string, repository: string): Promise<{ success: boolean; config?: any; message?: string }> {
+    return this.request<{ success: boolean; config?: any; message?: string }>(`/config/${username}/${repository}`)
   }
 }
 

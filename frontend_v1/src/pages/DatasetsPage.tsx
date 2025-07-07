@@ -23,6 +23,11 @@ interface Dataset {
   is_public: boolean
   user_id: string
   created_at: string
+  user?: {
+    username: string
+    avatar_url: string | null
+    full_name: string | null
+  }
 }
 
 

@@ -26,8 +26,8 @@ app = Flask(__name__)
 CORS(app)
 
 # Configuration
-# Use hub.rastion.com by default
-GITEA_URL = os.environ.get('GITEA_URL', 'https://hub.rastion.com')
+# Use rastion.com by default
+GITEA_URL = os.environ.get('GITEA_URL', 'https://rastion.com')
 WORKSPACE_DIR = '/workspace'
 REPOS_DIR = os.path.join(WORKSPACE_DIR, 'repos')
 
@@ -144,97 +144,42 @@ def execute_optimization():
 
         logger.info(f"Executing optimization: {problem_username}/{problem_name} with {optimizer_username}/{optimizer_name}")
 
-        # Prepare repository directories
-        problem_dir = os.path.join(REPOS_DIR, f"{problem_username}_{problem_name}")
-        optimizer_dir = os.path.join(REPOS_DIR, f"{optimizer_username}_{optimizer_name}")
+        # Note: Repository cloning, dependency installation, and configuration validation
+        # are now handled automatically by AutoProblem.from_repo() and AutoOptimizer.from_repo()
 
-        # Clone repositories if they don't exist
-        problem_cloned = False
-        optimizer_cloned = False
-
-        if not os.path.exists(problem_dir):
-            if not clone_repository(problem_username, problem_name, problem_dir):
-                return jsonify({
-                    'success': False,
-                    'error_message': f'Failed to clone problem repository {problem_username}/{problem_name}',
-                    'error_type': 'repository_error'
-                }), 500
-            problem_cloned = True
-
-        if not os.path.exists(optimizer_dir):
-            if not clone_repository(optimizer_username, optimizer_name, optimizer_dir):
-                return jsonify({
-                    'success': False,
-                    'error_message': f'Failed to clone optimizer repository {optimizer_username}/{optimizer_name}',
-                    'error_type': 'repository_error'
-                }), 500
-            optimizer_cloned = True
-
-        # Install requirements for newly cloned repositories
-        if problem_cloned:
-            if not install_repository_requirements(problem_dir):
-                logger.warning(f"Failed to install requirements for problem repository {problem_username}/{problem_name}")
-                # Continue execution - some optimizers might work without all dependencies
-
-        if optimizer_cloned:
-            if not install_repository_requirements(optimizer_dir):
-                logger.warning(f"Failed to install requirements for optimizer repository {optimizer_username}/{optimizer_name}")
-                # Continue execution - some optimizers might work without all dependencies
-
-        # Load configurations
-        problem_config = load_config(problem_dir)
-        optimizer_config = load_config(optimizer_dir)
-
-        if not problem_config:
-            return jsonify({
-                'success': False,
-                'error_message': f'Problem repository {problem_username}/{problem_name} missing config.json',
-                'error_type': 'config_error'
-            }), 500
-
-        if not optimizer_config:
-            return jsonify({
-                'success': False,
-                'error_message': f'Optimizer repository {optimizer_username}/{optimizer_name} missing config.json',
-                'error_type': 'config_error'
-            }), 500
-
-        # Validate types
-        if problem_config.get('type') != 'problem':
-            return jsonify({
-                'success': False,
-                'error_message': f'Repository {problem_username}/{problem_name} is not a qubots problem',
-                'error_type': 'config_error'
-            }), 500
-
-        if optimizer_config.get('type') != 'optimizer':
-            return jsonify({
-                'success': False,
-                'error_message': f'Repository {optimizer_username}/{optimizer_name} is not a qubots optimizer',
-                'error_type': 'config_error'
-            }), 500
-
-        # Execute optimization using qubots
+        # Execute optimization using current qubots API (AutoProblem and AutoOptimizer)
         try:
-            # Add repository directories to Python path
-            sys.path.insert(0, problem_dir)
-            sys.path.insert(0, optimizer_dir)
+            # Import the current qubots API
+            from qubots import AutoProblem, AutoOptimizer
 
-            # Import qubots
-            import qubots
+            # Load problem using AutoProblem.from_repo
+            problem_repo_id = f"{problem_username}/{problem_name}"
+            logger.info(f"Loading problem from repository: {problem_repo_id}")
+
+            problem = AutoProblem.from_repo(
+                repo_id=problem_repo_id,
+                override_params=problem_params
+            )
+            logger.info(f"Problem loaded successfully: {problem_repo_id}")
+
+            # Load optimizer using AutoOptimizer.from_repo
+            optimizer_repo_id = f"{optimizer_username}/{optimizer_name}"
+            logger.info(f"Loading optimizer from repository: {optimizer_repo_id}")
+
+            optimizer = AutoOptimizer.from_repo(
+                repo_id=optimizer_repo_id,
+                override_params=optimizer_params
+            )
+            logger.info(f"Optimizer loaded successfully: {optimizer_repo_id}")
 
             # Execute the optimization
-            result = qubots.execute_playground_optimization(
-                problem_dir=problem_dir,
-                optimizer_dir=optimizer_dir,
-                problem_params=problem_params,
-                optimizer_params=optimizer_params,
-                timeout=timeout
-            )
+            logger.info("Starting optimization execution...")
+            result = optimizer.optimize(problem)
+            logger.info("Optimization completed successfully")
 
             execution_time = time.time() - start_time
 
-            # Format result for API response
+            # Format result for API response (handle both dict and object results)
             api_result = {
                 'success': True,
                 'problem_name': problem_name,
@@ -242,13 +187,15 @@ def execute_optimization():
                 'problem_username': problem_username,
                 'optimizer_username': optimizer_username,
                 'execution_time': execution_time,
+                'runtime_seconds': getattr(result, 'runtime_seconds', execution_time),
                 'timestamp': time.time(),
-                'best_solution': result.get('best_solution'),
-                'best_value': result.get('best_value'),
-                'iterations': result.get('iterations'),
-                'history': result.get('history', []),
-                'metadata': result.get('metadata', {}),
-                'dashboard_data': result.get('dashboard_data')
+                'best_solution': getattr(result, 'best_solution', result.get('best_solution') if isinstance(result, dict) else None),
+                'best_value': getattr(result, 'best_value', result.get('best_value') if isinstance(result, dict) else None),
+                'iterations': getattr(result, 'iterations', result.get('iterations') if isinstance(result, dict) else None),
+                'termination_reason': getattr(result, 'termination_reason', result.get('termination_reason') if isinstance(result, dict) else 'completed'),
+                'history': getattr(result, 'history', result.get('history', []) if isinstance(result, dict) else []),
+                'metadata': getattr(result, 'metadata', result.get('metadata', {}) if isinstance(result, dict) else {}),
+                'dashboard_data': result.get('dashboard_data') if isinstance(result, dict) else None
             }
 
             logger.info(f"Optimization completed successfully in {execution_time:.3f}s")

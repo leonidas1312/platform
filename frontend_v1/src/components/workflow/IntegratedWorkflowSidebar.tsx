@@ -5,11 +5,10 @@ import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
-import { 
-  X, 
-  Play, 
-  Square, 
+import {
+  X,
+  Play,
+  Square,
   RotateCcw,
   CheckCircle,
   AlertTriangle,
@@ -20,13 +19,18 @@ import {
   Zap,
   Database,
   Brain,
-  ChevronDown,
-  ChevronRight,
   Settings,
   Edit3,
   Save,
-  Link
+  Link,
+  ChevronDown,
+  ChevronRight
 } from 'lucide-react'
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger
+} from '@/components/ui/collapsible'
 import { ExecutionState, ExecutionLog, ExecutionStatus, WorkflowNode, WorkflowConnection } from '@/types/workflow-automation'
 import ParameterPanel from './ParameterPanel'
 
@@ -50,6 +54,194 @@ interface IntegratedWorkflowSidebarProps {
   onReset: () => void
   onParameterChange: (nodeId: string, parameters: Record<string, any>) => void
   isExecuting: boolean
+}
+
+// Component for displaying execution steps with expandable logs
+const ExecutionStepsDisplay: React.FC<{ logs: ExecutionLog[], executionState: ExecutionState }> = ({ logs, executionState }) => {
+  const [expandedSteps, setExpandedSteps] = useState<Set<string>>(new Set())
+
+  // Define the execution steps following the qubots modular architecture
+  const executionSteps = [
+    { id: 'dataset', name: '📊 Load Dataset', icon: Database },
+    { id: 'problem', name: '🧩 Load Problem', icon: Brain },
+    { id: 'optimizer', name: '⚙️ Load Optimizer', icon: Settings },
+    { id: 'execution', name: '🚀 Execute Optimization', icon: Zap },
+    { id: 'results', name: '📈 Process Results', icon: CheckCircle }
+  ]
+
+  // Organize logs by execution step based on step property or message content
+  const organizeLogsByStep = (logs: ExecutionLog[]) => {
+    const stepLogs: Record<string, ExecutionLog[]> = {
+      dataset: [],
+      problem: [],
+      optimizer: [],
+      execution: [],
+      results: [],
+      system: [] // For system logs that don't fit into specific steps
+    }
+
+    logs.forEach(log => {
+      // First check if log has explicit step information
+      const logWithStep = log as any // Type assertion to access step property
+      if (logWithStep.step && stepLogs[logWithStep.step]) {
+        stepLogs[logWithStep.step].push(log)
+        return
+      }
+
+      // Fallback to message content analysis
+      const message = log.message.toLowerCase()
+
+      if (message.includes('dataset') || message.includes('loading dataset') || message.includes('step 1')) {
+        stepLogs.dataset.push(log)
+      } else if (message.includes('problem') || message.includes('loading problem') || message.includes('step 2')) {
+        stepLogs.problem.push(log)
+      } else if (message.includes('optimizer') || message.includes('loading optimizer') || message.includes('step 3')) {
+        stepLogs.optimizer.push(log)
+      } else if (message.includes('execution') || message.includes('optimize') || message.includes('step 4') || message.includes('running')) {
+        stepLogs.execution.push(log)
+      } else if (message.includes('result') || message.includes('completed') || message.includes('step 5') || message.includes('best')) {
+        stepLogs.results.push(log)
+      } else {
+        stepLogs.system.push(log)
+      }
+    })
+
+    return stepLogs
+  }
+
+  // Determine step status based on logs and execution state
+  const getStepStatus = (stepId: string, stepLogs: ExecutionLog[]) => {
+    if (stepLogs.length === 0) return 'pending'
+
+    const hasError = stepLogs.some(log => log.level === 'error')
+    if (hasError) return 'error'
+
+    const hasCompletion = stepLogs.some(log =>
+      log.message.toLowerCase().includes('completed') ||
+      log.message.toLowerCase().includes('success') ||
+      log.message.toLowerCase().includes('loaded')
+    )
+    if (hasCompletion) return 'completed'
+
+    return 'running'
+  }
+
+  const toggleStep = (stepId: string) => {
+    const newExpanded = new Set(expandedSteps)
+    if (newExpanded.has(stepId)) {
+      newExpanded.delete(stepId)
+    } else {
+      newExpanded.add(stepId)
+    }
+    setExpandedSteps(newExpanded)
+  }
+
+  const getLogIcon = (level: string) => {
+    switch (level) {
+      case 'error': return <XCircle className="h-3 w-3 text-red-500" />
+      case 'warning': return <AlertTriangle className="h-3 w-3 text-yellow-500" />
+      case 'info': return <Info className="h-3 w-3 text-blue-500" />
+      default: return <Terminal className="h-3 w-3 text-gray-500" />
+    }
+  }
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'completed': return <CheckCircle className="h-4 w-4 text-green-500" />
+      case 'running': return <Clock className="h-4 w-4 text-blue-500 animate-spin" />
+      case 'error': return <XCircle className="h-4 w-4 text-red-500" />
+      default: return <Clock className="h-4 w-4 text-gray-400" />
+    }
+  }
+
+  const organizedLogs = organizeLogsByStep(logs)
+
+  return (
+    <div className="space-y-2">
+      {/* System logs first */}
+      {organizedLogs.system.length > 0 && (
+        <Collapsible>
+          <CollapsibleTrigger
+            className="flex items-center justify-between w-full p-2 rounded bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+            onClick={() => toggleStep('system')}
+          >
+            <div className="flex items-center gap-2">
+              <Terminal className="h-4 w-4 text-gray-500" />
+              <span className="text-sm font-medium">System Logs</span>
+              <Badge variant="outline" className="text-xs">
+                {organizedLogs.system.length}
+              </Badge>
+            </div>
+            {expandedSteps.has('system') ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+          </CollapsibleTrigger>
+          <CollapsibleContent className="space-y-1 mt-2 ml-6">
+            {organizedLogs.system.map((log) => (
+              <div key={log.id} className="flex gap-2 text-xs py-1">
+                <span className="text-muted-foreground font-mono">
+                  {log.timestamp.toLocaleTimeString()}
+                </span>
+                {getLogIcon(log.level)}
+                <div className="flex-1">
+                  <span className="font-medium">{log.message}</span>
+                  {log.source && (
+                    <span className="text-muted-foreground ml-2">({log.source})</span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </CollapsibleContent>
+        </Collapsible>
+      )}
+
+      {/* Execution steps */}
+      {executionSteps.map((step) => {
+        const stepLogs = organizedLogs[step.id] || []
+        const status = getStepStatus(step.id, stepLogs)
+        const IconComponent = step.icon
+
+        return (
+          <Collapsible key={step.id}>
+            <CollapsibleTrigger
+              className="flex items-center justify-between w-full p-2 rounded bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              onClick={() => toggleStep(step.id)}
+            >
+              <div className="flex items-center gap-2">
+                <IconComponent className="h-4 w-4 text-gray-600 dark:text-gray-400" />
+                <span className="text-sm font-medium">{step.name}</span>
+                {getStatusIcon(status)}
+                {stepLogs.length > 0 && (
+                  <Badge variant="outline" className="text-xs">
+                    {stepLogs.length}
+                  </Badge>
+                )}
+              </div>
+              {expandedSteps.has(step.id) ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+            </CollapsibleTrigger>
+            <CollapsibleContent className="space-y-1 mt-2 ml-6">
+              {stepLogs.length === 0 ? (
+                <div className="text-xs text-muted-foreground py-2">No logs for this step yet</div>
+              ) : (
+                stepLogs.map((log) => (
+                  <div key={log.id} className="flex gap-2 text-xs py-1">
+                    <span className="text-muted-foreground font-mono">
+                      {log.timestamp.toLocaleTimeString()}
+                    </span>
+                    {getLogIcon(log.level)}
+                    <div className="flex-1">
+                      <span className="font-medium">{log.message}</span>
+                      {log.source && (
+                        <span className="text-muted-foreground ml-2">({log.source})</span>
+                      )}
+                    </div>
+                  </div>
+                ))
+              )}
+            </CollapsibleContent>
+          </Collapsible>
+        )
+      })}
+    </div>
+  )
 }
 
 const getNodeIcon = (type: string) => {
@@ -142,89 +334,7 @@ const getStepIcon = (status: ExecutionStep['status']) => {
   }
 }
 
-const organizeLogsIntoSteps = (logs: ExecutionLog[]): ExecutionStep[] => {
-  const steps: ExecutionStep[] = []
-  let currentStep: ExecutionStep | null = null
-
-  logs.forEach((log, index) => {
-    // Check if this log indicates a new step
-    const stepIndicators = [
-      'Starting workflow execution',
-      'Creating execution job',
-      'Waiting for optimization',
-      'Optimization job completed',
-      'Optimization completed',
-      'Workflow execution completed'
-    ]
-
-    const isNewStep = stepIndicators.some(indicator =>
-      log.message.includes(indicator) && log.level === 'info'
-    ) || (!currentStep && index === 0)
-
-    if (isNewStep) {
-      // Complete the previous step if it exists
-      if (currentStep && currentStep.status === 'running') {
-        currentStep.status = 'completed'
-        currentStep.endTime = log.timestamp
-      }
-
-      // Create new step
-      const stepName = extractStepName(log.message)
-      const stepStatus = log.level === 'error' ? 'error' : 'running'
-
-      currentStep = {
-        id: `step-${steps.length + 1}`,
-        name: stepName,
-        status: stepStatus,
-        startTime: log.timestamp,
-        logs: [log]
-      }
-      steps.push(currentStep)
-    } else if (currentStep) {
-      // Add log to current step
-      currentStep.logs.push(log)
-
-      // Update step status based on log level and content
-      if (log.level === 'error') {
-        currentStep.status = 'error'
-        currentStep.endTime = log.timestamp
-      } else if (log.message.includes('completed') || log.message.includes('finished') || log.message.includes('successfully')) {
-        currentStep.status = 'completed'
-        currentStep.endTime = log.timestamp
-      }
-    }
-  })
-
-  // Ensure the last step is properly closed
-  if (currentStep && currentStep.status === 'running' && logs.length > 0) {
-    const lastLog = logs[logs.length - 1]
-    if (lastLog.level === 'error') {
-      currentStep.status = 'error'
-      currentStep.endTime = lastLog.timestamp
-    }
-  }
-
-  return steps
-}
-
-const extractStepName = (message: string): string => {
-  // Extract meaningful step names from workflow execution log messages
-  if (message.includes('Starting workflow execution')) return 'Workflow Initialization'
-  if (message.includes('Creating execution job')) return 'Job Creation'
-  if (message.includes('Waiting for optimization')) return 'Optimization Execution'
-  if (message.includes('Optimization job completed')) return 'Job Completion'
-  if (message.includes('Optimization completed')) return 'Results Processing'
-  if (message.includes('Workflow execution completed')) return 'Workflow Completion'
-  if (message.includes('Starting')) return 'Initialization'
-  if (message.includes('Loading')) return 'Loading Resources'
-  if (message.includes('Executing')) return 'Execution'
-  if (message.includes('Processing')) return 'Processing'
-  if (message.includes('Validating')) return 'Validation'
-  if (message.includes('Completing')) return 'Completion'
-
-  // Fallback: use first few words of the message
-  return message.split(' ').slice(0, 3).join(' ')
-}
+// Removed unused step organization function
 
 const IntegratedWorkflowSidebar: React.FC<IntegratedWorkflowSidebarProps> = ({
   isOpen,
@@ -240,42 +350,20 @@ const IntegratedWorkflowSidebar: React.FC<IntegratedWorkflowSidebarProps> = ({
 }) => {
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null)
   const [showParameterPanel, setShowParameterPanel] = useState(false)
-  const [autoScroll, setAutoScroll] = useState(true)
-  const [expandedComponents, setExpandedComponents] = useState<Record<string, boolean>>({})
-  const [expandedSteps, setExpandedSteps] = useState<Record<string, boolean>>({})
-  const [logViewMode, setLogViewMode] = useState<'components' | 'steps'>('steps')
   const scrollAreaRef = useRef<HTMLDivElement>(null)
 
-  // Organize logs into steps
-  const steps = organizeLogsIntoSteps(executionState.logs)
-
-  // Auto-expand the currently running step and collapse completed ones
-  useEffect(() => {
-    const runningStep = steps.find(step => step.status === 'running')
-    const latestStep = steps[steps.length - 1]
-
-    if (runningStep || latestStep) {
-      const targetStep = runningStep || latestStep
-
-      // Collapse all steps first, then expand only the target step
-      const newExpandedSteps: Record<string, boolean> = {}
-      steps.forEach(step => {
-        newExpandedSteps[step.id] = step.id === targetStep.id
-      })
-
-      setExpandedSteps(newExpandedSteps)
-    }
-  }, [steps])
+  // Use raw logs instead of organizing into steps
+  const logs = executionState.logs
 
   // Auto-scroll to bottom when new logs arrive
   useEffect(() => {
-    if (autoScroll && scrollAreaRef.current) {
-      const scrollContainer = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]')
-      if (scrollContainer) {
-        scrollContainer.scrollTop = scrollContainer.scrollHeight
+    if (scrollAreaRef.current) {
+      const scrollElement = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]')
+      if (scrollElement) {
+        scrollElement.scrollTop = scrollElement.scrollHeight
       }
     }
-  }, [executionState.logs, autoScroll])
+  }, [executionState.logs])
 
   const handleNodeClick = (nodeId: string) => {
     if (selectedNodeId === nodeId && showParameterPanel) {
@@ -289,56 +377,11 @@ const IntegratedWorkflowSidebar: React.FC<IntegratedWorkflowSidebarProps> = ({
     }
   }
 
-  const toggleComponentExpansion = (nodeId: string) => {
-    setExpandedComponents(prev => ({
-      ...prev,
-      [nodeId]: !prev[nodeId]
-    }))
-  }
 
-  const toggleStepExpansion = (stepId: string) => {
-    setExpandedSteps(prev => ({ ...prev, [stepId]: !prev[stepId] }))
-  }
 
-  const formatTimestamp = (timestamp: Date) => {
-    return timestamp.toLocaleTimeString('en-US', { 
-      hour12: false, 
-      hour: '2-digit', 
-      minute: '2-digit', 
-      second: '2-digit' 
-    })
-  }
 
-  const formatDuration = (startTime?: Date, endTime?: Date) => {
-    if (!startTime) return '0s'
-    const end = endTime || new Date()
-    const duration = Math.floor((end.getTime() - startTime.getTime()) / 1000)
-    
-    if (duration < 60) return `${duration}s`
-    if (duration < 3600) return `${Math.floor(duration / 60)}m ${duration % 60}s`
-    return `${Math.floor(duration / 3600)}h ${Math.floor((duration % 3600) / 60)}m`
-  }
 
-  // Group nodes by type for better organization
-  const nodesByType = nodes.reduce((acc, node) => {
-    if (!acc[node.type]) acc[node.type] = []
-    acc[node.type].push(node)
-    return acc
-  }, {} as Record<string, WorkflowNode[]>)
 
-  // Group logs by component for better organization during execution
-  const logsByComponent = executionState.logs.reduce((acc, log) => {
-    const componentName = log.source === 'system' ? 'System' : log.source
-    if (!acc[componentName]) acc[componentName] = []
-    acc[componentName].push(log)
-    return acc
-  }, {} as Record<string, ExecutionLog[]>)
-
-  // Get component names from nodes for log grouping
-  const componentNames = nodes.map(node => node.data.name)
-  const hasComponentLogs = Object.keys(logsByComponent).some(key =>
-    key !== 'System' && componentNames.includes(key)
-  )
 
   if (!isOpen) {
     return null
@@ -346,20 +389,53 @@ const IntegratedWorkflowSidebar: React.FC<IntegratedWorkflowSidebarProps> = ({
 
   const selectedNode = selectedNodeId ? nodes.find(n => n.id === selectedNodeId) : null
 
+  // Group nodes by type for organized display
+  const nodesByType = nodes.reduce((acc, node) => {
+    if (!acc[node.type]) {
+      acc[node.type] = []
+    }
+    acc[node.type].push(node)
+    return acc
+  }, {} as Record<string, WorkflowNode[]>)
+
   return (
     <div className="w-96 border-l bg-white dark:bg-slate-900 flex flex-col h-full">
-      {/* Header */}
-      <div className="p-4 border-b">
+      {/* Enhanced Header */}
+      <div className="p-4 border-b bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-950 dark:to-purple-950">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
-            <Zap className="h-4 w-4 text-orange-600" />
-            <h3 className="font-semibold">Workflow</h3>
+            <div className={`
+              p-2 rounded-lg transition-all duration-300
+              ${isExecuting
+                ? 'bg-blue-500 text-white animate-pulse'
+                : executionState.status === 'completed'
+                ? 'bg-green-500 text-white'
+                : executionState.status === 'error'
+                ? 'bg-red-500 text-white'
+                : 'bg-orange-500 text-white'
+              }
+            `}>
+              <Zap className="h-4 w-4" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-gray-900 dark:text-gray-100">Workflow Automation</h3>
+              <p className="text-xs text-muted-foreground">
+                {isExecuting
+                  ? '🔄 Executing qubots workflow...'
+                  : executionState.status === 'completed'
+                  ? '✅ Workflow completed successfully'
+                  : executionState.status === 'error'
+                  ? '❌ Workflow execution failed'
+                  : '⚡ Ready to execute workflow'
+                }
+              </p>
+            </div>
           </div>
-          <Button variant="ghost" size="sm" onClick={onClose}>
+          <Button variant="ghost" size="sm" onClick={onClose} className="hover:bg-white dark:hover:bg-gray-800">
             <X className="h-4 w-4" />
           </Button>
         </div>
-        
+
 
       </div>
 
@@ -367,7 +443,7 @@ const IntegratedWorkflowSidebar: React.FC<IntegratedWorkflowSidebarProps> = ({
       <div className="flex-1 flex flex-col overflow-hidden">
         {showParameterPanel && selectedNode ? (
           /* Parameter Panel */
-          <div className="flex-1 flex flex-col">
+          <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
             <ParameterPanel
               node={selectedNode}
               isOpen={true}
@@ -397,7 +473,7 @@ const IntegratedWorkflowSidebar: React.FC<IntegratedWorkflowSidebarProps> = ({
                   <div className="text-center py-4">
                     <Settings className="h-6 w-6 text-muted-foreground mx-auto mb-2" />
                     <p className="text-xs text-muted-foreground">No components added</p>
-                    <p className="text-xs text-muted-foreground">Drag from the left sidebar</p>
+                    <p className="text-xs text-muted-foreground">Drag components from the left sidebar</p>
                   </div>
                 ) : (
                   <div className="space-y-2">
@@ -438,165 +514,35 @@ const IntegratedWorkflowSidebar: React.FC<IntegratedWorkflowSidebarProps> = ({
                 <div className="flex items-center justify-between mb-2">
                   <h4 className="font-medium text-sm">Execution Logs</h4>
                   <div className="flex items-center gap-2">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setAutoScroll(!autoScroll)}
-                      className={autoScroll ? "text-blue-600" : ""}
-                    >
-                      Auto-scroll
-                    </Button>
                     <Badge variant="outline" className="text-xs">
-                      {logViewMode === 'steps' ? `${steps.length} steps` : `${executionState.logs.length} logs`}
+                      {logs.length} logs
                     </Badge>
                   </div>
-                </div>
-                <div className="flex items-center gap-1">
-                  <Button
-                    variant={logViewMode === 'steps' ? 'default' : 'ghost'}
-                    size="sm"
-                    onClick={() => setLogViewMode('steps')}
-                    className="text-xs h-6"
-                  >
-                    Steps
-                  </Button>
-                  <Button
-                    variant={logViewMode === 'components' ? 'default' : 'ghost'}
-                    size="sm"
-                    onClick={() => setLogViewMode('components')}
-                    className="text-xs h-6"
-                  >
-                    Components
-                  </Button>
                 </div>
               </div>
               
               <ScrollArea ref={scrollAreaRef} className="flex-1">
                 <div className="p-3 space-y-4">
-                  {executionState.logs.length === 0 ? (
+                  {logs.length === 0 ? (
                     <div className="text-center py-8">
                       <Terminal className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-                      <p className="text-sm text-muted-foreground">No logs yet</p>
-                      <p className="text-xs text-muted-foreground">Logs will appear here during execution</p>
-                    </div>
-                  ) : logViewMode === 'steps' ? (
-                    /* Step-based logs view */
-                    steps.map((step) => (
-                      <Collapsible
-                        key={step.id}
-                        open={expandedSteps[step.id] !== false}
-                        onOpenChange={() => toggleStepExpansion(step.id)}
-                      >
-                        <CollapsibleTrigger asChild>
-                          <div className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer border border-gray-200 dark:border-gray-700 mb-2 transition-all">
-                            {expandedSteps[step.id] !== false ? (
-                              <ChevronDown className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                            ) : (
-                              <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                            )}
-                            {getStepIcon(step.status)}
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center justify-between mb-1">
-                                <span className="font-medium text-sm truncate">{step.name}</span>
-                                <div className="flex items-center gap-2 flex-shrink-0">
-                                  {step.startTime && (
-                                    <span className="text-xs text-muted-foreground">
-                                      {formatTimestamp(step.startTime)}
-                                    </span>
-                                  )}
-                                  <Badge
-                                    variant={step.status === 'error' ? 'destructive' :
-                                           step.status === 'completed' ? 'default' :
-                                           step.status === 'running' ? 'secondary' : 'outline'}
-                                    className="text-xs"
-                                  >
-                                    {step.logs.length}
-                                  </Badge>
-                                </div>
-                              </div>
-                              {step.endTime && step.startTime && (
-                                <div className="text-xs text-muted-foreground">
-                                  Duration: {Math.round((step.endTime.getTime() - step.startTime.getTime()) / 1000)}s
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        </CollapsibleTrigger>
-                        <CollapsibleContent className="space-y-2 mt-3 ml-6 border-l-2 border-gray-100 dark:border-gray-800 pl-3">
-                          {step.logs.map((log, logIndex) => (
-                            <div key={log.id} className="flex gap-2 text-xs py-1.5 bg-gray-50 dark:bg-gray-900 rounded-md px-2">
-                              <span className="text-muted-foreground font-mono text-xs">
-                                {formatTimestamp(log.timestamp)}
-                              </span>
-                              {getLogIcon(log.level)}
-                              <div className="flex-1 min-w-0">
-                                <span className="font-medium break-words">{log.message}</span>
-                                {log.source && log.source !== 'system' && (
-                                  <span className="text-muted-foreground ml-2">({log.source})</span>
-                                )}
-                              </div>
-                            </div>
-                          ))}
-                        </CollapsibleContent>
-                      </Collapsible>
-                    ))
-                  ) : hasComponentLogs ? (
-                    /* Component-grouped logs during execution */
-                    Object.entries(logsByComponent).map(([componentName, logs]) => (
-                      <Collapsible
-                        key={componentName}
-                        open={expandedComponents[componentName] !== false}
-                        onOpenChange={(open) => toggleComponentExpansion(componentName)}
-                      >
-                        <CollapsibleTrigger className="flex items-center justify-between w-full p-2 hover:bg-muted rounded-md">
-                          <div className="flex items-center gap-2">
-                            {componentName === 'System' ? (
-                              <Settings className="h-4 w-4 text-gray-600" />
-                            ) : (
-                              getNodeIcon(nodes.find(n => n.data.name === componentName)?.type || 'optimizer')
-                            )}
-                            <span className="font-medium text-sm">{componentName}</span>
-                            <Badge variant="outline" className="text-xs">
-                              {logs.length}
-                            </Badge>
-                          </div>
-                          {expandedComponents[componentName] !== false ? (
-                            <ChevronDown className="h-4 w-4" />
-                          ) : (
-                            <ChevronRight className="h-4 w-4" />
-                          )}
-                        </CollapsibleTrigger>
-                        <CollapsibleContent className="space-y-1 mt-2">
-                          {logs.map((log) => (
-                            <div key={log.id} className="flex gap-2 text-xs pl-6">
-                              <span className="text-muted-foreground font-mono">
-                                {formatTimestamp(log.timestamp)}
-                              </span>
-                              {getLogIcon(log.level)}
-                              <div className="flex-1">
-                                <span className="font-medium">{log.message}</span>
-                              </div>
-                            </div>
-                          ))}
-                        </CollapsibleContent>
-                      </Collapsible>
-                    ))
-                  ) : (
-                    /* Simple log list when no component-specific logs */
-                    executionState.logs.map((log) => (
-                      <div key={log.id} className="flex gap-2 text-xs">
-                        <span className="text-muted-foreground font-mono">
-                          {formatTimestamp(log.timestamp)}
-                        </span>
-                        {getLogIcon(log.level)}
-                        <div className="flex-1">
-                          <span className="font-medium">{log.message}</span>
-                          {log.source && log.source !== 'system' && (
-                            <span className="text-muted-foreground ml-2">({log.source})</span>
-                          )}
+                      <p className="text-sm text-muted-foreground">
+                        {executionState.status === 'running' ? 'Waiting for execution logs...' : 'No execution logs yet'}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {executionState.status === 'running'
+                          ? 'Logs will be retrieved after execution completes'
+                          : 'Logs will appear here during execution'
+                        }
+                      </p>
+                      {executionState.status === 'running' && (
+                        <div className="mt-4">
+                          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mx-auto"></div>
                         </div>
-                      </div>
-                    ))
+                      )}
+                    </div>
+                  ) : (
+                    <ExecutionStepsDisplay logs={logs} executionState={executionState} />
                   )}
                 </div>
               </ScrollArea>
@@ -605,33 +551,86 @@ const IntegratedWorkflowSidebar: React.FC<IntegratedWorkflowSidebarProps> = ({
         )}
       </div>
 
-      {/* Controls */}
-      <div className="p-4 border-t">
+      {/* Enhanced Controls */}
+      <div className="p-4 border-t bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-700">
+
+
+        {/* Control Buttons */}
         <div className="flex gap-2">
           {!isExecuting ? (
-            <Button onClick={onExecute} className="flex-1" disabled={nodes.length === 0}>
+            <Button
+              onClick={onExecute}
+              className="flex-1 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-[1.02]"
+              disabled={nodes.length === 0}
+            >
               <Play className="h-4 w-4 mr-2" />
-              Execute
+              Execute Workflow
             </Button>
           ) : (
-            <Button onClick={onStop} variant="destructive" className="flex-1">
+            <Button
+              onClick={onStop}
+              variant="destructive"
+              className="flex-1 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-[1.02]"
+            >
               <Square className="h-4 w-4 mr-2" />
-              Stop
+              Stop Execution
             </Button>
           )}
-          <Button onClick={onReset} variant="outline" disabled={isExecuting}>
+          <Button
+            onClick={onReset}
+            variant="outline"
+            disabled={isExecuting}
+            className="hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200 transform hover:scale-[1.02]"
+          >
             <RotateCcw className="h-4 w-4 mr-2" />
             Reset
           </Button>
         </div>
-        
-        {executionState.error && (
-          <div className="mt-3 p-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded text-xs">
-            <div className="flex items-center gap-2 text-red-700 dark:text-red-400">
-              <XCircle className="h-3 w-3" />
-              <span className="font-medium">Error</span>
+
+        {/* Workflow Summary */}
+        {nodes.length > 0 && !isExecuting && (
+          <div className="mt-3 p-3 bg-white dark:bg-gray-800 rounded-lg border">
+            <div className="text-xs text-muted-foreground mb-2">Ready to execute:</div>
+            <div className="flex items-center gap-4 text-xs">
+              <div className="flex items-center gap-1">
+                <Database className="h-3 w-3 text-blue-600" />
+                <span>{nodes.filter(n => n.type === 'dataset').length} datasets</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <Brain className="h-3 w-3 text-green-600" />
+                <span>{nodes.filter(n => n.type === 'problem').length} problems</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <Zap className="h-3 w-3 text-orange-600" />
+                <span>{nodes.filter(n => n.type === 'optimizer').length} optimizers</span>
+              </div>
             </div>
-            <p className="mt-1 text-red-600 dark:text-red-300">{executionState.error}</p>
+          </div>
+        )}
+
+        {/* Error Display */}
+        {executionState.error && (
+          <div className="mt-3 p-3 bg-gradient-to-r from-red-50 to-red-100 dark:from-red-950 dark:to-red-900 border-2 border-red-200 dark:border-red-800 rounded-lg shadow-sm">
+            <div className="flex items-center gap-2 text-red-700 dark:text-red-400 mb-2">
+              <XCircle className="h-4 w-4" />
+              <span className="font-semibold">Execution Error</span>
+            </div>
+            <p className="text-sm text-red-600 dark:text-red-300 bg-white dark:bg-red-950 p-2 rounded border">
+              {executionState.error}
+            </p>
+          </div>
+        )}
+
+        {/* Success Display */}
+        {executionState.status === 'completed' && !executionState.error && (
+          <div className="mt-3 p-3 bg-gradient-to-r from-green-50 to-green-100 dark:from-green-950 dark:to-green-900 border-2 border-green-200 dark:border-green-800 rounded-lg shadow-sm">
+            <div className="flex items-center gap-2 text-green-700 dark:text-green-400 mb-2">
+              <CheckCircle className="h-4 w-4" />
+              <span className="font-semibold">Execution Completed</span>
+            </div>
+            <div className="text-sm text-green-600 dark:text-green-300">
+              🎉 All workflow steps completed successfully!
+            </div>
           </div>
         )}
       </div>

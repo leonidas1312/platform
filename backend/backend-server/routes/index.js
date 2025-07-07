@@ -8,12 +8,14 @@ const communityRoutes = require("./community")
 const featureRoutes = require("./features")
 const benchmarkRoutes = require("./benchmarks")
 const leaderboardRoutes = require("./leaderboard")
+const challengesRoutes = require("./challenges")
 const submissionRoutes = require("./submissions")
 const playgroundRoutes = require("./playground")
 const playgroundEnvironmentRoutes = require("./playgroundEnvironments")
 const autosolveRoutes = require("./autosolve")
 const datasetRoutes = require("./datasets")
 const workflowAutomationRoutes = require("./workflowAutomation")
+const publicExperimentsRoutes = require("./publicExperiments")
 
 const notificationRoutes = require("./notifications")
 
@@ -32,12 +34,15 @@ router.use("/community", communityRoutes)
 router.use("/features", featureRoutes)
 router.use("/benchmarks", benchmarkRoutes)
 router.use("/leaderboard", leaderboardRoutes)
+router.use("/challenges", challengesRoutes)
 router.use("/submissions", submissionRoutes)
 router.use("/playground", playgroundRoutes)
 router.use("/playground", playgroundEnvironmentRoutes)
 router.use("/autosolve", autosolveRoutes)
 router.use("/datasets", datasetRoutes)
 router.use("/workflow-automation", workflowAutomationRoutes)
+router.use("/decision-model-builder", workflowAutomationRoutes) // Alias for decision model builder
+router.use("/public-experiments", publicExperimentsRoutes)
 
 router.use("/notifications", notificationRoutes)
 
@@ -1051,6 +1056,7 @@ router.get("/", (req, res) => {
       features: "/api/features",
       benchmarks: "/api/benchmarks",
       leaderboard: "/api/leaderboard",
+      challenges: "/api/challenges",
       playground: "/api/playground",
       autosolve: "/api/autosolve",
       datasets: "/api/datasets",

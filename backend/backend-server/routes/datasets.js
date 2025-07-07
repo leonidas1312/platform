@@ -6,11 +6,16 @@ const crypto = require('crypto')
 const { knex } = require('../config/database')
 const DatasetService = require('../services/datasetService')
 const DatasetValidator = require('../services/datasetValidator')
+const GiteaService = require('../services/giteaService')
+const { restoreSessionFromCookie } = require('../middleware/auth')
 
 // UUID generation function
 const uuidv4 = () => crypto.randomUUID()
 
 const router = express.Router()
+
+// Apply session restoration middleware to all routes
+router.use(restoreSessionFromCookie)
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({
@@ -137,6 +142,70 @@ router.post('/upload', upload.single('dataset'), async (req, res) => {
 })
 
 /**
+ * Helper function to fetch user information for datasets
+ */
+async function enrichDatasetsWithUserInfo(datasets) {
+  const enrichedDatasets = []
+
+  for (const dataset of datasets) {
+    try {
+      // Use the existing public user endpoint logic
+      const adminToken = GiteaService.getAdminToken()
+
+      if (adminToken) {
+        const giteaRes = await GiteaService.getUserByUsername(dataset.user_id, adminToken)
+
+        if (giteaRes.ok) {
+          const userData = await giteaRes.json()
+
+          enrichedDatasets.push({
+            ...dataset,
+            user: {
+              username: userData.login,
+              avatar_url: userData.avatar_url,
+              full_name: userData.full_name
+            }
+          })
+        } else {
+          // Fallback if user not found in Gitea
+          enrichedDatasets.push({
+            ...dataset,
+            user: {
+              username: dataset.user_id,
+              avatar_url: null,
+              full_name: null
+            }
+          })
+        }
+      } else {
+        // Fallback if no admin token
+        enrichedDatasets.push({
+          ...dataset,
+          user: {
+            username: dataset.user_id,
+            avatar_url: null,
+            full_name: null
+          }
+        })
+      }
+    } catch (error) {
+      console.error(`Error fetching user info for dataset ${dataset.id}:`, error)
+      // Fallback on error
+      enrichedDatasets.push({
+        ...dataset,
+        user: {
+          username: dataset.user_id,
+          avatar_url: null,
+          full_name: null
+        }
+      })
+    }
+  }
+
+  return enrichedDatasets
+}
+
+/**
  * GET /api/datasets
  * List user's datasets or public datasets
  */
@@ -169,12 +238,15 @@ router.get('/', async (req, res) => {
     // Parse metadata JSON
     const datasetsWithMetadata = datasets.map(dataset => ({
       ...dataset,
-      metadata: typeof dataset.metadata === 'string' 
-        ? JSON.parse(dataset.metadata) 
+      metadata: typeof dataset.metadata === 'string'
+        ? JSON.parse(dataset.metadata)
         : dataset.metadata
     }))
 
-    res.json({ datasets: datasetsWithMetadata })
+    // Enrich datasets with user information
+    const enrichedDatasets = await enrichDatasetsWithUserInfo(datasetsWithMetadata)
+
+    res.json({ datasets: enrichedDatasets })
 
   } catch (error) {
     console.error('Error fetching datasets:', error)
@@ -220,11 +292,15 @@ router.get('/:id', async (req, res) => {
     }
 
     // Parse metadata
-    dataset.metadata = typeof dataset.metadata === 'string' 
-      ? JSON.parse(dataset.metadata) 
+    dataset.metadata = typeof dataset.metadata === 'string'
+      ? JSON.parse(dataset.metadata)
       : dataset.metadata
 
-    res.json({ dataset })
+    // Enrich with user information
+    const enrichedDatasets = await enrichDatasetsWithUserInfo([dataset])
+    const enrichedDataset = enrichedDatasets[0]
+
+    res.json({ dataset: enrichedDataset })
 
   } catch (error) {
     console.error('Error fetching dataset:', error)
@@ -255,6 +331,26 @@ router.get('/:id/download', async (req, res) => {
       return res.status(403).json({ error: 'Access denied' })
     }
 
+    // Check if file exists on disk
+    try {
+      await fs.access(dataset.file_path, fs.constants.F_OK)
+    } catch (fileError) {
+      console.error(`Dataset file not found on disk: ${dataset.file_path}`, fileError)
+      return res.status(404).json({
+        error: 'Dataset file not found on server. The file may have been moved or deleted.'
+      })
+    }
+
+    // Verify file is readable
+    try {
+      await fs.access(dataset.file_path, fs.constants.R_OK)
+    } catch (readError) {
+      console.error(`Dataset file not readable: ${dataset.file_path}`, readError)
+      return res.status(500).json({
+        error: 'Dataset file cannot be accessed. Please contact support.'
+      })
+    }
+
     // Log download
     if (user_id) {
       await knex('dataset_access_logs').insert({
@@ -266,12 +362,164 @@ router.get('/:id/download', async (req, res) => {
       })
     }
 
-    // Send file
-    res.download(dataset.file_path, dataset.original_filename)
+    // Send file with error handling
+    res.download(dataset.file_path, dataset.original_filename, (err) => {
+      if (err) {
+        console.error('Error sending file:', err)
+        if (!res.headersSent) {
+          res.status(500).json({ error: 'Failed to download dataset file' })
+        }
+      }
+    })
 
   } catch (error) {
     console.error('Error downloading dataset:', error)
     res.status(500).json({ error: 'Failed to download dataset' })
+  }
+})
+
+/**
+ * GET /api/datasets/:id/preview
+ * Get first 5 lines of dataset content for preview
+ */
+router.get('/:id/preview', async (req, res) => {
+  try {
+    const { id } = req.params
+    const user_id = req.session?.user_data?.user?.login || req.headers['x-user-id']
+
+    const dataset = await knex('datasets')
+      .select(['file_path', 'original_filename', 'is_public', 'user_id', 'format_type'])
+      .where('id', id)
+      .first()
+
+    if (!dataset) {
+      return res.status(404).json({ error: 'Dataset not found' })
+    }
+
+    // Check access permissions
+    if (!dataset.is_public && dataset.user_id !== user_id) {
+      return res.status(403).json({ error: 'Access denied' })
+    }
+
+    // Check if file exists on disk
+    try {
+      await fs.access(dataset.file_path, fs.constants.F_OK)
+    } catch (fileError) {
+      console.error(`Dataset file not found on disk: ${dataset.file_path}`, fileError)
+      return res.status(404).json({
+        error: 'Dataset file not found on server. The file may have been moved or deleted.'
+      })
+    }
+
+    // Read first 5 lines of the file
+    try {
+      const fileContent = await fs.readFile(dataset.file_path, 'utf8')
+      const lines = fileContent.split('\n')
+      const previewLines = lines.slice(0, 5)
+
+      // Log preview access
+      if (user_id) {
+        await knex('dataset_access_logs').insert({
+          dataset_id: id,
+          accessed_by_user_id: user_id,
+          access_type: 'preview',
+          user_agent: req.headers['user-agent'],
+          ip_address: req.ip
+        })
+      }
+
+      res.json({
+        success: true,
+        preview: previewLines.join('\n'),
+        total_lines: lines.length,
+        format_type: dataset.format_type
+      })
+
+    } catch (readError) {
+      console.error(`Error reading dataset file: ${dataset.file_path}`, readError)
+      res.status(500).json({
+        error: 'Failed to read dataset file for preview'
+      })
+    }
+
+  } catch (error) {
+    console.error('Error getting dataset preview:', error)
+    res.status(500).json({ error: 'Failed to get dataset preview' })
+  }
+})
+
+/**
+ * GET /api/datasets/:id/health
+ * Check dataset file health and accessibility
+ */
+router.get('/:id/health', async (req, res) => {
+  try {
+    const { id } = req.params
+    const user_id = req.session?.user_data?.user?.login || req.headers['x-user-id']
+
+    const dataset = await knex('datasets')
+      .select(['file_path', 'original_filename', 'is_public', 'user_id', 'file_size'])
+      .where('id', id)
+      .first()
+
+    if (!dataset) {
+      return res.status(404).json({ error: 'Dataset not found' })
+    }
+
+    // Check access permissions
+    if (!dataset.is_public && dataset.user_id !== user_id) {
+      return res.status(403).json({ error: 'Access denied' })
+    }
+
+    const health = {
+      dataset_id: id,
+      file_exists: false,
+      file_readable: false,
+      file_size_matches: false,
+      actual_file_size: null,
+      expected_file_size: dataset.file_size,
+      file_path: dataset.file_path,
+      status: 'unhealthy'
+    }
+
+    // Check if file exists
+    try {
+      await fs.access(dataset.file_path, fs.constants.F_OK)
+      health.file_exists = true
+    } catch (error) {
+      health.error = 'File does not exist on disk'
+      return res.json(health)
+    }
+
+    // Check if file is readable
+    try {
+      await fs.access(dataset.file_path, fs.constants.R_OK)
+      health.file_readable = true
+    } catch (error) {
+      health.error = 'File exists but is not readable'
+      return res.json(health)
+    }
+
+    // Check file size
+    try {
+      const stats = await fs.stat(dataset.file_path)
+      health.actual_file_size = stats.size
+      health.file_size_matches = stats.size === dataset.file_size
+
+      if (health.file_size_matches) {
+        health.status = 'healthy'
+      } else {
+        health.error = 'File size mismatch - file may be corrupted'
+      }
+    } catch (error) {
+      health.error = 'Cannot read file statistics'
+    }
+
+    res.json(health)
+
+  } catch (error) {
+    console.error('Error checking dataset health:', error)
+    res.status(500).json({ error: 'Failed to check dataset health' })
   }
 })
 

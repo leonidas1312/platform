@@ -14,12 +14,28 @@ const router = express.Router()
 // Get all standardized problems
 router.get("/problems", async (req, res) => {
   try {
-    const { problem_type, difficulty_level, is_active } = req.query
-    
-    const problems = await LeaderboardService.getStandardizedProblems({
+    const {
+      problem_type,
+      difficulty_level,
+      challenge_type,
+      created_from_workflow,
+      is_active,
+      include_stats = 'true',
+      include_tags = 'true',
+      limit = 50,
+      offset = 0
+    } = req.query
+
+    const problems = await LeaderboardService.getStandardizedProblemsWithMetadata({
       problemType: problem_type,
       difficultyLevel: difficulty_level,
-      isActive: is_active !== undefined ? is_active === 'true' : true
+      challengeType: challenge_type,
+      createdFromWorkflow: created_from_workflow !== undefined ? created_from_workflow === 'true' : undefined,
+      isActive: is_active !== undefined ? is_active === 'true' : true,
+      includeStats: include_stats === 'true',
+      includeTags: include_tags === 'true',
+      limit: parseInt(limit),
+      offset: parseInt(offset)
     })
 
     res.json({

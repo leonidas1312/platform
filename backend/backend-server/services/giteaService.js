@@ -123,6 +123,17 @@ class GiteaService {
     return response
   }
 
+  static async getRepositoryContents(token, owner, repo, path = "", ref = "main") {
+    const headers = token ? { Authorization: `token ${token}` } : {}
+    const encodedPath = path ? encodeURIComponent(path) : ""
+    const url = path
+      ? `${GITEA_URL}/api/v1/repos/${owner}/${repo}/contents/${encodedPath}?ref=${ref}`
+      : `${GITEA_URL}/api/v1/repos/${owner}/${repo}/contents?ref=${ref}`
+
+    const response = await fetch(url, { headers })
+    return response
+  }
+
   static async searchRepositories(query, limit = 20) {
     const params = new URLSearchParams({
       q: query,

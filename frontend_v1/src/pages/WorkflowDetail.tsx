@@ -71,7 +71,7 @@ const WorkflowDetail = () => {
     }
   }
 
-  const handleOpenInPlayground = () => {
+  const handleOpenAsWorkflow = () => {
     if (!workflow) return
 
     const params = new URLSearchParams({
@@ -84,7 +84,7 @@ const WorkflowDetail = () => {
       optimizer_params: JSON.stringify(workflow.optimizer_params)
     })
 
-    navigate(`/qubots-playground?${params}`)
+    navigate(`/workflow-automation?${params}`)
   }
 
   const formatDate = (dateString: string) => {
@@ -142,11 +142,11 @@ const WorkflowDetail = () => {
           </Button>
 
           <Button
-            onClick={handleOpenInPlayground}
+            onClick={handleOpenAsWorkflow}
             className="flex items-center gap-2"
           >
             <Play className="h-4 w-4" />
-            Open in playground
+            Open as a workflow
           </Button>
         </div>
 

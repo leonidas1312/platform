@@ -1,14 +1,15 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { workflowAutomationApi } from '@/services/workflowAutomationApi'
-import { 
-  Dataset, 
-  Problem, 
+import {
+  Dataset,
+  Problem,
   Optimizer,
   WorkflowState,
   WorkflowNode,
   WorkflowConnection,
   ExecutionState,
+  ExecutionStatus,
   WorkflowExecutionRequest,
   SaveWorkflowRequest,
   UseWorkflowState,
@@ -18,45 +19,178 @@ import {
 import { toast } from '@/components/ui/use-toast'
 
 // Hook for managing user content (datasets, problems, optimizers)
-export function useUserContent() {
+export function useUserContent(additionalModels?: string[], datasetId?: string) {
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['workflow-automation', 'user-content'],
     queryFn: () => workflowAutomationApi.getUserContent(),
     staleTime: 5 * 60 * 1000, // 5 minutes
   })
 
+  // Fetch additional community models if specified
+  const { data: communityData, isLoading: isLoadingCommunity, error: communityError } = useQuery({
+    queryKey: ['workflow-automation', 'community-models', additionalModels],
+    queryFn: async () => {
+      if (!additionalModels || additionalModels.length === 0) {
+        return { success: true, problems: [], optimizers: [], total: 0 }
+      }
+
+      try {
+        const result = await workflowAutomationApi.getCommunityModels(additionalModels)
+        return result
+      } catch (error) {
+        console.error('Error fetching community models:', error)
+        throw error
+      }
+    },
+    enabled: !!additionalModels && additionalModels.length > 0,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  })
+
+  // Helper function to validate UUID format
+  const isValidUUID = (uuid: string) => {
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+    return uuidRegex.test(uuid)
+  }
+
+  // Fetch specific dataset if specified
+  const { data: datasetData, isLoading: isLoadingDataset, error: datasetError } = useQuery({
+    queryKey: ['workflow-automation', 'dataset', datasetId],
+    queryFn: async () => {
+      if (!datasetId) {
+        return { success: true, dataset: null }
+      }
+
+      // Validate UUID format before making request
+      if (!isValidUUID(datasetId)) {
+        console.warn('Invalid dataset ID format:', datasetId)
+        return { success: false, dataset: null, error: 'Invalid dataset ID format' }
+      }
+
+      try {
+        const result = await workflowAutomationApi.getDatasetById(datasetId)
+        return result
+      } catch (error) {
+        console.error('Error fetching dataset:', error)
+        // Return a graceful fallback instead of throwing
+        return { success: false, dataset: null, error: error.message }
+      }
+    },
+    enabled: !!datasetId && isValidUUID(datasetId || ''),
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    retry: false, // Don't retry on 404 errors
+  })
+
+  // Combine user content with community models and specific dataset
+  const allProblems = [
+    ...(data?.problems || []),
+    ...(communityData?.problems || [])
+  ]
+
+  const allOptimizers = [
+    ...(data?.optimizers || []),
+    ...(communityData?.optimizers || [])
+  ]
+
+  const allDatasets = [
+    ...(data?.datasets || []),
+    ...(datasetData?.dataset ? [datasetData.dataset] : [])
+  ]
+
+  // Show toast notification for dataset errors
+  useEffect(() => {
+    if (datasetError && datasetId) {
+      toast({
+        title: "Dataset not found",
+        description: `The dataset with ID ${datasetId} could not be loaded. It may have been deleted or you may not have access to it.`,
+        variant: "destructive"
+      })
+    }
+  }, [datasetError, datasetId])
+
   return {
-    datasets: data?.datasets || [],
-    problems: data?.problems || [],
-    optimizers: data?.optimizers || [],
+    datasets: allDatasets,
+    problems: allProblems,
+    optimizers: allOptimizers,
     totals: data?.totals || { datasets: 0, problems: 0, optimizers: 0 },
-    isLoading,
+    isLoading: isLoading || isLoadingCommunity || isLoadingDataset,
     error,
     refetch,
   }
 }
 
+// Local storage key for workflow state persistence
+const WORKFLOW_STORAGE_KEY = 'rastion_workflow_state'
+
+// Helper functions for local storage persistence
+const saveWorkflowToStorage = (workflow: WorkflowState) => {
+  try {
+    const serializedWorkflow = {
+      nodes: workflow.nodes,
+      connections: workflow.connections,
+      // Don't persist execution state or selection
+    }
+    localStorage.setItem(WORKFLOW_STORAGE_KEY, JSON.stringify(serializedWorkflow))
+  } catch (error) {
+    console.warn('Failed to save workflow to localStorage:', error)
+  }
+}
+
+const loadWorkflowFromStorage = (): Partial<WorkflowState> | null => {
+  try {
+    const stored = localStorage.getItem(WORKFLOW_STORAGE_KEY)
+    if (stored) {
+      return JSON.parse(stored)
+    }
+  } catch (error) {
+    console.warn('Failed to load workflow from localStorage:', error)
+  }
+  return null
+}
+
 // Hook for managing workflow state
 export function useWorkflowState(): UseWorkflowState {
-  const [workflow, setWorkflow] = useState<WorkflowState>({
-    nodes: [],
-    connections: [],
-    selectedNodeId: null,
-    executionState: {
-      status: 'idle',
-      progress: 0,
-      logs: [],
-      metrics: {
-        totalSteps: 0,
-        completedSteps: 0,
-        executionTime: 0
-      }
-    },
-    isDirty: false
+  const [workflow, setWorkflow] = useState<WorkflowState>(() => {
+    // Try to restore from localStorage on initialization
+    const stored = loadWorkflowFromStorage()
+    return {
+      nodes: stored?.nodes || [],
+      connections: stored?.connections || [],
+      selectedNodeId: null,
+      executionState: {
+        status: 'idle' as ExecutionStatus,
+        progress: 0,
+        logs: [],
+        metrics: {
+          totalSteps: 0,
+          completedSteps: 0,
+          executionTime: 0
+        }
+      },
+      isDirty: false
+    }
   })
 
   const updateNodes = useCallback((nodes: WorkflowNode[]) => {
     setWorkflow(prev => ({ ...prev, nodes, isDirty: true }))
+  }, [])
+
+  const updateNodeParameters = useCallback((nodeId: string, parameters: Record<string, any>) => {
+    setWorkflow(prev => {
+      const newWorkflow = {
+        ...prev,
+        nodes: prev.nodes.map(node =>
+          node.id === nodeId
+            ? { ...node, data: { ...node.data, parameters } }
+            : node
+        ),
+        isDirty: true
+      }
+
+      // Persist to localStorage for session recovery
+      saveWorkflowToStorage(newWorkflow)
+
+      return newWorkflow
+    })
   }, [])
 
   const updateConnections = useCallback((connections: WorkflowConnection[]) => {
@@ -67,28 +201,42 @@ export function useWorkflowState(): UseWorkflowState {
     setWorkflow(prev => ({ ...prev, selectedNodeId: nodeId }))
   }, [])
 
-  const addNode = useCallback((node: Omit<WorkflowNode, 'id'>) => {
+  const addNode = useCallback((node: Omit<WorkflowNode, 'id'> | WorkflowNode) => {
     const newNode: WorkflowNode = {
       ...node,
-      id: `${node.type}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+      id: 'id' in node && node.id ? node.id : `${node.type}-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`
     }
-    setWorkflow(prev => ({ 
-      ...prev, 
-      nodes: [...prev.nodes, newNode], 
-      isDirty: true 
-    }))
+    setWorkflow(prev => {
+      const newWorkflow = {
+        ...prev,
+        nodes: [...prev.nodes, newNode],
+        isDirty: true
+      }
+
+      // Persist to localStorage
+      saveWorkflowToStorage(newWorkflow)
+
+      return newWorkflow
+    })
   }, [])
 
   const removeNode = useCallback((nodeId: string) => {
-    setWorkflow(prev => ({
-      ...prev,
-      nodes: prev.nodes.filter(node => node.id !== nodeId),
-      connections: prev.connections.filter(
-        conn => conn.source !== nodeId && conn.target !== nodeId
-      ),
-      selectedNodeId: prev.selectedNodeId === nodeId ? null : prev.selectedNodeId,
-      isDirty: true
-    }))
+    setWorkflow(prev => {
+      const newWorkflow = {
+        ...prev,
+        nodes: prev.nodes.filter(node => node.id !== nodeId),
+        connections: prev.connections.filter(
+          conn => conn.source !== nodeId && conn.target !== nodeId
+        ),
+        selectedNodeId: prev.selectedNodeId === nodeId ? null : prev.selectedNodeId,
+        isDirty: true
+      }
+
+      // Persist to localStorage
+      saveWorkflowToStorage(newWorkflow)
+
+      return newWorkflow
+    })
   }, [])
 
   const addConnection = useCallback((connection: Omit<WorkflowConnection, 'id'>) => {
@@ -112,12 +260,12 @@ export function useWorkflowState(): UseWorkflowState {
   }, [])
 
   const resetWorkflow = useCallback(() => {
-    setWorkflow({
+    const newWorkflow: WorkflowState = {
       nodes: [],
       connections: [],
       selectedNodeId: null,
       executionState: {
-        status: 'idle',
+        status: 'idle' as ExecutionStatus,
         progress: 0,
         logs: [],
         metrics: {
@@ -127,7 +275,16 @@ export function useWorkflowState(): UseWorkflowState {
         }
       },
       isDirty: false
-    })
+    }
+
+    // Clear localStorage when resetting
+    try {
+      localStorage.removeItem(WORKFLOW_STORAGE_KEY)
+    } catch (error) {
+      console.warn('Failed to clear workflow from localStorage:', error)
+    }
+
+    setWorkflow(newWorkflow)
   }, [])
 
   const setExecutionState = useCallback((state: Partial<ExecutionState>) => {
@@ -140,6 +297,7 @@ export function useWorkflowState(): UseWorkflowState {
   return {
     workflow,
     updateNodes,
+    updateNodeParameters,
     updateConnections,
     selectNode,
     addNode,
@@ -229,28 +387,38 @@ export function useWorkflowExecution(
       const ws = workflowAutomationApi.connectToWorkflowExecution(execId)
       setWebSocket(ws)
 
+      // Override the onmessage handler to process messages for the hook
+      const originalOnMessage = ws.onmessage
       ws.onmessage = (event) => {
+        // Call the original handler first (for debugging)
+        if (originalOnMessage) {
+          originalOnMessage.call(ws, event)
+        }
+
         try {
           const data = JSON.parse(event.data)
+          console.log('🎯 Processing WebSocket message in hook:', data)
 
           switch (data.type) {
             case 'log':
               // Handle log messages - pass to callback for execution state update
               if (onLogReceived) {
+                console.log('🎯 Calling onLogReceived with:', data.data)
                 onLogReceived(data.data)
               }
-              console.log('Received log:', data.data)
               break
 
             case 'progress':
               // Handle progress updates
               if (onProgressUpdate) {
+                console.log('🎯 Calling onProgressUpdate with:', data.data)
                 onProgressUpdate(data.data.progress, data.data.step)
               }
               break
 
             case 'result':
               // Handle final result
+              console.log('🎯 Received final result:', data.data)
               setExecutionResult(data.data)
               setIsExecuting(false)
 
@@ -262,6 +430,7 @@ export function useWorkflowExecution(
 
             case 'error':
               // Handle execution error
+              console.log('🎯 Received error:', data.data)
               setIsExecuting(false)
 
               toast({
@@ -272,11 +441,37 @@ export function useWorkflowExecution(
               break
 
             case 'connection_established':
-              console.log('WebSocket connection established:', data.data)
+              console.log('🎯 WebSocket connection established:', data.data)
+              break
+
+            case 'step_log':
+              // Handle step-specific log messages
+              console.log('🎯 Step log:', data.data)
+              if (onLogReceived) {
+                onLogReceived({
+                  timestamp: data.data.timestamp,
+                  level: data.data.level,
+                  message: data.data.message,
+                  step: data.data.step,
+                  source: data.data.source || 'system'
+                })
+              }
+              break
+
+            case 'execution_summary':
+              // Handle execution summary updates
+              console.log('🎯 Execution summary:', data.data)
+              if (onProgressUpdate && data.data.overallProgress !== undefined) {
+                onProgressUpdate(data.data.overallProgress, data.data.currentStep)
+              }
+              break
+
+            default:
+              console.log('🎯 Unknown message type:', data.type)
               break
           }
         } catch (error) {
-          console.error('Error parsing WebSocket message:', error)
+          console.error('🎯 ❌ Error parsing WebSocket message in hook:', error)
         }
       }
 
@@ -325,7 +520,7 @@ export function useWorkflowExecution(
   }, [executeMutation])
 
   const stop = useCallback(async () => {
-    return stopMutation.mutateAsync()
+    await stopMutation.mutateAsync()
   }, [stopMutation])
 
   const getStatus = useCallback(async (execId: string) => {
@@ -338,8 +533,7 @@ export function useWorkflowExecution(
     getStatus,
     isExecuting,
     executionId,
-    executionResult,
-    webSocket
+    executionResult
   }
 }
 
